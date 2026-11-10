@@ -17,6 +17,9 @@ import { GET as dashboard } from "../../app/api/mock/admin/dashboard/route";
 import { POST as staffBook } from "../../app/api/mock/admin/bookings/route";
 import { GET as bookingDetail } from "../../app/api/mock/admin/bookings/[id]/route";
 import { POST as checkIn } from "../../app/api/mock/admin/bookings/[id]/check-in/route";
+import { GET as queueList } from "../../app/api/mock/admin/queue/route";
+import { GET as queueDetail } from "../../app/api/mock/admin/queue/[id]/route";
+import { POST as allocate } from "../../app/api/mock/admin/queue/[id]/allocate/route";
 import { addDays, today } from "../../src/mock/db";
 import { mockIdToken } from "../../src/mock/line";
 
@@ -135,7 +138,7 @@ describe("mock booking API", () => {
     expect(created.status).toBe(201);
     const { booking } = await created.json();
     expect(booking).toMatchObject({ zoneName: "Indoor", party: "5-8", name: "เจ๊ม่อน" });
-    expect(booking.reference).toMatch(/^BL-\d{4}-0005$/);
+    expect(booking.reference).toMatch(/^BL-\d{4}-0007$/);
 
     const retry = await reserve(who, "zone-indoor", "5-8");
     expect(retry.status).toBe(200);
@@ -183,8 +186,8 @@ describe("mock admin dashboard", () => {
   it("summarises tonight from the seed data", async () => {
     const res = await call(dashboard, "/api/mock/admin/dashboard", { cookie: await staffCookie("staff@bookie.test") });
     const data = await res.json();
-    expect(data.metrics).toEqual({ bookings: 4, guests: 35, pendingRequests: 1, checkedIn: 1 });
-    expect(data.bookings.map((b: { name: string }) => b.name)).toEqual(["เจ๊ม่อน", "คุณเมย์", "คุณนัท", "คุณแพรว"]);
+    expect(data.metrics).toEqual({ bookings: 6, guests: 47, pendingRequests: 3, checkedIn: 1 });
+    expect(data.bookings.map((b: { name: string }) => b.name)).toEqual(["เจ๊ม่อน", "คุณเมย์", "คุณนัท", "คุณแพรว", "คุณบาส", "คุณแนน"]);
     expect(data.zones.find((z: { name: string }) => z.name === "Outdoor")).toMatchObject({ booked: 23, seats: 60 });
   });
 
@@ -193,7 +196,7 @@ describe("mock admin dashboard", () => {
     await reserve(who, "zone-indoor", "1-4");
     await call(joinQueue, "/api/mock/queue", { method: "POST", body: customer, cookie: await login("Umock0002", "พี่แมว") });
     const data = await (await call(dashboard, "/api/mock/admin/dashboard", { cookie: await staffCookie() })).json();
-    expect(data.metrics).toMatchObject({ bookings: 5, pendingRequests: 2 });
+    expect(data.metrics).toMatchObject({ bookings: 7, pendingRequests: 4 });
     expect(data.bookings.at(-1)).toMatchObject({ name: "เจ๊ม่อน", channel: "line", status: "confirmed", zoneName: "Indoor" });
   });
 
@@ -220,7 +223,7 @@ describe("mock admin dashboard", () => {
       expect(res.status).toBe(201);
       expect((await res.json()).booking).toMatchObject({ name: "คุณใหม่", channel: "staff", status: "confirmed", zoneName: "Indoor" });
       const data = await (await call(dashboard, "/api/mock/admin/dashboard", { cookie })).json();
-      expect(data.metrics.bookings).toBe(5);
+      expect(data.metrics.bookings).toBe(7);
       expect(data.bookings.at(-1)).toMatchObject({ name: "คุณใหม่", channel: "staff" });
     });
 
@@ -282,7 +285,7 @@ describe("mock booking details and check-in", () => {
     }
     const data = await (await call(dashboard, "/api/mock/admin/dashboard", { cookie })).json();
     expect(data.metrics.checkedIn).toBe(3);
-    expect(data.metrics.pendingRequests).toBe(0);
+    expect(data.metrics.pendingRequests).toBe(2);
   });
 
   it("only allows check-in on the booked night", async () => {
@@ -294,5 +297,77 @@ describe("mock booking details and check-in", () => {
     const res = await doCheckIn(cookie, id);
     expect(res.status).toBe(409);
     expect((await res.json()).error.code).toBe("NOT_SERVICE_DATE");
+  });
+});
+
+
+describe("mock admin booking queue", () => {
+  beforeEach(async () => { await call(resetDb, "/api/mock/reset", { method: "POST", body: { queueStepSeconds: 0 } }); });
+  const staff = async () =>
+    cookieOf(await call(staffLogin, "/api/mock/admin/login", { method: "POST", body: { email: "staff@bookie.test" } }));
+  const list = async (cookie: string, date = "") =>
+    (await call(queueList, `/api/mock/admin/queue${date}`, { cookie })).json();
+  const alloc = (cookie: string | undefined, id: string, body?: object) =>
+    call(allocate, `/api/mock/admin/queue/${id}/allocate`, { method: "POST", cookie, body }, { id });
+
+  it("requires staff", async () => {
+    expect((await call(queueList, "/api/mock/admin/queue")).status).toBe(401);
+    expect((await call(queueList, "/api/mock/admin/queue", { cookie: await login() })).status).toBe(401);
+    expect((await alloc(undefined, "seed-2")).status).toBe(401);
+  });
+
+  it("lists customer requests in queue order with pending count", async () => {
+    const data = await list(await staff());
+    expect(data.pending).toBe(3);
+    expect(data.requests.map((r: { queueNo: number; name: string }) => `#${r.queueNo} ${r.name}`)).toEqual(
+      ["#9 เจ๊ม่อน", "#11 คุณแพรว", "#12 คุณเมย์", "#13 คุณบาส", "#14 คุณแนน"]);
+    expect(data.requests.find((r: { queueNo: number }) => r.queueNo === 12)).toMatchObject({ status: "pending", zoneName: "Indoor", party: "5-8" });
+    expect(Date.parse(data.requests[2].requestedAt)).toBeGreaterThan(Date.parse(data.requests[0].requestedAt));
+    expect((await list(await staff(), "?date=2030-01-01")).requests).toEqual([]);
+  });
+
+  it("numbers new customer requests after the existing ones", async () => {
+    const cookie = await staff();
+    await reserve(await readyCustomer(), "zone-indoor");
+    const data = await list(cookie);
+    expect(data.requests.at(-1)).toMatchObject({ queueNo: 15, name: "เจ๊ม่อน", status: "allocated" });
+    expect(data.pending).toBe(3);
+  });
+
+  it("returns request details and 404 for staff-created or unknown ids", async () => {
+    const cookie = await staff();
+    const res = await call(queueDetail, "/api/mock/admin/queue/seed-5", { cookie }, { id: "seed-5" });
+    expect(await res.json()).toMatchObject({ request: { queueNo: 13, name: "คุณบาส" }, phone: "0856789012" });
+    expect((await call(queueDetail, "/api/mock/admin/queue/seed-3", { cookie }, { id: "seed-3" })).status).toBe(404);
+    expect((await call(queueDetail, "/api/mock/admin/queue/nope", { cookie }, { id: "nope" })).status).toBe(404);
+  });
+
+  it("allocates a pending request once and confirms it in the dashboard", async () => {
+    const cookie = await staff();
+    const res = await alloc(cookie, "seed-2");
+    expect(res.status).toBe(200);
+    expect((await res.json()).request).toMatchObject({ status: "allocated", zoneName: "Indoor" });
+    const again = await alloc(cookie, "seed-2");
+    expect(again.status).toBe(409);
+    expect((await again.json()).error.code).toBe("ALREADY_ALLOCATED");
+    const dash = await (await call(dashboard, "/api/mock/admin/dashboard", { cookie })).json();
+    expect(dash.bookings.find((b: { name: string }) => b.name === "คุณเมย์").status).toBe("confirmed");
+    expect(dash.metrics.pendingRequests).toBe(2);
+    expect(dash.zones.find((z: { name: string }) => z.name === "Indoor").booked).toBe(8);
+  });
+
+  it("pending requests do not hold a table; a full zone blocks allocation until another zone is chosen", async () => {
+    const cookie = await staff();
+    const avail = (zone: string) => call(availability, `/api/mock/availability?date=${today()}`).then((r) => r.json())
+      .then((d) => d.zones.find((z: { id: string }) => z.id === zone));
+    expect(await avail("zone-vip")).toMatchObject({ tablesLeft: 1 }); // pending คุณแนน (VIP) does not count
+    expect((await reserve(await readyCustomer(), "zone-vip")).status).toBe(201); // VIP now full
+    const blocked = await alloc(cookie, "seed-6"); // คุณแนน asked for VIP
+    expect(blocked.status).toBe(409);
+    expect((await blocked.json()).error.code).toBe("ZONE_FULL");
+    const moved = await alloc(cookie, "seed-6", { zoneId: "zone-indoor" });
+    expect(moved.status).toBe(200);
+    expect((await moved.json()).request).toMatchObject({ status: "allocated", zoneName: "Indoor" });
+    expect((await alloc(cookie, "seed-5", { zoneId: "nope" })).status).toBe(422);
   });
 });

@@ -26,3 +26,10 @@ export const formatPhone = (p: string) => p.length === 10 ? `${p.slice(0, 3)} ${
 export const shortThaiDate = (value: string) =>
   new Intl.DateTimeFormat("th-TH-u-ca-gregory", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })
     .format(new Date(`${value}T00:00:00Z`));
+
+export const queueDate = (value: string) =>
+  new Intl.DateTimeFormat("th-TH-u-ca-gregory", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })
+    .format(new Date(`${value}T00:00:00Z`));
+export const clockTime = (iso: string) =>
+  new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "Asia/Bangkok" })
+    .format(new Date(iso));

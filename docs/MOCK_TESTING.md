@@ -55,12 +55,21 @@ channel and reference, status. "เช็กอิน" calls `POST /api/mock/adm
 (`409 ALREADY_CHECKED_IN`) and only on its own night (`409 NOT_SERVICE_DATE`, the button is disabled with a note).
 Both confirmed and "รอจัดสรร" bookings can be checked in, as in the Figma design. `GET /api/mock/admin/bookings/{id}` is staff only.
 
-The other admin pages (bookings list, queue, zones, hours, settings) show a "coming soon" placeholder.
+### Booking queue
+
+`/admin/queue` lists customer requests for a night in queue order (`#12`, send time, customer, party, zone, status) with
+filters ทั้งหมด / รอจัดสรร / จัดสรรแล้ว; the page refreshes every 5 seconds. Customers who book through the LINE flow get the next
+queue number (staff-created bookings skip the queue). "ดูรายละเอียด ›" opens `/admin/queue/<id>` with the request; "จัดสรรโซน"
+(`POST /api/mock/admin/queue/{id}/allocate`) confirms it in the requested zone. If that zone is full (`409 ZONE_FULL`) a zone
+picker appears so staff can allocate to another zone. A pending request ("รอจัดสรร") does **not** hold a table until it is allocated.
+Seed data has three pending requests (#12 คุณเมย์ Indoor, #13 คุณบาส Outdoor, #14 คุณแนน VIP).
+
+The other admin pages (bookings list, zones, hours, settings) show a "coming soon" placeholder.
 
 ## Seed data
 
 - Zones: VIP (2 tables), Indoor (4), Outdoor (4), per night.
-- Tonight has 4 sample bookings (เจ๊ม่อน, คุณเมย์, คุณนัท, คุณแพรว) as in the admin design. VIP has 1 of 2 tables taken, so one more customer booking fills it.
+- Tonight has 6 sample bookings (เจ๊ม่อน, คุณเมย์, คุณนัท, คุณแพรว, คุณบาส, คุณแนน) as in the admin designs; 3 are pending allocation. VIP has 1 of 2 tables taken, so one more customer booking fills it.
 - Bookable window: today through today + 6 days.
 
 ## Test helper

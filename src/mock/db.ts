@@ -14,6 +14,8 @@ export type Booking = {
   id: string; reference: string; requestId: string; customerId: string; name: string; phone: string;
   serviceDate: string; party: string; zoneId: string; zoneName: string; createdAt: string;
   status: BookingStatus; channel: "line" | "staff"; checkedInAt?: string;
+  /** Queue request number and when it was sent (customer requests only). */
+  queueNo?: number; requestedAt?: string;
 };
 export type BookingStatus = "pending" | "confirmed" | "checked_in";
 export type LineUser = { id: string; userId: string; displayName: string; createdAt: string };
@@ -49,11 +51,13 @@ export function seed(opts: { opensInSeconds?: number; queueStepSeconds?: number 
     { id: "zone-outdoor", name: "Outdoor", tables: 4, seats: 60 },
   ];
   const [vip, indoor, outdoor] = zones;
+  const at = (time: string) => new Date(`${day}T${time}+07:00`).toISOString();
   const existing = (seq: number, name: string, phone: string, party: string, zone: Zone,
-    status: BookingStatus, channel: "line" | "staff"): Booking => ({
+    status: BookingStatus, channel: "line" | "staff", queueNo?: number, time = "20:00:00"): Booking => ({
     id: `seed-${seq}`, reference: `BL-${day.slice(0, 4)}-${String(seq).padStart(4, "0")}`, requestId: `seed-req-${seq}`,
     customerId: `seed-customer-${seq}`, name, phone, serviceDate: day, party,
-    zoneId: zone.id, zoneName: zone.name, createdAt: now.toISOString(), status, channel,
+    zoneId: zone.id, zoneName: zone.name, createdAt: at(time), status, channel,
+    ...(queueNo && { queueNo, requestedAt: at(time) }),
   });
   return {
     venue: {
@@ -64,15 +68,17 @@ export function seed(opts: { opensInSeconds?: number; queueStepSeconds?: number 
     zones,
     lineUsers: [],
     queue: [],
-    // Tonight's sample bookings (same as the admin design). VIP has 1 of 2 tables taken,
-    // so one more customer booking fills it.
+    // Tonight's sample bookings (same as the admin designs). Pending requests do not hold a table until
+    // staff allocate them. VIP has 1 of 2 tables taken, so one more customer booking fills it.
     bookings: [
-      existing(1, "เจ๊ม่อน", "0919119911", "12+", outdoor, "confirmed", "line"),
-      existing(2, "คุณเมย์", "0812345678", "5-8", indoor, "pending", "line"),
+      existing(1, "เจ๊ม่อน", "0919119911", "12+", outdoor, "confirmed", "line", 9, "20:00:00"),
+      existing(2, "คุณเมย์", "0812345678", "5-8", indoor, "pending", "line", 12, "20:00:02"),
       existing(3, "คุณนัท", "0893456789", "1-4", vip, "checked_in", "staff"),
-      existing(4, "คุณแพรว", "0824567890", "5-8", outdoor, "confirmed", "line"),
+      existing(4, "คุณแพรว", "0824567890", "5-8", outdoor, "confirmed", "line", 11, "20:00:01"),
+      existing(5, "คุณบาส", "0856789012", "1-4", outdoor, "pending", "line", 13, "20:00:03"),
+      existing(6, "คุณแนน", "0867890123", "5-8", vip, "pending", "line", 14, "20:00:05"),
     ],
-    seq: 4,
+    seq: 6,
   };
 }
 
@@ -86,6 +92,8 @@ async function load(): Promise<Db> {
     const seats: Record<string, number> = { VIP: 24, Indoor: 48, Outdoor: 60 };
     for (const z of db.zones) z.seats ??= seats[z.name] ?? 20;
     for (const b of db.bookings) { b.status ??= "confirmed"; b.channel ??= "line"; }
+    let n = Math.max(0, ...db.bookings.map((b) => b.queueNo ?? 0));
+    for (const b of db.bookings) if (b.channel === "line" && !b.queueNo) { b.queueNo = ++n; b.requestedAt ??= b.createdAt; }
     return db;
   } catch {
     return seed();
@@ -121,7 +129,7 @@ export function queueState(db: Db, entry: QueueEntry, now = Date.now()) {
 
 export function zoneAvailability(db: Db, date: string) {
   return db.zones.map((zone) => {
-    const left = zone.tables - db.bookings.filter((b) => b.serviceDate === date && b.zoneId === zone.id).length;
+    const left = zone.tables - db.bookings.filter((b) => b.serviceDate === date && b.zoneId === zone.id && b.status !== "pending").length;
     return { id: zone.id, name: zone.name, tablesLeft: Math.max(0, left), available: left > 0 };
   });
 }

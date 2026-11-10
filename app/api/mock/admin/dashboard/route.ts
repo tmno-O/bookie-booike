@@ -28,7 +28,7 @@ export const GET = route<Record<string, string>>(async (request) => {
         ({ id, reference, name, phone, party, zoneName, channel, status })),
       zones: db.zones.map((z) => ({
         id: z.id, name: z.name, seats: z.seats,
-        booked: night.filter((b) => b.zoneId === z.id).reduce((sum, b) => sum + PARTY_SIZE[b.party], 0),
+        booked: night.filter((b) => b.zoneId === z.id && b.status !== "pending").reduce((sum, b) => sum + PARTY_SIZE[b.party], 0),
       })),
     };
   }));

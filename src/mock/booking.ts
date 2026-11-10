@@ -7,6 +7,11 @@ export function checkSlot(db: Db, serviceDate: string, zoneId: string): Zone {
   if (serviceDate < today() || serviceDate > addDays(today(), db.venue.maxAdvanceDays)) {
     throw new ApiError(422, "DATE_OUT_OF_RANGE", "Date is outside the bookable window");
   }
+  return ensureCapacity(db, serviceDate, zoneId);
+}
+
+/** Known zone with a free table that night (pending requests do not hold tables). */
+export function ensureCapacity(db: Db, serviceDate: string, zoneId: string): Zone {
   const zone = db.zones.find((z) => z.id === zoneId);
   if (!zone) throw new ApiError(422, "ZONE_NOT_FOUND", "Zone not found");
   if (!zoneAvailability(db, serviceDate).find((z) => z.id === zone.id)!.available) {
@@ -17,7 +22,7 @@ export function checkSlot(db: Db, serviceDate: string, zoneId: string): Zone {
 
 export function addBooking(db: Db, data: {
   requestId: string; customerId: string; name: string; phone: string; serviceDate: string; party: string;
-  zone: Zone; channel: Booking["channel"];
+  zone: Zone; channel: Booking["channel"]; requestedAt?: string;
 }): Booking {
   db.seq += 1;
   const booking: Booking = {
@@ -25,6 +30,10 @@ export function addBooking(db: Db, data: {
     requestId: data.requestId, customerId: data.customerId, name: data.name, phone: data.phone,
     serviceDate: data.serviceDate, party: data.party, zoneId: data.zone.id, zoneName: data.zone.name,
     createdAt: new Date().toISOString(), status: "confirmed", channel: data.channel,
+    ...(data.channel === "line" && {
+      queueNo: Math.max(0, ...db.bookings.map((b) => b.queueNo ?? 0)) + 1,
+      requestedAt: data.requestedAt ?? new Date().toISOString(),
+    }),
   };
   db.bookings.push(booking);
   return booking;
