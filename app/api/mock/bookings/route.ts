@@ -44,7 +44,7 @@ export const POST = route<Record<string, string>>(async (request) => {
       id: randomUUID(), reference: `BL-${input.serviceDate.slice(0, 4)}-${String(db.seq).padStart(4, "0")}`,
       requestId: entry.id, customerId: entry.customerId, name: entry.name, phone: entry.phone,
       serviceDate: input.serviceDate, party: input.party, zoneId: zone.id, zoneName: zone.name,
-      createdAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(), status: "confirmed", channel: "line",
     };
     db.bookings.push(made);
     entry.bookingId = made.id;

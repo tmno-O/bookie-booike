@@ -1,0 +1,77 @@
+.root { position: fixed; inset: 0; display: flex; background: #faf9f6; color: #25211f; overflow: hidden; }
+.sidebar { flex: none; display: flex; flex-direction: column; width: 236px; box-sizing: border-box; padding: 26px 11px 20px; border-right: 1px solid #e8e5e1; background: #fff; }
+.brand { margin: 0 12px; font-size: 21px; font-weight: 700; }
+.tagline { margin: 4px 12px 0; font-size: 13px; color: #77716c; }
+.rule { height: 1px; margin: 24px 8px; background: #e8e5e1; border: 0; }
+.venueLabel { margin: 0 12px; font-size: 12px; font-weight: 500; color: #77716c; }
+.venue { margin: 6px 12px 0; font-size: 16px; font-weight: 600; }
+.nav { display: flex; flex-direction: column; gap: 8px; margin-top: 28px; }
+.navLink { display: block; height: 40px; line-height: 40px; padding: 0 15px; border-radius: 8px; font-size: 14px; font-weight: 500; color: #77716c; text-decoration: none; }
+.navLink:hover { background: #f7f6f4; }
+.navActive, .navActive:hover { background: #fff1e8; color: #b94e29; font-weight: 600; }
+.me { margin-top: auto; }
+.meName { margin: 0 12px; font-size: 14px; font-weight: 500; }
+.meRole { margin: 6px 12px 0; font-size: 12px; color: #77716c; }
+.logout { margin: 10px 12px 0; padding: 0; border: 0; background: none; font: inherit; font-size: 12px; color: #b94e29; text-decoration: underline; cursor: pointer; }
+.main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.topbar { flex: none; display: flex; align-items: center; justify-content: space-between; height: 72px; padding: 0 35px; border-bottom: 1px solid #e8e5e1; background: #fff; }
+.topTitle { font-size: 15px; font-weight: 600; }
+.topNote { font-size: 13px; color: #77716c; }
+.content { flex: 1; overflow-y: auto; padding: 30px 36px 48px; }
+.pageHead { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.h1 { margin: 0; font-size: 26px; font-weight: 600; }
+.sub { margin: 10px 0 0; font-size: 14px; color: #77716c; }
+.actions { display: flex; align-items: center; gap: 12px; padding-top: 8px; }
+.dateField { position: relative; display: flex; align-items: center; height: 32px; padding: 0 11px; border: 1px solid #e8e5e1; border-radius: 7px; background: #fff; font-size: 13px; font-weight: 500; }
+.dateField:focus-within { outline: 2px solid #b94e29; outline-offset: 1px; }
+.dateInput { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.primary { display: inline-grid; place-items: center; height: 40px; padding: 0 16px; border-radius: 8px; background: #b94e29; color: #fff; font-size: 14px; font-weight: 600; text-decoration: none; }
+.primary:focus-visible, .navLink:focus-visible, .chip:focus-visible, .search:focus-visible, .rowLink:focus-visible, .more:focus-visible { outline: 2px solid #b94e29; outline-offset: 2px; }
+.divider { height: 1px; margin: 28px 0; border: 0; background: #e8e5e1; }
+.metrics { display: grid; grid-template-columns: repeat(4, 1fr); }
+.metric { padding: 0 26px; border-left: 1px solid #e8e5e1; }
+.metric:first-child { padding-left: 0; border-left: 0; }
+.metricLabel { margin: 0; font-size: 13px; color: #77716c; }
+.metricValue { display: flex; align-items: baseline; gap: 12px; margin: 10px 0 0; font-size: 26px; font-weight: 600; }
+.unit { font-size: 12px; font-weight: 400; color: #77716c; }
+.h2 { margin: 0; font-size: 18px; font-weight: 600; }
+.toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 24px 0 16px; }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip { height: 32px; padding: 0 15px; border: 1px solid #e8e5e1; border-radius: 7px; background: #fff; font: inherit; font-size: 13px; font-weight: 500; color: #25211f; cursor: pointer; }
+.chipOn { border-color: #b94e29; background: #fff1e8; color: #b94e29; }
+.search { width: 273px; max-width: 100%; box-sizing: border-box; height: 32px; padding: 0 11px; border: 1px solid #e8e5e1; border-radius: 7px; background: #fff; font: inherit; font-size: 13px; color: #25211f; }
+.tableWrap { overflow-x: auto; border: 1px solid #e8e5e1; border-radius: 10px; background: #fff; }
+.table { width: 100%; min-width: 760px; border-collapse: collapse; }
+.table th { height: 43px; padding: 0 19px; background: #f7f6f4; font-size: 12px; font-weight: 500; text-align: left; color: #77716c; }
+.table td { height: 67px; padding: 0 19px; border-top: 1px solid #e8e5e1; font-size: 14px; }
+.cname { font-weight: 500; }
+.cphone { margin-top: 4px; font-size: 12px; color: #77716c; }
+.muted { font-size: 13px; color: #77716c; }
+.rowLink { font-size: 13px; color: #77716c; text-decoration: none; white-space: nowrap; }
+.s { font-size: 13px; font-weight: 500; white-space: nowrap; }
+.sGreen { color: #456a53; }
+.sOrange { color: #b94e29; }
+.empty { padding: 36px 19px; text-align: center; font-size: 14px; color: #77716c; }
+.zonesHead { display: flex; align-items: flex-end; justify-content: space-between; margin-top: 36px; }
+.more { font-size: 13px; font-weight: 500; color: #b94e29; text-decoration: none; }
+.zones { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 18px; margin-top: 18px; }
+.zone { padding: 14px 15px 16px; border: 1px solid #e8e5e1; border-radius: 9px; background: #fff; }
+.zoneName { margin: 0; font-size: 15px; font-weight: 600; }
+.zoneRow { display: flex; align-items: center; justify-content: space-between; margin-top: 20px; font-size: 12px; color: #77716c; }
+.zoneCount { font-size: 14px; font-weight: 500; color: #25211f; }
+.bar { height: 4px; margin-top: 10px; border-radius: 2px; background: #f1eeeb; overflow: hidden; }
+.barFill { height: 100%; background: #b94e29; }
+.error { margin: 16px 0 0; font-size: 14px; color: #b3261e; }
+.placeholder { max-width: 460px; margin: 80px auto 0; text-align: center; }
+@media (max-width: 900px) {
+  .root { flex-direction: column; overflow-y: auto; }
+  .sidebar { width: auto; flex-direction: row; align-items: center; gap: 12px; padding: 12px 16px; border-right: 0; border-bottom: 1px solid #e8e5e1; overflow-x: auto; }
+  .brand { white-space: nowrap; }
+  .tagline, .rule, .venueLabel, .venue, .me, .topbar { display: none; }
+  .nav { flex-direction: row; margin: 0 0 0 8px; }
+  .navLink { white-space: nowrap; }
+  .main { overflow: visible; }
+  .content { overflow: visible; padding: 24px 16px 40px; }
+  .metrics { grid-template-columns: repeat(2, 1fr); row-gap: 24px; }
+  .metric:nth-child(odd) { padding-left: 0; border-left: 0; }
+}

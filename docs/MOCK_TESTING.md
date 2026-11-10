@@ -30,10 +30,22 @@ Queue and booking APIs return `401 UNAUTHENTICATED` without a session. Logging i
 
 Each LINE account only sees its own queue entries and bookings.
 
+## Admin dashboard
+
+Open <http://localhost:3100/admin> (desktop width). It redirects to `/admin/login`, a mock staff sign-in with
+`owner@bookie.test` (เจ้าของร้าน) and `staff@bookie.test` (พนักงาน) — no password. The session cookie is `mock_staff`,
+separate from the customer LINE cookie, so you can be logged in as both in one browser.
+
+`GET /api/mock/admin/dashboard?date=YYYY-MM-DD` (staff only) returns the night's totals, booking list and zone seat usage.
+The page refreshes every 5 seconds, so customer bookings made in another window appear on their own.
+Guest counts are estimated from the party bucket (1–4 → 4, 5–8 → 8, 9–12 → 12, 12+ → 15).
+"รอจัดสรร" counts bookings awaiting zone allocation plus customers still waiting in the queue.
+The other admin pages (bookings, queue, zones, hours, settings) show a "coming soon" placeholder.
+
 ## Seed data
 
 - Zones: VIP (2 tables), Indoor (4), Outdoor (4), per night.
-- VIP already has 1 booking tonight, so one more fills it.
+- Tonight has 4 sample bookings (เจ๊ม่อน, คุณเมย์, คุณนัท, คุณแพรว) as in the admin design. VIP has 1 of 2 tables taken, so one more customer booking fills it.
 - Bookable window: today through today + 6 days.
 
 ## Test helper

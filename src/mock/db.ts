@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 // Mock JSON "database" for local end-to-end testing. Single-process only:
 // writes are serialised with an in-memory lock and saved atomically to one JSON file.
 
-export type Zone = { id: string; name: string; tables: number };
+export type Zone = { id: string; name: string; tables: number; seats: number };
 export type QueueEntry = {
   id: string; customerId: string; name: string; phone: string;
   createdAt: string; startPosition: number; bookingId: string | null;
@@ -13,7 +13,9 @@ export type QueueEntry = {
 export type Booking = {
   id: string; reference: string; requestId: string; customerId: string; name: string; phone: string;
   serviceDate: string; party: string; zoneId: string; zoneName: string; createdAt: string;
+  status: BookingStatus; channel: "line" | "staff";
 };
+export type BookingStatus = "pending" | "confirmed" | "checked_in";
 export type LineUser = { id: string; userId: string; displayName: string; createdAt: string };
 export type Db = {
   venue: { slug: string; name: string; timezone: string; opensAt: string; queueStepSeconds: number; maxAdvanceDays: number };
@@ -25,6 +27,8 @@ export type Db = {
 };
 
 export const PARTIES = ["1-4", "5-8", "9-12", "12+"] as const;
+/** Rough headcount per party bucket, used for dashboard guest totals and zone seat usage. */
+export const PARTY_SIZE: Record<string, number> = { "1-4": 4, "5-8": 8, "9-12": 12, "12+": 15 };
 export const QUEUE_AHEAD = 11; // people already waiting in front of the first customer
 const TZ = "Asia/Bangkok";
 
@@ -40,14 +44,16 @@ export function seed(opts: { opensInSeconds?: number; queueStepSeconds?: number 
   const now = new Date();
   const day = today(now);
   const zones: Zone[] = [
-    { id: "zone-vip", name: "VIP", tables: 2 },
-    { id: "zone-indoor", name: "Indoor", tables: 4 },
-    { id: "zone-outdoor", name: "Outdoor", tables: 4 },
+    { id: "zone-vip", name: "VIP", tables: 2, seats: 24 },
+    { id: "zone-indoor", name: "Indoor", tables: 4, seats: 48 },
+    { id: "zone-outdoor", name: "Outdoor", tables: 4, seats: 60 },
   ];
-  const existing = (n: number, zone: Zone, seq: number): Booking => ({
+  const [vip, indoor, outdoor] = zones;
+  const existing = (seq: number, name: string, phone: string, party: string, zone: Zone,
+    status: BookingStatus, channel: "line" | "staff"): Booking => ({
     id: `seed-${seq}`, reference: `BL-${day.slice(0, 4)}-${String(seq).padStart(4, "0")}`, requestId: `seed-req-${seq}`,
-    customerId: `seed-customer-${seq}`, name: `ลูกค้า ${n}`, phone: "0800000000", serviceDate: day, party: "1-4",
-    zoneId: zone.id, zoneName: zone.name, createdAt: now.toISOString(),
+    customerId: `seed-customer-${seq}`, name, phone, serviceDate: day, party,
+    zoneId: zone.id, zoneName: zone.name, createdAt: now.toISOString(), status, channel,
   });
   return {
     venue: {
@@ -58,9 +64,15 @@ export function seed(opts: { opensInSeconds?: number; queueStepSeconds?: number 
     zones,
     lineUsers: [],
     queue: [],
-    // VIP already has 1 of 2 tables taken tonight, so a second booking fills it
-    bookings: [existing(1, zones[0], 1)],
-    seq: 1,
+    // Tonight's sample bookings (same as the admin design). VIP has 1 of 2 tables taken,
+    // so one more customer booking fills it.
+    bookings: [
+      existing(1, "เจ๊ม่อน", "0919119911", "12+", outdoor, "confirmed", "line"),
+      existing(2, "คุณเมย์", "0812345678", "5-8", indoor, "pending", "line"),
+      existing(3, "คุณนัท", "0893456789", "1-4", vip, "checked_in", "staff"),
+      existing(4, "คุณแพรว", "0824567890", "5-8", outdoor, "confirmed", "line"),
+    ],
+    seq: 4,
   };
 }
 
@@ -71,6 +83,9 @@ async function load(): Promise<Db> {
   try {
     const db = JSON.parse(await readFile(file(), "utf8")) as Db;
     db.lineUsers ??= []; // databases saved before LINE login existed
+    const seats: Record<string, number> = { VIP: 24, Indoor: 48, Outdoor: 60 };
+    for (const z of db.zones) z.seats ??= seats[z.name] ?? 20;
+    for (const b of db.bookings) { b.status ??= "confirmed"; b.channel ??= "line"; }
     return db;
   } catch {
     return seed();

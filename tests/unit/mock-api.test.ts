@@ -12,6 +12,8 @@ import { GET as getBooking } from "../../app/api/mock/bookings/[id]/route";
 import { POST as lineLogin } from "../../app/api/mock/line/login/route";
 import { POST as lineLogout } from "../../app/api/mock/line/logout/route";
 import { GET as me } from "../../app/api/mock/me/route";
+import { POST as staffLogin } from "../../app/api/mock/admin/login/route";
+import { GET as dashboard } from "../../app/api/mock/admin/dashboard/route";
 import { today } from "../../src/mock/db";
 import { mockIdToken } from "../../src/mock/line";
 
@@ -130,7 +132,7 @@ describe("mock booking API", () => {
     expect(created.status).toBe(201);
     const { booking } = await created.json();
     expect(booking).toMatchObject({ zoneName: "Indoor", party: "5-8", name: "เจ๊ม่อน" });
-    expect(booking.reference).toMatch(/^BL-\d{4}-0002$/);
+    expect(booking.reference).toMatch(/^BL-\d{4}-0005$/);
 
     const retry = await reserve(who, "zone-indoor", "5-8");
     expect(retry.status).toBe(200);
@@ -160,5 +162,42 @@ describe("mock booking API", () => {
   it("rejects dates outside the bookable window", async () => {
     const res = await call(availability, "/api/mock/availability?date=2000-01-01");
     expect(res.status).toBe(422);
+  });
+});
+
+describe("mock admin dashboard", () => {
+  beforeEach(async () => { await call(resetDb, "/api/mock/reset", { method: "POST", body: { queueStepSeconds: 0 } }); });
+  const staffCookie = async (email = "owner@bookie.test") =>
+    cookieOf(await call(staffLogin, "/api/mock/admin/login", { method: "POST", body: { email } }));
+
+  it("requires a staff session", async () => {
+    expect((await call(dashboard, "/api/mock/admin/dashboard")).status).toBe(401);
+    expect((await call(dashboard, "/api/mock/admin/dashboard", { cookie: await login() })).status).toBe(401);
+    const bad = await call(staffLogin, "/api/mock/admin/login", { method: "POST", body: { email: "x@y.z" } });
+    expect(bad.status).toBe(401);
+  });
+
+  it("summarises tonight from the seed data", async () => {
+    const res = await call(dashboard, "/api/mock/admin/dashboard", { cookie: await staffCookie("staff@bookie.test") });
+    const data = await res.json();
+    expect(data.metrics).toEqual({ bookings: 4, guests: 35, pendingRequests: 1, checkedIn: 1 });
+    expect(data.bookings.map((b: { name: string }) => b.name)).toEqual(["เจ๊ม่อน", "คุณเมย์", "คุณนัท", "คุณแพรว"]);
+    expect(data.zones.find((z: { name: string }) => z.name === "Outdoor")).toMatchObject({ booked: 23, seats: 60 });
+  });
+
+  it("includes customer bookings and waiting queue requests", async () => {
+    const who = await readyCustomer();
+    await reserve(who, "zone-indoor", "1-4");
+    await call(joinQueue, "/api/mock/queue", { method: "POST", body: customer, cookie: await login("Umock0002", "พี่แมว") });
+    const data = await (await call(dashboard, "/api/mock/admin/dashboard", { cookie: await staffCookie() })).json();
+    expect(data.metrics).toMatchObject({ bookings: 5, pendingRequests: 2 });
+    expect(data.bookings.at(-1)).toMatchObject({ name: "เจ๊ม่อน", channel: "line", status: "confirmed", zoneName: "Indoor" });
+  });
+
+  it("returns an empty night and rejects a bad date", async () => {
+    const cookie = await staffCookie();
+    const empty = await (await call(dashboard, "/api/mock/admin/dashboard?date=2030-01-01", { cookie })).json();
+    expect(empty.metrics.bookings).toBe(0);
+    expect((await call(dashboard, "/api/mock/admin/dashboard?date=tonight", { cookie })).status).toBe(400);
   });
 });
