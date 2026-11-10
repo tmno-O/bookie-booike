@@ -8,6 +8,9 @@ import styles from "./select.module.css";
 const PARTIES = [{ label: "1–4", value: "1-4" }, { label: "5–8", value: "5-8" }, { label: "9–12", value: "9-12" }, { label: "12+", value: "12+" }];
 type Zone = { id: string; name: string; tablesLeft: number; available: boolean; closed?: boolean };
 const MAP_ZONES = ["VIP", "Indoor", "Outdoor"];
+type NightInfo = { zones: Zone[]; open: boolean; opensAt: string };
+const openText = (iso: string) =>
+  new Intl.DateTimeFormat("th-TH-u-ca-gregory", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Bangkok" }).format(new Date(iso));
 type Venue = { today: string; maxAdvanceDays: number };
 
 const addDays = (date: string, days: number) => {
@@ -24,6 +27,7 @@ export default function SelectForm({ slug }: { slug: string }) {
   const [date, setDate] = useState("");
   const [party, setParty] = useState(0);
   const [zones, setZones] = useState<Zone[]>([]);
+  const [night, setNight] = useState<{ open: boolean; opensAt: string }>({ open: true, opensAt: "" });
   const [zoneId, setZoneId] = useState<string>();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -47,13 +51,13 @@ export default function SelectForm({ slug }: { slug: string }) {
     return () => { active = false; };
   }, [requestId, router, slug]);
 
-  const loadZones = (night: string) => api<{ zones: Zone[] }>(`/availability?date=${night}`)
-    .then((r) => { setZones(r.zones); return r.zones; });
+  const loadZones = (day: string) => api<NightInfo>(`/availability?date=${day}`)
+    .then((r) => { setZones(r.zones); setNight({ open: r.open, opensAt: r.opensAt }); return r.zones; });
   useEffect(() => {
     if (!date) return;
     let active = true;
-    api<{ zones: Zone[] }>(`/availability?date=${date}`)
-      .then((r) => active && setZones(r.zones)).catch((e) => active && setError(asFailure(e).message));
+    api<NightInfo>(`/availability?date=${date}`)
+      .then((r) => { if (active) { setZones(r.zones); setNight({ open: r.open, opensAt: r.opensAt }); } }).catch((e) => active && setError(asFailure(e).message));
     return () => { active = false; };
   }, [date]);
 
@@ -68,7 +72,7 @@ export default function SelectForm({ slug }: { slug: string }) {
       router.push(`/book/${slug}/confirmed?b=${booking.id}`);
     } catch (e) {
       const failure = asFailure(e);
-      setError(failure.code === "ZONE_FULL" ? "โซนนี้เต็มแล้ว กรุณาเลือกโซนอื่น" : failure.message);
+      setError(failure.code === "ZONE_FULL" ? "โซนนี้เต็มแล้ว กรุณาเลือกโซนอื่น" : failure.code === "NIGHT_NOT_OPEN" ? "คืนนี้ยังไม่เปิดรับจอง" : failure.message);
       setBusy(false);
       if (failure.code === "ZONE_FULL") { setZoneId(undefined); void loadZones(date); }
     }
@@ -79,7 +83,7 @@ export default function SelectForm({ slug }: { slug: string }) {
     const full = zone ? !zone.available : false;
     const selected = !!zone && zoneId === zone.id;
     return (
-      <button type="button" key={name} aria-pressed={selected} disabled={!zone || full}
+      <button type="button" key={name} aria-pressed={selected} disabled={!zone || full || !night.open}
         className={`${styles.zone} ${className} ${selected ? styles.zoneOn : ""} ${full ? styles.zoneFull : ""}`}
         onClick={() => zone && setZoneId(zone.id)}>
         {name}{full && <span className={styles.full}>{zone?.closed ? "ปิด" : "เต็ม"}</span>}
@@ -122,6 +126,7 @@ export default function SelectForm({ slug }: { slug: string }) {
             {zones.filter((z) => !MAP_ZONES.includes(z.name)).map((z) => zoneButton(z.name))}
           </div>
         )}
+        {!night.open && night.opensAt && <p role="status" className={styles.error} style={{ color: "#b94e29" }}>คืนนี้ยังไม่เปิดรับจอง · เปิดรับจอง {openText(night.opensAt)} น.</p>}
         <p className={styles.hint}>แตะพื้นที่บนผังเพื่อเลือกโซน</p>
         {error && <p role="alert" className={styles.error}>{error}</p>}
       </div>

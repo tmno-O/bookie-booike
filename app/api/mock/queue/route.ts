@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { ApiError } from "@/lib/errors";
 import { body, json, route } from "@/lib/http";
 import { QUEUE_AHEAD, queueState, withDb } from "@/mock/db";
+import { queueOpensAt } from "@/mock/schedule";
 import { assertMockEnabled, requireUser } from "@/mock/session";
 import { customerInput } from "@/mock/validation";
 
@@ -11,7 +12,7 @@ export const POST = route<Record<string, string>>(async (request) => {
   const input = await body(request, customerInput);
   const { entry, state, created } = await withDb((db) => {
     const customer = requireUser(db, request).id;
-    if (Date.now() < Date.parse(db.venue.opensAt)) throw new ApiError(403, "NOT_OPEN", "Booking has not opened yet");
+    if (Date.now() < queueOpensAt(db)) throw new ApiError(403, "NOT_OPEN", "Booking has not opened yet");
     let found = db.queue.find((e) => e.customerId === customer && !e.bookingId);
     const created = !found;
     if (!found) {

@@ -30,3 +30,9 @@ export const zoneInput = z.strictObject({
   status: z.enum(["open", "closed"]),
 });
 export const zonePatch = zoneInput.partial().refine((v) => Object.keys(v).length > 0, "Nothing to update");
+
+const clock = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Time must be HH:MM");
+const dateOnly = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+export const standardHoursInput = z.strictObject({ daysBefore: z.number().int().min(0).max(30), time: clock });
+export const specialDayInput = z.strictObject({ serviceDate: dateOnly, opensOn: dateOnly, time: clock })
+  .refine((d) => d.opensOn <= d.serviceDate, { message: "opensOn must not be after the night", path: ["opensOn"] });

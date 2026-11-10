@@ -100,3 +100,21 @@
 .sMuted { color: #77716c; }
 .linkBtn { padding: 0; border: 0; background: none; font: inherit; font-size: 14px; color: #25211f; cursor: pointer; white-space: nowrap; }
 .linkBtn:focus-visible { outline: 2px solid #b94e29; outline-offset: 2px; }
+
+/* Opening hours page */
+.card { padding: 22px 23px; border: 1px solid #e8e5e1; border-radius: 10px; background: #fff; }
+.cardHead { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.cardTitle { margin: 0; font-size: 18px; font-weight: 600; }
+.cardSub { margin: 7px 0 0; font-size: 14px; color: #77716c; }
+.ruleText { margin: 26px 0 0; font-size: 20px; }
+.editLink { padding: 0; border: 0; background: none; font: inherit; font-size: 14px; font-weight: 600; color: #b94e29; cursor: pointer; }
+.editLink:focus-visible { outline: 2px solid #b94e29; outline-offset: 2px; }
+.sectionHead { display: flex; align-items: center; justify-content: space-between; margin: 40px 0 16px; }
+.specialGrid { display: grid; grid-template-columns: 1fr 1fr 1fr 80px; gap: 6px 16px; align-items: center; }
+.specialGrid + .specialGrid { margin-top: 18px; padding-top: 18px; border-top: 1px solid #e8e5e1; }
+.gridLabel { font-size: 13px; color: #77716c; }
+.gridValue { font-size: 16px; font-weight: 600; }
+.btnOutline { background: #fff; border: 1px solid #e8e5e1; color: #25211f; }
+.readOnly { margin: 16px 0 0; font-size: 13px; color: #77716c; }
+.hintLine { margin: 4px 0 0; font-size: 14px; color: #77716c; }
+@media (max-width: 700px) { .specialGrid { grid-template-columns: 1fr 1fr; } }

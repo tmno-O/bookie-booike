@@ -22,3 +22,10 @@ export function requireStaff(request: Request): MockStaff {
   if (!staff) throw new ApiError(401, "UNAUTHENTICATED", "Staff login required");
   return staff;
 }
+
+/** Owner-only actions (opening schedule, shop settings). Staff get a 403. */
+export function requireOwner(request: Request): MockStaff {
+  const staff = requireStaff(request);
+  if (staff.role !== "owner") throw new ApiError(403, "FORBIDDEN", "Only the shop owner can do this");
+  return staff;
+}

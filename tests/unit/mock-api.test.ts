@@ -1,7 +1,7 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST as resetDb } from "../../app/api/mock/reset/route";
 import { GET as venue } from "../../app/api/mock/venue/route";
 import { POST as joinQueue } from "../../app/api/mock/queue/route";
@@ -22,6 +22,10 @@ import { GET as queueDetail } from "../../app/api/mock/admin/queue/[id]/route";
 import { POST as allocate } from "../../app/api/mock/admin/queue/[id]/allocate/route";
 import { GET as zoneList, POST as zoneCreate } from "../../app/api/mock/admin/zones/route";
 import { PATCH as zoneEdit } from "../../app/api/mock/admin/zones/[id]/route";
+import { GET as hoursGet } from "../../app/api/mock/admin/hours/route";
+import { PUT as hoursStandard } from "../../app/api/mock/admin/hours/standard/route";
+import { POST as specialCreate } from "../../app/api/mock/admin/hours/special/route";
+import { DELETE as specialDelete } from "../../app/api/mock/admin/hours/special/[id]/route";
 import { addDays, today } from "../../src/mock/db";
 import { mockIdToken } from "../../src/mock/line";
 
@@ -462,5 +466,105 @@ describe("mock admin zones", () => {
     expect(dash.bookings.find((b: { name: string }) => b.name === "เจ๊ม่อน")).toMatchObject({ zoneName: "Outdoor" });
     expect((await edit(cookie, "zone-outdoor", { status: "open" })).status).toBe(200);
     expect((await customerZones()).find((z) => z.id === "zone-outdoor")?.available).toBe(true);
+  });
+});
+
+
+describe("mock admin opening hours", () => {
+  // Fixed clock: 2026-11-11 12:00 in Bangkok (05:00 UTC). Only Date is faked so file I/O keeps working.
+  beforeEach(async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-11T05:00:00Z"));
+    await call(resetDb, "/api/mock/reset", { method: "POST", body: { queueStepSeconds: 0 } });
+  });
+  afterEach(() => vi.useRealTimers());
+
+  const as = async (email: string) =>
+    cookieOf(await call(staffLogin, "/api/mock/admin/login", { method: "POST", body: { email } }));
+  const owner = () => as("owner@bookie.test");
+  const staffOnly = () => as("staff@bookie.test");
+  const putStandard = (cookie: string | undefined, body: object) =>
+    call(hoursStandard, "/api/mock/admin/hours/standard", { method: "PUT", cookie, body });
+  const addSpecial = (cookie: string | undefined, body: object) =>
+    call(specialCreate, "/api/mock/admin/hours/special", { method: "POST", cookie, body });
+  const venueNow = async () => (await call(venue, "/api/mock/venue")).json();
+  const nightInfo = async (date: string) =>
+    (await call(availability, `/api/mock/availability?date=${date}`)).json();
+
+  it("shows the default schedule; only the owner can edit", async () => {
+    const asOwner = await (await call(hoursGet, "/api/mock/admin/hours", { cookie: await owner() })).json();
+    expect(asOwner).toMatchObject({ standard: { daysBefore: 1, time: "20:00" }, specials: [], canEdit: true });
+    const asStaff = await (await call(hoursGet, "/api/mock/admin/hours", { cookie: await staffOnly() })).json();
+    expect(asStaff.canEdit).toBe(false);
+    expect((await call(hoursGet, "/api/mock/admin/hours")).status).toBe(401);
+
+    const cookie = await staffOnly();
+    expect((await putStandard(cookie, { daysBefore: 2, time: "19:00" })).status).toBe(403);
+    expect((await addSpecial(cookie, { serviceDate: "2026-12-25", opensOn: "2026-12-24", time: "20:00" })).status).toBe(403);
+    expect((await putStandard(undefined, { daysBefore: 2, time: "19:00" })).status).toBe(401);
+  });
+
+  it("validates and saves the standard hours", async () => {
+    const cookie = await owner();
+    for (const bad of [{ daysBefore: 31, time: "20:00" }, { daysBefore: -1, time: "20:00" }, { daysBefore: 1, time: "25:00" },
+      { daysBefore: 1.5, time: "20:00" }, { daysBefore: 1 }]) {
+      expect((await putStandard(cookie, bad)).status).toBe(400);
+    }
+    expect((await putStandard(cookie, { daysBefore: 3, time: "18:30" })).status).toBe(200);
+    expect((await (await call(hoursGet, "/api/mock/admin/hours", { cookie })).json()).standard).toEqual({ daysBefore: 3, time: "18:30" });
+  });
+
+  it("opens each night at the standard time and blocks customers until then", async () => {
+    // default: night D opens at 20:00 on D-1, so tonight is open but tomorrow opens at 20:00 today
+    expect(await nightInfo("2026-11-11")).toMatchObject({ open: true });
+    expect(await nightInfo("2026-11-12")).toMatchObject({ open: false, opensAt: "2026-11-11T13:00:00.000Z" });
+    const who = await readyCustomer();
+    const bookNight = (date: string) => call(book, "/api/mock/bookings", { method: "POST", cookie: who.cookie,
+      body: { requestId: who.requestId, serviceDate: date, party: "1-4", zoneId: "zone-indoor" } });
+    const early = await bookNight("2026-11-12");
+    expect(early.status).toBe(409);
+    expect((await early.json()).error.code).toBe("NIGHT_NOT_OPEN");
+    vi.setSystemTime(new Date("2026-11-11T13:30:00Z")); // 20:30 Bangkok
+    expect((await nightInfo("2026-11-12")).open).toBe(true);
+    expect((await bookNight("2026-11-12")).status).toBe(201);
+  });
+
+  it("a later opening time delays the queue and shows a countdown", async () => {
+    await putStandard(await owner(), { daysBefore: 0, time: "23:00" }); // tonight opens at 23:00 today
+    const v = await venueNow();
+    expect(v).toMatchObject({ open: false, secondsUntilOpen: 11 * 3600, opensAt: "2026-11-11T16:00:00.000Z" });
+    const res = await call(joinQueue, "/api/mock/queue", { method: "POST", body: customer, cookie: await login() });
+    expect(res.status).toBe(403);
+    vi.setSystemTime(new Date("2026-11-11T16:00:01Z"));
+    expect((await venueNow()).open).toBe(true);
+  });
+
+  it("special days override the standard rule, and can be deleted", async () => {
+    const cookie = await owner();
+    const made = await addSpecial(cookie, { serviceDate: "2026-12-25", opensOn: "2026-12-24", time: "20:00" });
+    expect(made.status).toBe(201);
+    const id = (await made.json()).special.id;
+    await addSpecial(cookie, { serviceDate: "2026-11-11", opensOn: "2026-11-11", time: "18:00" }); // tonight opens at 18:00 today
+    const listed = await (await call(hoursGet, "/api/mock/admin/hours", { cookie })).json();
+    expect(listed.specials.map((s: { serviceDate: string }) => s.serviceDate)).toEqual(["2026-11-11", "2026-12-25"]);
+    expect(listed.specials[0].opensAt).toBe("2026-11-11T11:00:00.000Z");
+    expect(await nightInfo("2026-11-11")).toMatchObject({ open: false });
+    expect((await venueNow()).open).toBe(false); // earliest opening is now 18:00 today
+    vi.setSystemTime(new Date("2026-11-11T11:00:01Z"));
+    expect(await nightInfo("2026-11-11")).toMatchObject({ open: true });
+    expect((await call(specialDelete, `/api/mock/admin/hours/special/${id}`, { method: "DELETE", cookie }, { id })).status).toBe(200);
+    expect((await call(specialDelete, `/api/mock/admin/hours/special/${id}`, { method: "DELETE", cookie }, { id })).status).toBe(404);
+    expect((await call(specialDelete, `/api/mock/admin/hours/special/x`, { method: "DELETE", cookie: await staffOnly() }, { id: "x" })).status).toBe(403);
+  });
+
+  it("validates special days", async () => {
+    const cookie = await owner();
+    expect((await addSpecial(cookie, { serviceDate: "2026-12-25", opensOn: "2026-12-26", time: "20:00" })).status).toBe(400); // opens after the night
+    expect((await addSpecial(cookie, { serviceDate: "2026-12-25", opensOn: "2026-12-24", time: "8pm" })).status).toBe(400);
+    expect((await addSpecial(cookie, { serviceDate: "2026-11-10", opensOn: "2026-11-09", time: "20:00" })).status).toBe(422); // past night
+    expect((await addSpecial(cookie, { serviceDate: "2026-12-25", opensOn: "2026-12-24", time: "20:00" })).status).toBe(201);
+    const dup = await addSpecial(cookie, { serviceDate: "2026-12-25", opensOn: "2026-12-20", time: "10:00" });
+    expect(dup.status).toBe(409);
+    expect((await dup.json()).error.code).toBe("SPECIAL_DAY_EXISTS");
   });
 });

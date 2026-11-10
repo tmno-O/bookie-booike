@@ -74,7 +74,21 @@ Rules: names are unique (`409 ZONE_NAME_TAKEN`); one table seats 12 people, so c
 renaming updates existing bookings; a closed zone keeps its bookings but rejects new customer, staff and allocated bookings
 (`409 ZONE_CLOSED`) and shows "ปิด" to customers. Zones you add appear under the map on the customer select screen.
 
-The other admin pages (bookings list, hours, settings) show a "coming soon" placeholder.
+### Booking open times
+
+`/admin/hours` shows the standard rule ("ทุกคืน · เปิดจองล่วงหน้า 1 วัน · เวลา 20:00 น.") and a list of special days.
+"แก้ไขค่าเริ่มต้น" edits how many days before the night booking opens (0–7) and the time; "+ เพิ่มวันพิเศษ" adds a night with its
+own opening date and time (`opensOn` can't be after the night; one special day per night; "ลบ" removes it). Only the owner
+can edit (`403 FORBIDDEN` for `staff@bookie.test`, who sees the page read-only).
+APIs: `GET /api/mock/admin/hours`, `PUT .../hours/standard`, `POST .../hours/special`, `DELETE .../hours/special/{id}`.
+
+The schedule drives the customer side. Night D opens at the standard time N days before D (Bangkok time), or at the special
+day's date and time. Customers can't book a night before it opens (`409 NIGHT_NOT_OPEN`; the select screen shows "คืนนี้ยังไม่เปิดรับจอง ·
+เปิดรับจอง <time>" and disables the zones). The queue and the countdown on the waiting screen open when the first bookable night
+opens. With the default (1 day before, 20:00) tonight is open and tomorrow opens at 20:00 today. Staff-created bookings ignore the schedule.
+`opensInSeconds` on reset still holds the queue closed for testing the countdown.
+
+The other admin pages (bookings list, settings) show a "coming soon" placeholder.
 
 ## Seed data
 

@@ -36,3 +36,4 @@
 .zoneFull { background: #f1eeeb; color: #95887f; }
 .full { margin-left: 8px; font-size: 12px; font-weight: 400; }
 .error { margin: 12px 0 0; font-size: 14px; color: #b3261e; }
+.zone:disabled:not(.zoneFull) { opacity: 0.55; }

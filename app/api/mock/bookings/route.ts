@@ -2,6 +2,7 @@ import { ApiError } from "@/lib/errors";
 import { body, json, route } from "@/lib/http";
 import { addBooking, checkSlot } from "@/mock/booking";
 import { queueState, withDb } from "@/mock/db";
+import { isNightOpen } from "@/mock/schedule";
 import { assertMockEnabled, requireUser } from "@/mock/session";
 import { bookingInput } from "@/mock/validation";
 
@@ -32,6 +33,7 @@ export const POST = route<Record<string, string>>(async (request) => {
     }
     if (!queueState(db, entry).ready) throw new ApiError(409, "NOT_YOUR_TURN", "Your queue turn has not arrived yet");
     const zone = checkSlot(db, input.serviceDate, input.zoneId);
+    if (!isNightOpen(db, input.serviceDate)) throw new ApiError(409, "NIGHT_NOT_OPEN", "Booking has not opened for this night yet");
     const made = addBooking(db, {
       requestId: entry.id, customerId: entry.customerId, name: entry.name, phone: entry.phone,
       serviceDate: input.serviceDate, party: input.party, zone, channel: "line", requestedAt: entry.createdAt,

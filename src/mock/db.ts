@@ -22,8 +22,16 @@ export type Booking = {
 };
 export type BookingStatus = "pending" | "confirmed" | "checked_in";
 export type LineUser = { id: string; userId: string; displayName: string; createdAt: string };
+export type SpecialDay = { id: string; serviceDate: string; opensOn: string; time: string };
+export type Schedule = { standard: { daysBefore: number; time: string }; specials: SpecialDay[] };
+export const DEFAULT_SCHEDULE: Schedule = { standard: { daysBefore: 1, time: "20:00" }, specials: [] };
 export type Db = {
-  venue: { slug: string; name: string; timezone: string; opensAt: string; queueStepSeconds: number; maxAdvanceDays: number };
+  venue: {
+    slug: string; name: string; timezone: string; queueStepSeconds: number; maxAdvanceDays: number;
+    /** Test hook: customers cannot join the queue before this instant (reset with opensInSeconds). */
+    holdUntil: string;
+    schedule: Schedule;
+  };
   zones: Zone[];
   lineUsers: LineUser[];
   queue: QueueEntry[];
@@ -65,7 +73,8 @@ export function seed(opts: { opensInSeconds?: number; queueStepSeconds?: number 
   return {
     venue: {
       slug: "bookie-demo", name: "Bookie lyon.", timezone: TZ, maxAdvanceDays: 6,
-      opensAt: new Date(now.getTime() + (opts.opensInSeconds ?? 0) * 1000).toISOString(),
+      holdUntil: new Date(now.getTime() + (opts.opensInSeconds ?? 0) * 1000).toISOString(),
+      schedule: structuredClone(DEFAULT_SCHEDULE),
       queueStepSeconds: opts.queueStepSeconds ?? 2,
     },
     zones,
@@ -92,6 +101,9 @@ async function load(): Promise<Db> {
   try {
     const db = JSON.parse(await readFile(file(), "utf8")) as Db;
     db.lineUsers ??= []; // databases saved before LINE login existed
+    const legacy = db.venue as Db["venue"] & { opensAt?: string };
+    legacy.holdUntil ??= legacy.opensAt ?? new Date(0).toISOString();
+    legacy.schedule ??= structuredClone(DEFAULT_SCHEDULE);
     const seats: Record<string, number> = { VIP: 24, Indoor: 48, Outdoor: 60 };
     for (const z of db.zones) { z.seats ??= seats[z.name] ?? 20; z.status ??= "open"; }
     for (const b of db.bookings) { b.status ??= "confirmed"; b.channel ??= "line"; }
