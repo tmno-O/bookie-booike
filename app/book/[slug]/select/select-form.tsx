@@ -11,7 +11,7 @@ const MAP_ZONES = ["VIP", "Indoor", "Outdoor"];
 type NightInfo = { zones: Zone[]; open: boolean; opensAt: string };
 const openText = (iso: string) =>
   new Intl.DateTimeFormat("th-TH-u-ca-gregory", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Bangkok" }).format(new Date(iso));
-type Venue = { today: string; maxAdvanceDays: number };
+type Venue = { today: string; maxAdvanceDays: number; shop?: { name: string; entryPolicy: string } };
 
 const addDays = (date: string, days: number) => {
   const d = new Date(`${date}T00:00:00Z`);
@@ -128,6 +128,7 @@ export default function SelectForm({ slug }: { slug: string }) {
         )}
         {!night.open && night.opensAt && <p role="status" className={styles.error} style={{ color: "#b94e29" }}>คืนนี้ยังไม่เปิดรับจอง · เปิดรับจอง {openText(night.opensAt)} น.</p>}
         <p className={styles.hint}>แตะพื้นที่บนผังเพื่อเลือกโซน</p>
+        {venue?.shop?.entryPolicy && <p className={styles.caption} style={{ marginTop: 16, fontSize: 12 }}>นโยบายการเข้าร้าน: {venue.shop.entryPolicy}</p>}
         {error && <p role="alert" className={styles.error}>{error}</p>}
       </div>
       <div className={styles.footer}>

@@ -26,6 +26,10 @@ import { GET as hoursGet } from "../../app/api/mock/admin/hours/route";
 import { PUT as hoursStandard } from "../../app/api/mock/admin/hours/standard/route";
 import { POST as specialCreate } from "../../app/api/mock/admin/hours/special/route";
 import { DELETE as specialDelete } from "../../app/api/mock/admin/hours/special/[id]/route";
+import { GET as settingsGet, PUT as settingsPut } from "../../app/api/mock/admin/settings/route";
+import { GET as teamGet } from "../../app/api/mock/admin/team/route";
+import { POST as inviteCreate } from "../../app/api/mock/admin/team/invites/route";
+import { DELETE as inviteDelete } from "../../app/api/mock/admin/team/invites/[id]/route";
 import { addDays, today } from "../../src/mock/db";
 import { mockIdToken } from "../../src/mock/line";
 
@@ -566,5 +570,71 @@ describe("mock admin opening hours", () => {
     const dup = await addSpecial(cookie, { serviceDate: "2026-12-25", opensOn: "2026-12-20", time: "10:00" });
     expect(dup.status).toBe(409);
     expect((await dup.json()).error.code).toBe("SPECIAL_DAY_EXISTS");
+  });
+});
+
+
+describe("mock admin shop settings and team", () => {
+  beforeEach(async () => { await call(resetDb, "/api/mock/reset", { method: "POST" }); });
+  const as = async (email: string) =>
+    cookieOf(await call(staffLogin, "/api/mock/admin/login", { method: "POST", body: { email } }));
+  const owner = () => as("owner@bookie.test");
+  const staffOnly = () => as("staff@bookie.test");
+  const save = (cookie: string | undefined, body: object) =>
+    call(settingsPut, "/api/mock/admin/settings", { method: "PUT", cookie, body });
+  const invite = (cookie: string | undefined, body: object) =>
+    call(inviteCreate, "/api/mock/admin/team/invites", { method: "POST", cookie, body });
+  const profile = { name: "ร้านใหม่", phone: "081 234 5678", address: "กรุงเทพ", entryPolicy: "มาก่อนเวลา 15 นาที" };
+
+  it("returns the default profile; only the owner can save it", async () => {
+    const asOwner = await (await call(settingsGet, "/api/mock/admin/settings", { cookie: await owner() })).json();
+    expect(asOwner).toEqual({
+      profile: { name: "ร้านตัวอย่าง", phone: "02 123 4567", address: "เชียงใหม่ ประเทศไทย", entryPolicy: "กรุณามาถึงตามเวลาที่ร้านกำหนด" },
+      canEdit: true,
+    });
+    expect((await (await call(settingsGet, "/api/mock/admin/settings", { cookie: await staffOnly() })).json()).canEdit).toBe(false);
+    expect((await call(settingsGet, "/api/mock/admin/settings")).status).toBe(401);
+    expect((await save(await staffOnly(), profile)).status).toBe(403);
+    expect((await save(undefined, profile)).status).toBe(401);
+  });
+
+  it("saves the profile, validates it and shows it to customers", async () => {
+    const cookie = await owner();
+    expect((await save(cookie, profile)).status).toBe(200);
+    expect((await (await call(settingsGet, "/api/mock/admin/settings", { cookie })).json()).profile).toEqual(profile);
+    expect((await (await call(venue, "/api/mock/venue")).json()).shop).toEqual(profile);
+    for (const bad of [{ ...profile, name: " " }, { ...profile, phone: "abc" }, { ...profile, address: "x".repeat(201) },
+      { ...profile, extra: 1 }, { name: "A" }]) {
+      expect((await save(cookie, bad)).status).toBe(400);
+    }
+    expect((await save(cookie, { ...profile, phone: "", address: "", entryPolicy: "" })).status).toBe(200); // optional fields can be cleared
+  });
+
+  it("lists the team and invitations", async () => {
+    const data = await (await call(teamGet, "/api/mock/admin/team", { cookie: await staffOnly() })).json();
+    expect(data.members.map((m: { email: string; role: string }) => `${m.email}:${m.role}`)).toEqual(
+      ["owner@bookie.test:owner", "staff@bookie.test:staff"]);
+    expect(data).toMatchObject({ invites: [], canEdit: false });
+    expect((await call(teamGet, "/api/mock/admin/team")).status).toBe(401);
+  });
+
+  it("invites staff by email, rejects duplicates and lets the owner cancel", async () => {
+    const cookie = await owner();
+    const made = await invite(cookie, { email: " New.Staff@Example.com ", role: "staff" });
+    expect(made.status).toBe(201);
+    const created = (await made.json()).invite;
+    expect(created).toMatchObject({ email: "new.staff@example.com", role: "staff" });
+    expect((await (await call(teamGet, "/api/mock/admin/team", { cookie })).json()).invites).toHaveLength(1);
+    const dup = await invite(cookie, { email: "new.staff@example.com", role: "staff" });
+    expect((await dup.json()).error.code).toBe("INVITE_EXISTS");
+    expect((await (await invite(cookie, { email: "staff@bookie.test", role: "staff" })).json()).error.code).toBe("ALREADY_MEMBER");
+    for (const bad of [{ email: "nope", role: "staff" }, { email: "a@b.co", role: "owner" }, { email: "a@b.co" }]) {
+      expect((await invite(cookie, bad)).status).toBe(400);
+    }
+    const del = (id: string, c: string) => call(inviteDelete, `/api/mock/admin/team/invites/${id}`, { method: "DELETE", cookie: c }, { id });
+    expect((await del(created.id, await staffOnly())).status).toBe(403);
+    expect((await del(created.id, cookie)).status).toBe(200);
+    expect((await del(created.id, cookie)).status).toBe(404);
+    expect((await invite(await staffOnly(), { email: "x@y.co", role: "staff" })).status).toBe(403);
   });
 });

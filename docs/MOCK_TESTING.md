@@ -88,7 +88,16 @@ day's date and time. Customers can't book a night before it opens (`409 NIGHT_NO
 opens. With the default (1 day before, 20:00) tonight is open and tomorrow opens at 20:00 today. Staff-created bookings ignore the schedule.
 `opensInSeconds` on reset still holds the queue closed for testing the countdown.
 
-The other admin pages (bookings list, settings) show a "coming soon" placeholder.
+### Shop settings and team
+
+`/admin/settings` has the shop info (name, phone, address), the entry policy and a "ทีมและสิทธิ์" card. "บันทึกการเปลี่ยนแปลง"
+saves with `PUT /api/mock/admin/settings` (owner only; `staff@bookie.test` sees read-only fields). The shop name shows in the admin
+sidebar and top bar, and the entry policy is shown to customers on the select screen (`GET /api/mock/venue` returns `shop`).
+"จัดการทีมและสิทธิ์ ›" opens the team dialog (roles, members, pending invitations). The owner can "เชิญพนักงาน" by email
+(`POST /api/mock/admin/team/invites`; duplicate invites and existing members are rejected) and cancel a pending invitation
+(`DELETE .../team/invites/{id}`). Invitations are only recorded, since the mock sends no email and invited people can't sign in.
+
+The only admin page still showing a "coming soon" placeholder is the bookings list (Admin 02).
 
 ## Seed data
 

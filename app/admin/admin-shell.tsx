@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { IBM_Plex_Sans_Thai } from "next/font/google";
 import { adminApi, type Staff } from "./admin-api";
 import styles from "./admin.module.css";
@@ -21,6 +21,14 @@ export const NAV = [
 // Staff layout from Figma "Admin · 01 · ภาพรวมร้านค้า": sidebar, top bar, content area.
 export function AdminShell({ active, staff, children }: { active: string; staff?: Staff; children: ReactNode }) {
   const router = useRouter();
+  const [shopName, setShopName] = useState("ร้านตัวอย่าง");
+  useEffect(() => {
+    let active = true;
+    const load = () => adminApi<{ profile: { name: string } }>("/admin/settings").then((r) => active && setShopName(r.profile.name)).catch(() => undefined);
+    const first = setTimeout(load, 0);
+    window.addEventListener("shop-profile-changed", load);
+    return () => { active = false; clearTimeout(first); window.removeEventListener("shop-profile-changed", load); };
+  }, []);
   async function logout() {
     await adminApi("/admin/logout", { method: "POST" }).catch(() => undefined);
     router.push("/admin/login");
@@ -32,7 +40,7 @@ export function AdminShell({ active, staff, children }: { active: string; staff?
         <p className={styles.tagline}>สำหรับร้านค้า</p>
         <hr className={styles.rule} />
         <p className={styles.venueLabel}>ร้านของฉัน</p>
-        <p className={styles.venue}>ร้านตัวอย่าง</p>
+        <p className={styles.venue}>{shopName}</p>
         <nav className={styles.nav} aria-label="เมนูร้านค้า">
           {NAV.map((item) => (
             <Link key={item.href} href={item.href} aria-current={item.href === active ? "page" : undefined}
@@ -50,7 +58,7 @@ export function AdminShell({ active, staff, children }: { active: string; staff?
       </aside>
       <div className={styles.main}>
         <header className={styles.topbar}>
-          <span className={styles.topTitle}>ร้านตัวอย่าง</span>
+          <span className={styles.topTitle}>{shopName}</span>
           <span className={styles.topNote}>จัดการร้าน</span>
         </header>
         <main className={styles.content}>{children}</main>

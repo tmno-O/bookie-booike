@@ -25,6 +25,11 @@ export type LineUser = { id: string; userId: string; displayName: string; create
 export type SpecialDay = { id: string; serviceDate: string; opensOn: string; time: string };
 export type Schedule = { standard: { daysBefore: number; time: string }; specials: SpecialDay[] };
 export const DEFAULT_SCHEDULE: Schedule = { standard: { daysBefore: 1, time: "20:00" }, specials: [] };
+export type ShopProfile = { name: string; phone: string; address: string; entryPolicy: string };
+export const DEFAULT_PROFILE: ShopProfile = {
+  name: "ร้านตัวอย่าง", phone: "02 123 4567", address: "เชียงใหม่ ประเทศไทย", entryPolicy: "กรุณามาถึงตามเวลาที่ร้านกำหนด",
+};
+export type Invite = { id: string; email: string; role: "staff"; createdAt: string };
 export type Db = {
   venue: {
     slug: string; name: string; timezone: string; queueStepSeconds: number; maxAdvanceDays: number;
@@ -34,6 +39,8 @@ export type Db = {
   };
   zones: Zone[];
   lineUsers: LineUser[];
+  profile: ShopProfile;
+  invites: Invite[];
   queue: QueueEntry[];
   bookings: Booking[];
   seq: number;
@@ -79,6 +86,8 @@ export function seed(opts: { opensInSeconds?: number; queueStepSeconds?: number 
     },
     zones,
     lineUsers: [],
+    profile: { ...DEFAULT_PROFILE },
+    invites: [],
     queue: [],
     // Tonight's sample bookings (same as the admin designs). Pending requests do not hold a table until
     // staff allocate them. VIP (24 seats = 2 tables) has 1 of 2 tables taken, so one more customer booking fills it.
@@ -101,6 +110,8 @@ async function load(): Promise<Db> {
   try {
     const db = JSON.parse(await readFile(file(), "utf8")) as Db;
     db.lineUsers ??= []; // databases saved before LINE login existed
+    db.profile ??= { ...DEFAULT_PROFILE };
+    db.invites ??= [];
     const legacy = db.venue as Db["venue"] & { opensAt?: string };
     legacy.holdUntil ??= legacy.opensAt ?? new Date(0).toISOString();
     legacy.schedule ??= structuredClone(DEFAULT_SCHEDULE);
