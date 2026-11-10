@@ -1,0 +1,13 @@
+{
+  "id": "10000000-0000-4000-8000-000000000001",
+  "slug": "bookie-demo",
+  "name": "Bookie Demo",
+  "description": "ร้านตัวอย่างสำหรับทดลองจองโต๊ะ",
+  "contact": null,
+  "mapUrl": null,
+  "imageUrl": null,
+  "timezone": "Asia/Bangkok",
+  "tableSelectionMode": "customer_picks",
+  "cancelCutoffMinutes": 120,
+  "liffId": "1234567890-BookieDemo"
+}

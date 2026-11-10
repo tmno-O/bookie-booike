@@ -10,7 +10,7 @@ JSON ใช้ camelCase และส่ง `Content-Type: application/json` ส
 - `POST /api/session/line` รับ `{venueSlug,idToken}` จาก LIFF และตั้ง session cookie สำหรับร้าน. `POST /api/session/logout` ยกเลิก session.
 - `POST /api/booking-requests` รับ `venueId,serviceDate,partySize` และ `tableId` ในโหมด `customer_picks` หรือ `zoneId` ในโหมด `auto_assign`. ส่ง `serviceAt` (ISO timestamp) และ `contactPhone` ได้. ต้องส่ง header `Idempotency-Key`. คืน `202 {requestId}` เมื่อ broker รับแล้ว. หากรับเข้าคิวไม่สำเร็จคืน 503 และให้ลองซ้ำด้วย key เดิม. Key เดิมกับ payload ต่างคืน 422.
 - `GET /api/me/booking-requests/{requestId}` คืน `{requestId,status,resultCode,bookingId}`. สถานะสิ้นสุดคือ `confirmed` หรือ `rejected`. `TABLE_UNAVAILABLE` หมายถึงโต๊ะเต็มหรือถูกปิดก่อนตัดสิน.
-- `GET /api/me/bookings` คืน `{bookings}`. `GET /api/me/bookings/{bookingId}` คืน booking. `POST /api/me/bookings/{bookingId}/cancel` ยกเลิกตาม cutoff ของร้าน.
+- `GET /api/me/bookings` คืน `{bookings,nextOffset}`. รองรับ `limit` (ค่าเริ่มต้น 50, สูงสุด 100), `offset` และ `date`. `GET /api/me/bookings/{bookingId}` คืน booking. `POST /api/me/bookings/{bookingId}/cancel` ยกเลิกตาม cutoff ของร้าน.
 
 ## พนักงาน
 
@@ -23,4 +23,4 @@ JSON ใช้ camelCase และส่ง `Content-Type: application/json` ส
 - `GET/PATCH /line-integration`, `GET /booking-link` คืน LIFF URL กับ QR SVG. ค่า secret ไม่ออกจาก API.
 - `GET /customers?q=...` ค้นจากชื่อหรือเลขท้ายเบอร์โทรภายในร้าน.
 - `POST /booking-requests` ใช้ payload แบบลูกค้า โดยส่ง `customerId` แทน `venueId`. `GET /booking-requests/{requestId}` ดูผลภายในร้าน.
-- `GET /bookings`, `GET/PATCH /bookings/{bookingId}`. PATCH รับ `{"status":"cancelled"}`.
+- `GET /bookings` รองรับ pagination และตัวกรอง `date` แบบเดียวกับลูกค้า. `GET/PATCH /bookings/{bookingId}`. PATCH รับ `{"status":"cancelled"}`.

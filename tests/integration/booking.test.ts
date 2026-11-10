@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { createClient } from "@supabase/supabase-js";
 import { ChangeMessageVisibilityCommand, CreateQueueCommand, DeleteQueueCommand } from "@aws-sdk/client-sqs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -90,6 +92,23 @@ async function redeliver(receiptHandle: string) {
   await sqs().send(new ChangeMessageVisibilityCommand({
     QueueUrl: queueUrl, ReceiptHandle: receiptHandle, VisibilityTimeout: 0,
   }));
+}
+
+async function crashDuringProcessing(requestId: string, phase: "before_commit" | "after_commit") {
+  const child = `
+    const sql = require("postgres")(process.env.DATABASE_URL);
+    const [requestId, phase] = process.argv.slice(1);
+    async function run() {
+      await sql.begin(async (tx) => {
+        await tx.unsafe("select process_booking_request($1)", [requestId]);
+        if (phase === "before_commit") process.exit(42);
+      });
+      process.exit(42);
+    }
+    run().catch(() => process.exit(1));
+  `;
+  await expect(promisify(execFile)(process.execPath, ["-e", child, requestId, phase], { timeout: 8_000 }))
+    .rejects.toMatchObject({ code: 42 });
 }
 
 beforeAll(async () => {
@@ -252,20 +271,18 @@ describe.sequential("Supabase + ElasticMQ booking", () => {
     `;
     expect(await reconcilePending(venueId)).toBe(1);
     const received = await nextMessage();
-    // A connection disappearing before commit has the same database effect as this rollback.
-    await expect(sql.begin(async (tx) => {
-      await tx`select process_booking_request(${pending.id})`;
-      throw new Error("connection lost before commit");
-    })).rejects.toThrow("connection lost before commit");
+    await crashDuringProcessing(pending.id, "before_commit");
     expect((await getStatus(pending.id)).status).toBe("queued");
 
     await redeliver(received.ReceiptHandle!);
     const redelivery = await nextMessage();
     expect(Number(redelivery.Attributes?.ApproximateReceiveCount)).toBeGreaterThan(1);
-    const [decision] = await sql`select booking_id from process_booking_request(${pending.id})`;
+    await crashDuringProcessing(pending.id, "after_commit");
+    const decision = await getStatus(pending.id);
+    expect(decision.status).toBe("confirmed");
     await redeliver(redelivery.ReceiptHandle!);
     await consumeBookingMessage(await nextMessage());
-    expect(await getStatus(pending.id)).toMatchObject({ status: "confirmed", bookingId: decision.bookingId });
+    expect(await getStatus(pending.id)).toEqual(decision);
     const [count] = await sql`select count(*)::int as count from booking_events where booking_id = ${decision.bookingId}`;
     expect(count.count).toBe(1);
   });
