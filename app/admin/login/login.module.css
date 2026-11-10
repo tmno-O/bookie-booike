@@ -1,0 +1,14 @@
+.root { position: fixed; inset: 0; display: grid; place-items: center; padding: 16px; overflow-y: auto; background: #faf9f6; color: #25211f; }
+.card { width: 100%; max-width: 420px; box-sizing: border-box; padding: 32px 28px; border: 1px solid #e8e5e1; border-radius: 12px; background: #fff; }
+.brand { margin: 0; font-size: 21px; font-weight: 600; }
+.tag { margin: 4px 0 0; font-size: 13px; color: #77716c; }
+.title { margin: 28px 0 0; font-size: 22px; font-weight: 600; }
+.banner { margin: 16px 0 0; padding: 10px 12px; border-radius: 8px; background: #fff1e8; color: #b94e29; font-size: 12px; }
+.list { display: flex; flex-direction: column; gap: 10px; margin: 20px 0 0; padding: 0; list-style: none; }
+.account { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 60px; padding: 8px 14px; border: 1px solid #e8e5e1; border-radius: 8px; background: #fff; font: inherit; font-size: 15px; color: #25211f; text-align: left; cursor: pointer; }
+.account small { display: block; margin-top: 2px; font-size: 12px; color: #77716c; }
+.account:hover { border-color: #b94e29; }
+.account:focus-visible { outline: 2px solid #b94e29; outline-offset: 2px; }
+.account:disabled { opacity: 0.5; cursor: not-allowed; }
+.email { font-size: 11px; color: #77716c; }
+.error { margin: 16px 0 0; font-size: 14px; color: #b3261e; }

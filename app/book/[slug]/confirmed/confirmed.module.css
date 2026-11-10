@@ -1,0 +1,12 @@
+.ref { margin-top: 40px; padding: 12px 16px 16px; border-radius: 8px; background: #e8f4eb; }
+.refLabel { margin: 0; font-size: 12px; color: #456a53; }
+.refValue { margin: 8px 0 0; font-size: 20px; font-weight: 600; }
+.details { display: grid; grid-template-columns: 1fr 1fr; gap: 22px 0; margin-top: 28px; padding: 16px 16px 24px; border-radius: 8px; background: #faf9f6; }
+.wide { grid-column: 1 / -1; }
+.dl { margin: 0; font-size: 12px; color: #77716c; }
+.dd { margin: 6px 0 0; font-size: 15px; font-weight: 600; }
+.dd.lg { font-size: 16px; }
+.contact { margin: 28px 0 0; font-size: 14px; line-height: 2; }
+.contact b { font-weight: 600; margin-right: 8px; }
+.line { margin: 28px 0 0; font-size: 14px; font-weight: 600; }
+.lineNote { margin: 10px 0 0; font-size: 13px; color: #77716c; }

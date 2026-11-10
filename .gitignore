@@ -9,3 +9,5 @@ next-env.d.ts
 /Pitching&Hackathon_2569.pptx.pdf
 supabase/.temp/
 supabase/.branches/
+.mock/
+.DS_Store
