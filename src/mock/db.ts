@@ -13,7 +13,7 @@ export type QueueEntry = {
 export type Booking = {
   id: string; reference: string; requestId: string; customerId: string; name: string; phone: string;
   serviceDate: string; party: string; zoneId: string; zoneName: string; createdAt: string;
-  status: BookingStatus; channel: "line" | "staff";
+  status: BookingStatus; channel: "line" | "staff"; checkedInAt?: string;
 };
 export type BookingStatus = "pending" | "confirmed" | "checked_in";
 export type LineUser = { id: string; userId: string; displayName: string; createdAt: string };

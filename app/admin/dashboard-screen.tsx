@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import AddBookingDialog from "./add-booking-dialog";
+import BookingDetailsDialog from "./booking-details-dialog";
 import { AdminShell } from "./admin-shell";
 import {
   adminApi, asFailure, CHANNEL_LABEL, formatPhone, PARTY_LABEL, shortThaiDate, STATUS_LABEL, type Staff,
@@ -26,7 +27,7 @@ const FILTERS: { key: "all" | Status; label: string }[] = [
 ];
 
 // Staff dashboard (Figma "Admin · 01 · ภาพรวมร้านค้า", node 128:3)
-export default function DashboardScreen({ addBooking = false }: { addBooking?: boolean }) {
+export default function DashboardScreen({ addBooking = false, bookingId }: { addBooking?: boolean; bookingId?: string }) {
   const router = useRouter();
   const [staff, setStaff] = useState<Staff>();
   const [date, setDate] = useState<string>();
@@ -149,6 +150,7 @@ export default function DashboardScreen({ addBooking = false }: { addBooking?: b
           </div>
         ))}
       </div>
+      {bookingId && <BookingDetailsDialog bookingId={bookingId} onClose={() => router.push("/admin")} />}
       {addBooking && date && <AddBookingDialog today={data?.today ?? date} onClose={() => router.push("/admin")} />}
     </AdminShell>
   );

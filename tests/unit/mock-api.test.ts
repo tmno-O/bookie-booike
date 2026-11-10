@@ -15,7 +15,9 @@ import { GET as me } from "../../app/api/mock/me/route";
 import { POST as staffLogin } from "../../app/api/mock/admin/login/route";
 import { GET as dashboard } from "../../app/api/mock/admin/dashboard/route";
 import { POST as staffBook } from "../../app/api/mock/admin/bookings/route";
-import { today } from "../../src/mock/db";
+import { GET as bookingDetail } from "../../app/api/mock/admin/bookings/[id]/route";
+import { POST as checkIn } from "../../app/api/mock/admin/bookings/[id]/check-in/route";
+import { addDays, today } from "../../src/mock/db";
 import { mockIdToken } from "../../src/mock/line";
 
 const dir = await mkdtemp(path.join(tmpdir(), "mock-db-"));
@@ -233,5 +235,64 @@ describe("mock admin dashboard", () => {
       expect((await create(cookie, { ...payload, serviceDate: "2000-01-01" })).status).toBe(422);
       expect((await create(cookie, { ...payload, zoneId: "nope" })).status).toBe(422);
     });
+  });
+});
+
+describe("mock booking details and check-in", () => {
+  beforeEach(async () => { await call(resetDb, "/api/mock/reset", { method: "POST", body: { queueStepSeconds: 0 } }); });
+  const staff = async () =>
+    cookieOf(await call(staffLogin, "/api/mock/admin/login", { method: "POST", body: { email: "staff@bookie.test" } }));
+  const idOf = async (cookie: string, name: string) => {
+    const data = await (await call(dashboard, "/api/mock/admin/dashboard", { cookie })).json();
+    return data.bookings.find((b: { name: string }) => b.name === name).id as string;
+  };
+  const detail = (cookie: string | undefined, id: string) =>
+    call(bookingDetail, `/api/mock/admin/bookings/${id}`, { cookie }, { id });
+  const doCheckIn = (cookie: string | undefined, id: string) =>
+    call(checkIn, `/api/mock/admin/bookings/${id}/check-in`, { method: "POST", cookie }, { id });
+
+  it("requires staff and returns 404 for unknown bookings", async () => {
+    const cookie = await staff();
+    const id = await idOf(cookie, "เจ๊ม่อน");
+    expect((await detail(undefined, id)).status).toBe(401);
+    expect((await detail(await login(), id)).status).toBe(401);
+    expect((await doCheckIn(undefined, id)).status).toBe(401);
+    expect((await detail(cookie, "missing")).status).toBe(404);
+    expect((await doCheckIn(cookie, "missing")).status).toBe(404);
+  });
+
+  it("shows booking details", async () => {
+    const cookie = await staff();
+    const res = await detail(cookie, await idOf(cookie, "เจ๊ม่อน"));
+    expect((await res.json()).booking).toMatchObject({
+      name: "เจ๊ม่อน", phone: "0919119911", party: "12+", zoneName: "Outdoor", status: "confirmed", canCheckIn: true,
+    });
+  });
+
+  it("checks in a confirmed or pending booking once and updates the dashboard", async () => {
+    const cookie = await staff();
+    for (const name of ["เจ๊ม่อน", "คุณเมย์"]) {
+      const id = await idOf(cookie, name);
+      const res = await doCheckIn(cookie, id);
+      expect(res.status).toBe(200);
+      expect((await res.json()).booking).toMatchObject({ status: "checked_in", canCheckIn: false });
+      const again = await doCheckIn(cookie, id);
+      expect(again.status).toBe(409);
+      expect((await again.json()).error.code).toBe("ALREADY_CHECKED_IN");
+    }
+    const data = await (await call(dashboard, "/api/mock/admin/dashboard", { cookie })).json();
+    expect(data.metrics.checkedIn).toBe(3);
+    expect(data.metrics.pendingRequests).toBe(0);
+  });
+
+  it("only allows check-in on the booked night", async () => {
+    const cookie = await staff();
+    const made = await call(staffBook, "/api/mock/admin/bookings", { method: "POST", cookie, body: {
+      name: "คุณพรุ่งนี้", phone: "0861112222", serviceDate: addDays(today(), 1), party: "1-4", zoneId: "zone-outdoor" } });
+    const id = (await made.json()).booking.id;
+    expect((await (await detail(cookie, id)).json()).booking.canCheckIn).toBe(false);
+    const res = await doCheckIn(cookie, id);
+    expect(res.status).toBe(409);
+    expect((await res.json()).error.code).toBe("NOT_SERVICE_DATE");
   });
 });

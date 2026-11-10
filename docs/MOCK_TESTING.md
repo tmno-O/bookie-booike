@@ -47,7 +47,15 @@ review → "สร้างการจองแล้ว". It calls `POST /api/
 "จองโดยร้าน" (no queue). It uses the same table capacity as customer bookings, so a full zone shows "(เต็ม)" and the API returns
 `409 ZONE_FULL`. Press Esc or "กลับ" on the first step to close it.
 
-The other admin pages (bookings list, queue, zones, hours, settings, booking details) show a "coming soon" placeholder.
+### Booking details and check-in
+
+"ดูรายละเอียด ›" on a dashboard row opens a details dialog (`/admin/bookings/<id>`): customer, phone, night, party/zone,
+channel and reference, status. "เช็กอิน" calls `POST /api/mock/admin/bookings/{id}/check-in`, which sets the status to
+"เช็กอินแล้ว" and shows "เช็กอินเรียบร้อย"; the dashboard totals update. Rules: a booking can be checked in once
+(`409 ALREADY_CHECKED_IN`) and only on its own night (`409 NOT_SERVICE_DATE`, the button is disabled with a note).
+Both confirmed and "รอจัดสรร" bookings can be checked in, as in the Figma design. `GET /api/mock/admin/bookings/{id}` is staff only.
+
+The other admin pages (bookings list, queue, zones, hours, settings) show a "coming soon" placeholder.
 
 ## Seed data
 
