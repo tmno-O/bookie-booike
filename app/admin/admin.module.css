@@ -75,3 +75,24 @@
   .metrics { grid-template-columns: repeat(2, 1fr); row-gap: 24px; }
   .metric:nth-child(odd) { padding-left: 0; border-left: 0; }
 }
+
+/* Add-booking dialog (Figma: เพิ่มการจอง / ตรวจสอบการจอง / สร้างการจองแล้ว) */
+.backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px; overflow-y: auto; background: rgba(37, 33, 31, 0.28); }
+.dialog { width: 100%; max-width: 520px; box-sizing: border-box; padding: 23px 27px 27px; border: 1px solid #e8e5e1; border-radius: 8px; background: #fff; box-shadow: 0 12px 40px rgba(37, 33, 31, 0.12); }
+.dialogTitle { margin: 0; font-size: 22px; font-weight: 600; }
+.dialogSub { margin: 12px 0 0; font-size: 14px; color: #77716c; }
+.dRows { margin: 28px 0 0; }
+.dRow { display: grid; grid-template-columns: 217px 1fr; align-items: center; min-height: 60px; }
+.dLabel { font-size: 13px; color: #77716c; }
+.dValue { margin: 0; font-size: 15px; font-weight: 600; }
+.field { display: grid; grid-template-columns: 217px 1fr; align-items: center; gap: 8px 0; min-height: 56px; }
+.fieldLabel { font-size: 13px; color: #77716c; }
+.input { width: 100%; box-sizing: border-box; height: 38px; padding: 0 11px; border: 1px solid #e8e5e1; border-radius: 7px; background: #fff; font: inherit; font-size: 14px; color: #25211f; }
+.input:focus-visible, .btn:focus-visible { outline: 2px solid #b94e29; outline-offset: 1px; }
+.dActions { display: flex; justify-content: space-between; gap: 12px; margin-top: 28px; }
+.btn { display: inline-grid; place-items: center; height: 40px; padding: 0 16px; border: 0; border-radius: 8px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; }
+.btnGhost { background: #f7f6f4; color: #25211f; }
+.btnPrimary { background: #b94e29; color: #fff; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.dError { margin: 14px 0 0; font-size: 13px; color: #b3261e; }
+@media (max-width: 560px) { .dRow, .field { grid-template-columns: 1fr; gap: 4px; padding: 6px 0; } }

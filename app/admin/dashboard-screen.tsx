@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import AddBookingDialog from "./add-booking-dialog";
 import { AdminShell } from "./admin-shell";
 import {
   adminApi, asFailure, CHANNEL_LABEL, formatPhone, PARTY_LABEL, shortThaiDate, STATUS_LABEL, type Staff,
@@ -13,6 +14,7 @@ type Status = keyof typeof STATUS_LABEL;
 type Row = { id: string; reference: string; name: string; phone: string; party: string; zoneName: string; channel: "line" | "staff"; status: Status };
 type Dashboard = {
   serviceDate: string;
+  today: string;
   metrics: { bookings: number; guests: number; pendingRequests: number; checkedIn: number };
   bookings: Row[];
   zones: { id: string; name: string; seats: number; booked: number }[];
@@ -24,7 +26,7 @@ const FILTERS: { key: "all" | Status; label: string }[] = [
 ];
 
 // Staff dashboard (Figma "Admin · 01 · ภาพรวมร้านค้า", node 128:3)
-export default function DashboardScreen() {
+export default function DashboardScreen({ addBooking = false }: { addBooking?: boolean }) {
   const router = useRouter();
   const [staff, setStaff] = useState<Staff>();
   const [date, setDate] = useState<string>();
@@ -147,6 +149,7 @@ export default function DashboardScreen() {
           </div>
         ))}
       </div>
+      {addBooking && date && <AddBookingDialog today={data?.today ?? date} onClose={() => router.push("/admin")} />}
     </AdminShell>
   );
 }

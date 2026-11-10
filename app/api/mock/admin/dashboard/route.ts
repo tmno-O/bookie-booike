@@ -17,6 +17,7 @@ export const GET = route<Record<string, string>>(async (request) => {
     return {
       venueName: db.venue.name,
       serviceDate: date,
+      today: today(),
       metrics: {
         bookings: night.length,
         guests: night.reduce((sum, b) => sum + PARTY_SIZE[b.party], 0),

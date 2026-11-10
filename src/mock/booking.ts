@@ -1,0 +1,31 @@
+import { randomUUID } from "node:crypto";
+import { ApiError } from "@/lib/errors";
+import { addDays, today, zoneAvailability, type Booking, type Db, type Zone } from "./db";
+
+/** Shared slot check: bookable date window, known zone, free table. Throws an ApiError otherwise. */
+export function checkSlot(db: Db, serviceDate: string, zoneId: string): Zone {
+  if (serviceDate < today() || serviceDate > addDays(today(), db.venue.maxAdvanceDays)) {
+    throw new ApiError(422, "DATE_OUT_OF_RANGE", "Date is outside the bookable window");
+  }
+  const zone = db.zones.find((z) => z.id === zoneId);
+  if (!zone) throw new ApiError(422, "ZONE_NOT_FOUND", "Zone not found");
+  if (!zoneAvailability(db, serviceDate).find((z) => z.id === zone.id)!.available) {
+    throw new ApiError(409, "ZONE_FULL", "This zone is full for the selected night");
+  }
+  return zone;
+}
+
+export function addBooking(db: Db, data: {
+  requestId: string; customerId: string; name: string; phone: string; serviceDate: string; party: string;
+  zone: Zone; channel: Booking["channel"];
+}): Booking {
+  db.seq += 1;
+  const booking: Booking = {
+    id: randomUUID(), reference: `BL-${data.serviceDate.slice(0, 4)}-${String(db.seq).padStart(4, "0")}`,
+    requestId: data.requestId, customerId: data.customerId, name: data.name, phone: data.phone,
+    serviceDate: data.serviceDate, party: data.party, zoneId: data.zone.id, zoneName: data.zone.name,
+    createdAt: new Date().toISOString(), status: "confirmed", channel: data.channel,
+  };
+  db.bookings.push(booking);
+  return booking;
+}

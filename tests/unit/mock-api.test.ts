@@ -14,6 +14,7 @@ import { POST as lineLogout } from "../../app/api/mock/line/logout/route";
 import { GET as me } from "../../app/api/mock/me/route";
 import { POST as staffLogin } from "../../app/api/mock/admin/login/route";
 import { GET as dashboard } from "../../app/api/mock/admin/dashboard/route";
+import { POST as staffBook } from "../../app/api/mock/admin/bookings/route";
 import { today } from "../../src/mock/db";
 import { mockIdToken } from "../../src/mock/line";
 
@@ -199,5 +200,38 @@ describe("mock admin dashboard", () => {
     const empty = await (await call(dashboard, "/api/mock/admin/dashboard?date=2030-01-01", { cookie })).json();
     expect(empty.metrics.bookings).toBe(0);
     expect((await call(dashboard, "/api/mock/admin/dashboard?date=tonight", { cookie })).status).toBe(400);
+  });
+
+  describe("staff-assisted booking", () => {
+    const payload = { name: "คุณใหม่", phone: "0861112222", serviceDate: today(), party: "1-4", zoneId: "zone-indoor" };
+    const create = (cookie: string | undefined, body: object = payload) =>
+      call(staffBook, "/api/mock/admin/bookings", { method: "POST", body, cookie });
+
+    it("requires a staff session", async () => {
+      expect((await create(undefined)).status).toBe(401);
+      expect((await create(await login())).status).toBe(401);
+    });
+
+    it("creates a confirmed staff booking that shows on the dashboard", async () => {
+      const cookie = await staffCookie();
+      const res = await create(cookie);
+      expect(res.status).toBe(201);
+      expect((await res.json()).booking).toMatchObject({ name: "คุณใหม่", channel: "staff", status: "confirmed", zoneName: "Indoor" });
+      const data = await (await call(dashboard, "/api/mock/admin/dashboard", { cookie })).json();
+      expect(data.metrics.bookings).toBe(5);
+      expect(data.bookings.at(-1)).toMatchObject({ name: "คุณใหม่", channel: "staff" });
+    });
+
+    it("shares zone capacity with customer bookings and validates input", async () => {
+      const cookie = await staffCookie();
+      expect((await create(cookie, { ...payload, zoneId: "zone-vip" })).status).toBe(201); // fills VIP (2 tables)
+      const full = await create(cookie, { ...payload, zoneId: "zone-vip" });
+      expect(full.status).toBe(409);
+      expect((await full.json()).error.code).toBe("ZONE_FULL");
+      expect((await reserve(await readyCustomer(), "zone-vip")).status).toBe(409);
+      expect((await create(cookie, { ...payload, phone: "12" })).status).toBe(400);
+      expect((await create(cookie, { ...payload, serviceDate: "2000-01-01" })).status).toBe(422);
+      expect((await create(cookie, { ...payload, zoneId: "nope" })).status).toBe(422);
+    });
   });
 });

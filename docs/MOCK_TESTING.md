@@ -40,7 +40,14 @@ separate from the customer LINE cookie, so you can be logged in as both in one b
 The page refreshes every 5 seconds, so customer bookings made in another window appear on their own.
 Guest counts are estimated from the party bucket (1–4 → 4, 5–8 → 8, 9–12 → 12, 12+ → 15).
 "รอจัดสรร" counts bookings awaiting zone allocation plus customers still waiting in the queue.
-The other admin pages (bookings, queue, zones, hours, settings) show a "coming soon" placeholder.
+### Add booking (staff-assisted)
+
+"+ เพิ่มการจอง" opens a dialog over the dashboard (`/admin/bookings/new`): fill in name, phone, night, party size and zone →
+review → "สร้างการจองแล้ว". It calls `POST /api/mock/admin/bookings` (staff only), which creates a confirmed booking with channel
+"จองโดยร้าน" (no queue). It uses the same table capacity as customer bookings, so a full zone shows "(เต็ม)" and the API returns
+`409 ZONE_FULL`. Press Esc or "กลับ" on the first step to close it.
+
+The other admin pages (bookings list, queue, zones, hours, settings, booking details) show a "coming soon" placeholder.
 
 ## Seed data
 
