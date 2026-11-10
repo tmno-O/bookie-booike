@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "worker": "node --env-file-if-exists=.env.local --import tsx worker/booking-worker.ts",
+    "worker:notifications": "node --env-file-if-exists=.env.local --import tsx worker/notification-worker.ts",
     "reconcile": "node --env-file-if-exists=.env.local --import tsx worker/reconcile.ts"
   },
   "dependencies": {

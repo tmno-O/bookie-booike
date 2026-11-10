@@ -11,6 +11,7 @@ import { POST as cancel } from "../../app/api/me/bookings/[bookingId]/cancel/rou
 import { GET as staffVenue } from "../../app/api/staff/venues/[venueId]/route";
 import { PATCH as patchSettings } from "../../app/api/staff/venues/[venueId]/settings/route";
 import { PATCH as patchRules } from "../../app/api/staff/venues/[venueId]/rules/route";
+import { PATCH as patchLine } from "../../app/api/staff/venues/[venueId]/line-integration/route";
 import { DELETE as closeTable } from "../../app/api/staff/venues/[venueId]/tables/[tableId]/route";
 import { GET as search } from "../../app/api/staff/venues/[venueId]/customers/route";
 import { POST as staffBooking } from "../../app/api/staff/venues/[venueId]/booking-requests/route";
@@ -19,6 +20,7 @@ import { db } from "@/lib/db";
 import { sqs } from "@/lib/sqs";
 import { consumeBookingMessage, receiveBookingMessage } from "../../worker/consume";
 import { reconcilePending } from "../../worker/recovery";
+import { deliverNextNotification } from "../../worker/notifications";
 
 const venueId = randomUUID();
 const otherVenueId = randomUUID();
@@ -335,5 +337,41 @@ describe.sequential("Supabase + ElasticMQ booking", () => {
       token: staffToken, data: { status: "cancelled" },
     }), context({ venueId, bookingId: replacement.bookingId }));
     expect(await staffCancelled.json()).toMatchObject({ status: "cancelled" });
+  });
+
+  it("retries LINE outbox delivery without rolling back the confirmed booking", async () => {
+    const sql = db();
+    const [job] = await sql`
+      select n.id, n.booking_id from notification_outbox n
+      join bookings b on b.id = n.booking_id and b.venue_id = n.venue_id
+      where n.venue_id = ${venueId} and b.service_date = ${day(4)} and n.kind = 'confirmed'
+    `;
+    expect(job).toBeDefined();
+    await sql`update notification_outbox set status = 'skipped' where venue_id = ${venueId} and id <> ${job.id}`;
+    const integration = await patchLine(request("PATCH", {
+      token: ownerToken, data: { channelAccessToken: "local-test-token" },
+    }), context({ venueId }));
+    expect(integration.status, await integration.clone().text()).toBe(200);
+    expect(await integration.text()).not.toContain("local-test-token");
+
+    const failed: typeof fetch = async (_url, init) => {
+      expect(new Headers(init?.headers).get("x-line-retry-key")).toBe(job.id);
+      expect(JSON.parse(String(init?.body)).to).toBe("alice");
+      return new Response(null, { status: 502 });
+    };
+    expect(await deliverNextNotification(failed, venueId)).toBe(true);
+    const [pending] = await sql`select status, attempts, last_error from notification_outbox where id = ${job.id}`;
+    expect(pending).toMatchObject({ status: "pending", attempts: 1, lastError: "LINE_HTTP_502" });
+    const [booking] = await sql`select status from bookings where id = ${job.bookingId}`;
+    expect(booking.status).toBe("confirmed");
+
+    await sql`update notification_outbox set next_attempt_at = now() where id = ${job.id}`;
+    const accepted: typeof fetch = async (_url, init) => {
+      expect(new Headers(init?.headers).get("x-line-retry-key")).toBe(job.id);
+      return new Response(null, { status: 409, headers: { "x-line-accepted-request-id": "test" } });
+    };
+    expect(await deliverNextNotification(accepted, venueId)).toBe(true);
+    const [sent] = await sql`select status, attempts from notification_outbox where id = ${job.id}`;
+    expect(sent).toMatchObject({ status: "sent", attempts: 2 });
   });
 });
