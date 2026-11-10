@@ -1,0 +1,18 @@
+.root { position: fixed; inset: 0; overflow-y: auto; background: #fff; }
+.screen { display: flex; flex-direction: column; min-height: 100%; max-width: 390px; margin: 0 auto; padding: 0 20px 24px; color: #25211f; box-sizing: border-box; }
+.brand { margin: 56px 0 0; font-size: 18px; font-weight: 600; text-align: center; }
+.title { margin: 40px 0 0; font-size: 24px; font-weight: 600; }
+.subtitle { margin: 8px 0 0; font-size: 14px; color: #77716c; }
+.banner { margin: 28px 0 0; padding: 10px 12px; border-radius: 8px; background: #fff1e8; color: #b94e29; font-size: 12px; }
+.label { margin: 28px 0 12px; font-size: 15px; font-weight: 600; }
+.list { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.account { display: flex; align-items: center; gap: 12px; width: 100%; height: 56px; padding: 0 14px; border: 1px solid #e8e5e1; border-radius: 8px; background: #fff; font: inherit; font-size: 15px; color: #25211f; text-align: left; cursor: pointer; }
+.account:hover { border-color: #06c755; }
+.avatar { display: grid; place-items: center; flex: none; width: 32px; height: 32px; border-radius: 50%; background: #06c755; color: #fff; font-size: 14px; font-weight: 600; }
+.id { margin-left: auto; font-size: 11px; color: #77716c; }
+.custom { display: flex; gap: 10px; margin-top: 10px; }
+.input { flex: 1; min-width: 0; height: 48px; padding: 0 13px; border: 1px solid #e8e5e1; border-radius: 8px; font: inherit; font-size: 15px; }
+.input:focus-visible, .account:focus-visible, .go:focus-visible { outline: 2px solid #06c755; outline-offset: 1px; }
+.go { height: 48px; padding: 0 16px; border: 0; border-radius: 8px; background: #06c755; color: #fff; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; }
+.go:disabled, .account:disabled { opacity: 0.5; cursor: not-allowed; }
+.error { margin: 16px 0 0; font-size: 14px; color: #b3261e; }

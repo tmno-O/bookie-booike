@@ -7,7 +7,7 @@ const plex = IBM_Plex_Sans_Thai({ subsets: ["thai", "latin"], weight: ["400", "6
 
 // Shared mobile frame (header + sticky CTA) for the booking flow screens.
 export function Shell({ slug, back, children, cta }: {
-  slug: string; back: string; children: ReactNode; cta: { href: string; label: string };
+  slug: string; back: string; children: ReactNode; cta: { label: string; href?: string; onClick?: () => void; disabled?: boolean };
 }) {
   return (
     <div className={`${styles.root} ${plex.className}`}>
@@ -19,7 +19,9 @@ export function Shell({ slug, back, children, cta }: {
         </header>
         <main className={styles.body}>{children}</main>
         <div className={styles.footer}>
-          <Link href={cta.href} className={styles.cta}>{cta.label}</Link>
+          {cta.href && !cta.disabled
+            ? <Link href={cta.href} className={styles.cta}>{cta.label}</Link>
+            : <button type="button" className={styles.cta} disabled={cta.disabled} onClick={cta.onClick}>{cta.label}</button>}
         </div>
       </div>
     </div>

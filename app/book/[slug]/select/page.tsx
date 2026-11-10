@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { IBM_Plex_Sans_Thai } from "next/font/google";
 import SelectForm from "./select-form";
@@ -7,7 +8,6 @@ const plex = IBM_Plex_Sans_Thai({ subsets: ["thai", "latin"], weight: ["400", "6
 
 export default async function SelectPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const today = new Intl.DateTimeFormat("sv-SE", { dateStyle: "short", timeZone: "Asia/Bangkok" }).format(new Date());
   return (
     <div className={`${styles.root} ${plex.className}`}>
       <div className={styles.screen}>
@@ -16,7 +16,7 @@ export default async function SelectPage({ params }: { params: Promise<{ slug: s
           <span className={styles.brand}>Bookie lyon.</span>
           <Link href={`/book/${slug}/bookings`} className={styles.mine}>การจองของฉัน</Link>
         </header>
-        <SelectForm slug={slug} today={today} />
+        <Suspense><SelectForm slug={slug} /></Suspense>
       </div>
     </div>
   );

@@ -1,0 +1,112 @@
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { randomUUID } from "node:crypto";
+
+// Mock JSON "database" for local end-to-end testing. Single-process only:
+// writes are serialised with an in-memory lock and saved atomically to one JSON file.
+
+export type Zone = { id: string; name: string; tables: number };
+export type QueueEntry = {
+  id: string; customerId: string; name: string; phone: string;
+  createdAt: string; startPosition: number; bookingId: string | null;
+};
+export type Booking = {
+  id: string; reference: string; requestId: string; customerId: string; name: string; phone: string;
+  serviceDate: string; party: string; zoneId: string; zoneName: string; createdAt: string;
+};
+export type LineUser = { id: string; userId: string; displayName: string; createdAt: string };
+export type Db = {
+  venue: { slug: string; name: string; timezone: string; opensAt: string; queueStepSeconds: number; maxAdvanceDays: number };
+  zones: Zone[];
+  lineUsers: LineUser[];
+  queue: QueueEntry[];
+  bookings: Booking[];
+  seq: number;
+};
+
+export const PARTIES = ["1-4", "5-8", "9-12", "12+"] as const;
+export const QUEUE_AHEAD = 11; // people already waiting in front of the first customer
+const TZ = "Asia/Bangkok";
+
+export const today = (now = new Date()) =>
+  new Intl.DateTimeFormat("sv-SE", { dateStyle: "short", timeZone: TZ }).format(now);
+export function addDays(date: string, days: number) {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+export function seed(opts: { opensInSeconds?: number; queueStepSeconds?: number } = {}): Db {
+  const now = new Date();
+  const day = today(now);
+  const zones: Zone[] = [
+    { id: "zone-vip", name: "VIP", tables: 2 },
+    { id: "zone-indoor", name: "Indoor", tables: 4 },
+    { id: "zone-outdoor", name: "Outdoor", tables: 4 },
+  ];
+  const existing = (n: number, zone: Zone, seq: number): Booking => ({
+    id: `seed-${seq}`, reference: `BL-${day.slice(0, 4)}-${String(seq).padStart(4, "0")}`, requestId: `seed-req-${seq}`,
+    customerId: `seed-customer-${seq}`, name: `ลูกค้า ${n}`, phone: "0800000000", serviceDate: day, party: "1-4",
+    zoneId: zone.id, zoneName: zone.name, createdAt: now.toISOString(),
+  });
+  return {
+    venue: {
+      slug: "bookie-demo", name: "Bookie lyon.", timezone: TZ, maxAdvanceDays: 6,
+      opensAt: new Date(now.getTime() + (opts.opensInSeconds ?? 0) * 1000).toISOString(),
+      queueStepSeconds: opts.queueStepSeconds ?? 2,
+    },
+    zones,
+    lineUsers: [],
+    queue: [],
+    // VIP already has 1 of 2 tables taken tonight, so a second booking fills it
+    bookings: [existing(1, zones[0], 1)],
+    seq: 1,
+  };
+}
+
+const file = () => process.env.MOCK_DB_PATH ?? path.join(process.cwd(), ".mock", "db.json");
+let lock: Promise<unknown> = Promise.resolve();
+
+async function load(): Promise<Db> {
+  try {
+    const db = JSON.parse(await readFile(file(), "utf8")) as Db;
+    db.lineUsers ??= []; // databases saved before LINE login existed
+    return db;
+  } catch {
+    return seed();
+  }
+}
+async function save(db: Db) {
+  await mkdir(path.dirname(file()), { recursive: true });
+  const tmp = `${file()}.${randomUUID()}.tmp`;
+  await writeFile(tmp, JSON.stringify(db, null, 2));
+  await rename(tmp, file());
+}
+
+/** Run `fn` against the database; changes are saved when it returns. */
+export function withDb<T>(fn: (db: Db) => T | Promise<T>): Promise<T> {
+  const run = lock.then(async () => {
+    const db = await load();
+    const result = await fn(db);
+    await save(db);
+    return result;
+  });
+  lock = run.catch(() => undefined);
+  return run;
+}
+
+export const reset = (opts?: Parameters<typeof seed>[0]) => withDb((db) => { Object.assign(db, seed(opts)); });
+
+export function queueState(db: Db, entry: QueueEntry, now = Date.now()) {
+  const step = db.venue.queueStepSeconds;
+  const advanced = step <= 0 ? Infinity : Math.floor((now - Date.parse(entry.createdAt)) / (step * 1000));
+  const position = Math.max(1, entry.startPosition - advanced);
+  return { position, ready: position === 1 };
+}
+
+export function zoneAvailability(db: Db, date: string) {
+  return db.zones.map((zone) => {
+    const left = zone.tables - db.bookings.filter((b) => b.serviceDate === date && b.zoneId === zone.id).length;
+    return { id: zone.id, name: zone.name, tablesLeft: Math.max(0, left), available: left > 0 };
+  });
+}
