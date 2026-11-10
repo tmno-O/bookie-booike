@@ -15,8 +15,7 @@ export function Shell({ slug, back, children, cta }: {
         <header className={styles.header}>
           <Link href={back} className={styles.back} aria-label="ย้อนกลับ">‹</Link>
           <span className={styles.brand}>Bookie lyon.</span>
-          {/* TODO: point to the "my bookings" screen once built (06) */}
-          <Link href={`/book/${slug}`} className={styles.mine}>การจองของฉัน</Link>
+          <Link href={`/book/${slug}/bookings`} className={styles.mine}>การจองของฉัน</Link>
         </header>
         <main className={styles.body}>{children}</main>
         <div className={styles.footer}>

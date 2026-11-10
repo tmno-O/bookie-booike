@@ -6,7 +6,7 @@ export default async function ConfirmedPage({ params }: { params: Promise<{ slug
   const { slug } = await params;
   // TODO: replace sample data with GET /api/me/booking-requests/{requestId} + /api/me/bookings/{bookingId}
   return (
-    <Shell slug={slug} back={`/book/${slug}/select`} cta={{ href: `/book/${slug}`, label: "ดูการจองของฉัน" }}>
+    <Shell slug={slug} back={`/book/${slug}/select`} cta={{ href: `/book/${slug}/bookings`, label: "ดูการจองของฉัน" }}>
       <p className={s.eyebrow}>การจองสำเร็จ</p>
       <h1 className={s.title}>ยืนยันการจองแล้ว</h1>
       <p className={s.subtitle}>นำข้อมูลการจองนี้แสดงกับพนักงานเมื่อมาถึง</p>

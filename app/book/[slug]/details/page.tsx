@@ -13,8 +13,7 @@ export default async function DetailsPage({ params }: { params: Promise<{ slug: 
       <header className={styles.header}>
         <Link href="/" className={styles.back} aria-label="ย้อนกลับ">‹</Link>
         <span className={styles.brand}>Bookie lyon.</span>
-        {/* TODO: point to the "my bookings" screen once built (06) */}
-        <Link href={`/book/${slug}`} className={styles.mine}>การจองของฉัน</Link>
+        <Link href={`/book/${slug}/bookings`} className={styles.mine}>การจองของฉัน</Link>
       </header>
       <form className={styles.form} action={`/book/${slug}`}>
         <div className={styles.body}>

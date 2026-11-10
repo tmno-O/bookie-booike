@@ -14,8 +14,7 @@ export default async function SelectPage({ params }: { params: Promise<{ slug: s
         <header className={styles.header}>
           <Link href={`/book/${slug}/details`} className={styles.back} aria-label="ย้อนกลับ">‹</Link>
           <span className={styles.brand}>Bookie lyon.</span>
-          {/* TODO: point to the "my bookings" screen once built (06) */}
-          <Link href={`/book/${slug}`} className={styles.mine}>การจองของฉัน</Link>
+          <Link href={`/book/${slug}/bookings`} className={styles.mine}>การจองของฉัน</Link>
         </header>
         <SelectForm slug={slug} today={today} />
       </div>
