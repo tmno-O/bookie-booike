@@ -5,7 +5,10 @@ import { randomUUID } from "node:crypto";
 // Mock JSON "database" for local end-to-end testing. Single-process only:
 // writes are serialised with an in-memory lock and saved atomically to one JSON file.
 
-export type Zone = { id: string; name: string; tables: number; seats: number };
+export type Zone = { id: string; name: string; seats: number; status: "open" | "closed" };
+/** A zone holds one booking per table; one table seats 12 people. */
+export const TABLE_SEATS = 12;
+export const tablesFor = (zone: Zone) => Math.max(1, Math.ceil(zone.seats / TABLE_SEATS));
 export type QueueEntry = {
   id: string; customerId: string; name: string; phone: string;
   createdAt: string; startPosition: number; bookingId: string | null;
@@ -46,9 +49,9 @@ export function seed(opts: { opensInSeconds?: number; queueStepSeconds?: number 
   const now = new Date();
   const day = today(now);
   const zones: Zone[] = [
-    { id: "zone-vip", name: "VIP", tables: 2, seats: 24 },
-    { id: "zone-indoor", name: "Indoor", tables: 4, seats: 48 },
-    { id: "zone-outdoor", name: "Outdoor", tables: 4, seats: 60 },
+    { id: "zone-vip", name: "VIP", seats: 24, status: "open" },
+    { id: "zone-indoor", name: "Indoor", seats: 48, status: "open" },
+    { id: "zone-outdoor", name: "Outdoor", seats: 60, status: "open" },
   ];
   const [vip, indoor, outdoor] = zones;
   const at = (time: string) => new Date(`${day}T${time}+07:00`).toISOString();
@@ -69,7 +72,7 @@ export function seed(opts: { opensInSeconds?: number; queueStepSeconds?: number 
     lineUsers: [],
     queue: [],
     // Tonight's sample bookings (same as the admin designs). Pending requests do not hold a table until
-    // staff allocate them. VIP has 1 of 2 tables taken, so one more customer booking fills it.
+    // staff allocate them. VIP (24 seats = 2 tables) has 1 of 2 tables taken, so one more customer booking fills it.
     bookings: [
       existing(1, "เจ๊ม่อน", "0919119911", "12+", outdoor, "confirmed", "line", 9, "20:00:00"),
       existing(2, "คุณเมย์", "0812345678", "5-8", indoor, "pending", "line", 12, "20:00:02"),
@@ -90,7 +93,7 @@ async function load(): Promise<Db> {
     const db = JSON.parse(await readFile(file(), "utf8")) as Db;
     db.lineUsers ??= []; // databases saved before LINE login existed
     const seats: Record<string, number> = { VIP: 24, Indoor: 48, Outdoor: 60 };
-    for (const z of db.zones) z.seats ??= seats[z.name] ?? 20;
+    for (const z of db.zones) { z.seats ??= seats[z.name] ?? 20; z.status ??= "open"; }
     for (const b of db.bookings) { b.status ??= "confirmed"; b.channel ??= "line"; }
     let n = Math.max(0, ...db.bookings.map((b) => b.queueNo ?? 0));
     for (const b of db.bookings) if (b.channel === "line" && !b.queueNo) { b.queueNo = ++n; b.requestedAt ??= b.createdAt; }
@@ -129,7 +132,8 @@ export function queueState(db: Db, entry: QueueEntry, now = Date.now()) {
 
 export function zoneAvailability(db: Db, date: string) {
   return db.zones.map((zone) => {
-    const left = zone.tables - db.bookings.filter((b) => b.serviceDate === date && b.zoneId === zone.id && b.status !== "pending").length;
-    return { id: zone.id, name: zone.name, tablesLeft: Math.max(0, left), available: left > 0 };
+    const left = tablesFor(zone) - db.bookings.filter((b) => b.serviceDate === date && b.zoneId === zone.id && b.status !== "pending").length;
+    const closed = zone.status === "closed";
+    return { id: zone.id, name: zone.name, tablesLeft: Math.max(0, left), available: left > 0 && !closed, closed };
   });
 }

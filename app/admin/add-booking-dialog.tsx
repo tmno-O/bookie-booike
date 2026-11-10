@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { adminApi, asFailure, CHANNEL_LABEL, PARTY_LABEL, shortThaiDate, STATUS_LABEL } from "./admin-api";
 import styles from "./admin.module.css";
 
-type Zone = { id: string; name: string; available: boolean };
+type Zone = { id: string; name: string; available: boolean; closed?: boolean };
 type Created = { reference: string; name: string; status: keyof typeof STATUS_LABEL; channel: keyof typeof CHANNEL_LABEL };
 
 const addDays = (date: string, days: number) => {
@@ -101,7 +101,7 @@ export default function AddBookingDialog({ today, maxAdvanceDays = 6, onClose }:
                 </select></label>
               <label className={styles.field}><span className={styles.fieldLabel}>โซน</span>
                 <select className={styles.input} value={zoneId} onChange={(e) => setZoneId(e.target.value)}>
-                  {zones.map((z) => <option key={z.id} value={z.id} disabled={!z.available}>{z.name}{z.available ? "" : " (เต็ม)"}</option>)}
+                  {zones.map((z) => <option key={z.id} value={z.id} disabled={!z.available}>{z.name}{z.available ? "" : z.closed ? " (ปิด)" : " (เต็ม)"}</option>)}
                 </select></label>
             </div>
             {error && <p role="alert" className={styles.dError}>{error}</p>}

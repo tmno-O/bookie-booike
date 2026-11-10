@@ -5,7 +5,7 @@ import { adminApi, asFailure, formatPhone, PARTY_LABEL, queueDate } from "./admi
 import styles from "./admin.module.css";
 
 type Row = { id: string; queueNo: number; name: string; serviceDate: string; party: string; zoneId: string; zoneName: string; status: "pending" | "allocated" };
-type Zone = { id: string; name: string; available: boolean };
+type Zone = { id: string; name: string; available: boolean; closed?: boolean };
 
 // Queue request details with zone allocation (Figma: รายละเอียดคำขอ #n → จัดสรรโซนแล้ว).
 export default function RequestDialog({ requestId, onClose }: { requestId: string; onClose: () => void }) {
@@ -76,7 +76,7 @@ export default function RequestDialog({ requestId, onClose }: { requestId: strin
             {full && request.status === "pending" && (
               <label className={styles.field}><span className={styles.fieldLabel}>จัดสรรไปที่โซน</span>
                 <select className={styles.input} value={chosen} onChange={(e) => setChosen(e.target.value)}>
-                  {zones.map((z) => <option key={z.id} value={z.id} disabled={!z.available}>{z.name}{z.available ? "" : " (เต็ม)"}</option>)}
+                  {zones.map((z) => <option key={z.id} value={z.id} disabled={!z.available}>{z.name}{z.available ? "" : z.closed ? " (ปิด)" : " (เต็ม)"}</option>)}
                 </select></label>
             )}
           </div>

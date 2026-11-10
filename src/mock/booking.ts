@@ -14,6 +14,7 @@ export function checkSlot(db: Db, serviceDate: string, zoneId: string): Zone {
 export function ensureCapacity(db: Db, serviceDate: string, zoneId: string): Zone {
   const zone = db.zones.find((z) => z.id === zoneId);
   if (!zone) throw new ApiError(422, "ZONE_NOT_FOUND", "Zone not found");
+  if (zone.status === "closed") throw new ApiError(409, "ZONE_CLOSED", "This zone is not open for booking");
   if (!zoneAvailability(db, serviceDate).find((z) => z.id === zone.id)!.available) {
     throw new ApiError(409, "ZONE_FULL", "This zone is full for the selected night");
   }

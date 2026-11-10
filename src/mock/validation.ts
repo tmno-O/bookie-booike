@@ -23,3 +23,10 @@ export const staffBookingInput = z.strictObject({
   party: z.enum(PARTIES),
   zoneId: z.string().min(1).max(100),
 });
+
+export const zoneInput = z.strictObject({
+  name: z.string().trim().min(1).max(40),
+  seats: z.number().int().min(1).max(1000),
+  status: z.enum(["open", "closed"]),
+});
+export const zonePatch = zoneInput.partial().refine((v) => Object.keys(v).length > 0, "Nothing to update");

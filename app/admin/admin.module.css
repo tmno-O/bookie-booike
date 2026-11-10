@@ -96,3 +96,7 @@
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .dError { margin: 14px 0 0; font-size: 13px; color: #b3261e; }
 @media (max-width: 560px) { .dRow, .field { grid-template-columns: 1fr; gap: 4px; padding: 6px 0; } }
+.notice { margin: 18px 0 0; padding: 12px 16px; border-radius: 6px; background: #e8f4eb; color: #456a53; font-size: 13px; font-weight: 600; }
+.sMuted { color: #77716c; }
+.linkBtn { padding: 0; border: 0; background: none; font: inherit; font-size: 14px; color: #25211f; cursor: pointer; white-space: nowrap; }
+.linkBtn:focus-visible { outline: 2px solid #b94e29; outline-offset: 2px; }

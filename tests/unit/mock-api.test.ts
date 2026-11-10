@@ -20,6 +20,8 @@ import { POST as checkIn } from "../../app/api/mock/admin/bookings/[id]/check-in
 import { GET as queueList } from "../../app/api/mock/admin/queue/route";
 import { GET as queueDetail } from "../../app/api/mock/admin/queue/[id]/route";
 import { POST as allocate } from "../../app/api/mock/admin/queue/[id]/allocate/route";
+import { GET as zoneList, POST as zoneCreate } from "../../app/api/mock/admin/zones/route";
+import { PATCH as zoneEdit } from "../../app/api/mock/admin/zones/[id]/route";
 import { addDays, today } from "../../src/mock/db";
 import { mockIdToken } from "../../src/mock/line";
 
@@ -369,5 +371,96 @@ describe("mock admin booking queue", () => {
     expect(moved.status).toBe(200);
     expect((await moved.json()).request).toMatchObject({ status: "allocated", zoneName: "Indoor" });
     expect((await alloc(cookie, "seed-5", { zoneId: "nope" })).status).toBe(422);
+  });
+});
+
+
+describe("mock admin zones", () => {
+  beforeEach(async () => { await call(resetDb, "/api/mock/reset", { method: "POST", body: { queueStepSeconds: 0 } }); });
+  const owner = async () =>
+    cookieOf(await call(staffLogin, "/api/mock/admin/login", { method: "POST", body: { email: "owner@bookie.test" } }));
+  const create = (cookie: string | undefined, body: object) =>
+    call(zoneCreate, "/api/mock/admin/zones", { method: "POST", cookie, body });
+  const edit = (cookie: string | undefined, id: string, body: object) =>
+    call(zoneEdit, `/api/mock/admin/zones/${id}`, { method: "PATCH", cookie, body }, { id });
+  const customerZones = async () =>
+    (await (await call(availability, `/api/mock/availability?date=${today()}`)).json()).zones as
+      { id: string; name: string; available: boolean; closed: boolean; tablesLeft: number }[];
+
+  it("requires staff", async () => {
+    expect((await call(zoneList, "/api/mock/admin/zones")).status).toBe(401);
+    expect((await call(zoneList, "/api/mock/admin/zones", { cookie: await login() })).status).toBe(401);
+    expect((await create(undefined, { name: "X", seats: 10, status: "open" })).status).toBe(401);
+    expect((await edit(undefined, "zone-vip", { seats: 10 })).status).toBe(401);
+  });
+
+  it("lists zones with capacity and seats booked tonight (pending requests excluded)", async () => {
+    const data = await (await call(zoneList, "/api/mock/admin/zones", { cookie: await owner() })).json();
+    expect(data.zones).toEqual([
+      { id: "zone-vip", name: "VIP", seats: 24, status: "open", tables: 2, tablesUsed: 1, bookedSeats: 4 },
+      { id: "zone-indoor", name: "Indoor", seats: 48, status: "open", tables: 4, tablesUsed: 0, bookedSeats: 0 },
+      { id: "zone-outdoor", name: "Outdoor", seats: 60, status: "open", tables: 5, tablesUsed: 2, bookedSeats: 23 },
+    ]);
+  });
+
+  it("adds a zone that customers can book, and validates input", async () => {
+    const cookie = await owner();
+    const made = await create(cookie, { name: "Rooftop", seats: 24, status: "open" });
+    expect(made.status).toBe(201);
+    const zone = (await made.json()).zone;
+    expect(zone).toMatchObject({ name: "Rooftop", seats: 24, tables: 2, tablesUsed: 0 });
+    expect((await customerZones()).find((z) => z.id === zone.id)).toMatchObject({ available: true, tablesLeft: 2 });
+    expect((await reserve(await readyCustomer(), zone.id)).status).toBe(201);
+    const dup = await create(cookie, { name: "rooftop", seats: 10, status: "open" });
+    expect(dup.status).toBe(409);
+    expect((await dup.json()).error.code).toBe("ZONE_NAME_TAKEN");
+    expect((await create(cookie, { name: "", seats: 10, status: "open" })).status).toBe(400);
+    expect((await create(cookie, { name: "Y", seats: 0, status: "open" })).status).toBe(400);
+    expect((await create(cookie, { name: "Y", seats: 10, status: "maybe" })).status).toBe(400);
+  });
+
+  it("renames a zone everywhere and rejects duplicate names", async () => {
+    const cookie = await owner();
+    const res = await edit(cookie, "zone-indoor", { name: "Garden" });
+    expect((await res.json()).zone.name).toBe("Garden");
+    expect((await customerZones()).map((z) => z.name)).toContain("Garden");
+    const dash = await (await call(dashboard, "/api/mock/admin/dashboard", { cookie })).json();
+    expect(dash.bookings.find((b: { name: string }) => b.name === "คุณเมย์").zoneName).toBe("Garden");
+    const dup = await edit(cookie, "zone-indoor", { name: "vip" });
+    expect(dup.status).toBe(409);
+    expect((await edit(cookie, "zone-indoor", { name: "Garden" })).status).toBe(200); // same name is fine
+    expect((await edit(cookie, "nope", { name: "Z" })).status).toBe(404);
+    expect((await edit(cookie, "zone-indoor", {})).status).toBe(400);
+  });
+
+  it("changing capacity changes table availability but not below existing bookings", async () => {
+    const cookie = await owner();
+    expect((await edit(cookie, "zone-vip", { seats: 12 })).status).toBe(200); // 1 table, 1 booked
+    expect((await customerZones()).find((z) => z.id === "zone-vip")).toMatchObject({ available: false, tablesLeft: 0 });
+    expect((await edit(cookie, "zone-vip", { seats: 36 })).status).toBe(200); // 3 tables
+    expect((await customerZones()).find((z) => z.id === "zone-vip")).toMatchObject({ available: true, tablesLeft: 2 });
+    await reserve(await readyCustomer(), "zone-vip");
+    await reserve(await readyCustomer("Umock0002"), "zone-vip"); // VIP now has 3 bookings
+    const low = await edit(cookie, "zone-vip", { seats: 24 });
+    expect(low.status).toBe(409);
+    expect((await low.json()).error.code).toBe("CAPACITY_BELOW_BOOKED");
+  });
+
+  it("closing a zone blocks new customer, staff and allocated bookings but keeps existing ones", async () => {
+    const cookie = await owner();
+    expect((await edit(cookie, "zone-outdoor", { status: "closed" })).status).toBe(200);
+    expect((await customerZones()).find((z) => z.id === "zone-outdoor")).toMatchObject({ available: false, closed: true });
+    const blocked = await reserve(await readyCustomer(), "zone-outdoor");
+    expect(blocked.status).toBe(409);
+    expect((await blocked.json()).error.code).toBe("ZONE_CLOSED");
+    const staffRes = await call(staffBook, "/api/mock/admin/bookings", { method: "POST", cookie, body: {
+      name: "ปิด", phone: "0861112222", serviceDate: today(), party: "1-4", zoneId: "zone-outdoor" } });
+    expect((await staffRes.json()).error.code).toBe("ZONE_CLOSED");
+    const alloc = await call(allocate, "/api/mock/admin/queue/seed-5/allocate", { method: "POST", cookie }, { id: "seed-5" });
+    expect((await alloc.json()).error.code).toBe("ZONE_CLOSED");
+    const dash = await (await call(dashboard, "/api/mock/admin/dashboard", { cookie })).json();
+    expect(dash.bookings.find((b: { name: string }) => b.name === "เจ๊ม่อน")).toMatchObject({ zoneName: "Outdoor" });
+    expect((await edit(cookie, "zone-outdoor", { status: "open" })).status).toBe(200);
+    expect((await customerZones()).find((z) => z.id === "zone-outdoor")?.available).toBe(true);
   });
 });

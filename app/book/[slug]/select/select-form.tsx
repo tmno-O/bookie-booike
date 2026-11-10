@@ -6,7 +6,8 @@ import { api, asFailure, thaiDate } from "../flow";
 import styles from "./select.module.css";
 
 const PARTIES = [{ label: "1–4", value: "1-4" }, { label: "5–8", value: "5-8" }, { label: "9–12", value: "9-12" }, { label: "12+", value: "12+" }];
-type Zone = { id: string; name: string; tablesLeft: number; available: boolean };
+type Zone = { id: string; name: string; tablesLeft: number; available: boolean; closed?: boolean };
+const MAP_ZONES = ["VIP", "Indoor", "Outdoor"];
 type Venue = { today: string; maxAdvanceDays: number };
 
 const addDays = (date: string, days: number) => {
@@ -81,7 +82,7 @@ export default function SelectForm({ slug }: { slug: string }) {
       <button type="button" key={name} aria-pressed={selected} disabled={!zone || full}
         className={`${styles.zone} ${className} ${selected ? styles.zoneOn : ""} ${full ? styles.zoneFull : ""}`}
         onClick={() => zone && setZoneId(zone.id)}>
-        {name}{full && <span className={styles.full}>เต็ม</span>}
+        {name}{full && <span className={styles.full}>{zone?.closed ? "ปิด" : "เต็ม"}</span>}
       </button>
     );
   };
@@ -116,6 +117,11 @@ export default function SelectForm({ slug }: { slug: string }) {
           <div className={styles.row}>{zoneButton("Indoor")}{zoneButton("Outdoor")}</div>
           <span className={`${styles.mapNote} ${styles.entrance}`}>↑ ทางเข้า</span>
         </div>
+        {zones.some((z) => !MAP_ZONES.includes(z.name)) && (
+          <div className={styles.row} style={{ flexWrap: "wrap", marginTop: 12 }}>
+            {zones.filter((z) => !MAP_ZONES.includes(z.name)).map((z) => zoneButton(z.name))}
+          </div>
+        )}
         <p className={styles.hint}>แตะพื้นที่บนผังเพื่อเลือกโซน</p>
         {error && <p role="alert" className={styles.error}>{error}</p>}
       </div>

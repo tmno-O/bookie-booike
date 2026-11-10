@@ -64,11 +64,21 @@ queue number (staff-created bookings skip the queue). "ดูรายละเ�
 picker appears so staff can allocate to another zone. A pending request ("รอจัดสรร") does **not** hold a table until it is allocated.
 Seed data has three pending requests (#12 คุณเมย์ Indoor, #13 คุณบาส Outdoor, #14 คุณแนน VIP).
 
-The other admin pages (bookings list, zones, hours, settings) show a "coming soon" placeholder.
+### Zones and capacity
+
+`/admin/zones` lists zones with capacity (seats), seats booked tonight and status (เปิดรับจอง / ปิดรับจอง). "+ เพิ่มโซน" and
+"แก้ไข ›" open dialogs (name, capacity in people, status); a green banner confirms the save. APIs (staff only):
+`GET/POST /api/mock/admin/zones`, `PATCH /api/mock/admin/zones/{id}`.
+Rules: names are unique (`409 ZONE_NAME_TAKEN`); one table seats 12 people, so capacity sets how many bookings a night can hold
+(24 seats = 2 tables); capacity can't drop below what is already booked on an upcoming night (`409 CAPACITY_BELOW_BOOKED`);
+renaming updates existing bookings; a closed zone keeps its bookings but rejects new customer, staff and allocated bookings
+(`409 ZONE_CLOSED`) and shows "ปิด" to customers. Zones you add appear under the map on the customer select screen.
+
+The other admin pages (bookings list, hours, settings) show a "coming soon" placeholder.
 
 ## Seed data
 
-- Zones: VIP (2 tables), Indoor (4), Outdoor (4), per night.
+- Zones: VIP 24 seats (2 tables), Indoor 48 (4), Outdoor 60 (5), per night.
 - Tonight has 6 sample bookings (เจ๊ม่อน, คุณเมย์, คุณนัท, คุณแพรว, คุณบาส, คุณแนน) as in the admin designs; 3 are pending allocation. VIP has 1 of 2 tables taken, so one more customer booking fills it.
 - Bookable window: today through today + 6 days.
 

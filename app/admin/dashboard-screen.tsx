@@ -18,7 +18,7 @@ type Dashboard = {
   today: string;
   metrics: { bookings: number; guests: number; pendingRequests: number; checkedIn: number };
   bookings: Row[];
-  zones: { id: string; name: string; seats: number; booked: number }[];
+  zones: { id: string; name: string; seats: number; booked: number; status: "open" | "closed" }[];
 };
 
 const FILTERS: { key: "all" | Status; label: string }[] = [
@@ -142,7 +142,7 @@ export default function DashboardScreen({ addBooking = false, bookingId }: { add
       <div className={styles.zones}>
         {data?.zones.map((z) => (
           <div key={z.id} className={styles.zone}>
-            <p className={styles.zoneName}>{z.name}</p>
+            <p className={styles.zoneName}>{z.name}{z.status === "closed" && <span className={styles.unit} style={{ marginLeft: 8 }}>ปิดรับจอง</span>}</p>
             <div className={styles.zoneRow}><span>จองแล้ว</span><span className={styles.zoneCount}>{z.booked} / {z.seats} คน</span></div>
             <div className={styles.bar} role="progressbar" aria-valuemin={0} aria-valuemax={z.seats} aria-valuenow={Math.min(z.booked, z.seats)} aria-label={`${z.name} จองแล้ว`}>
               <div className={styles.barFill} style={{ width: `${Math.min(100, (z.booked / z.seats) * 100)}%` }} />
