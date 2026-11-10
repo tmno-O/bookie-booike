@@ -11,6 +11,7 @@ const schema = z.object({
   SQS_QUEUE_URL: httpUrl.refine((url) => new URL(url).pathname.endsWith(".fifo")),
   LINE_VERIFY_MODE: z.enum(["real", "mock"]).default("real"),
   LINE_SECRET_KEY: z.string().regex(/^[0-9a-f]{64}$/i),
+  LINE_NOTIFICATIONS_ENABLED: z.enum(["true", "false"]).default("false").transform((value) => value === "true"),
   BOOKING_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(30),
   BOOKING_MAX_RECEIVES: z.coerce.number().int().min(1).max(100).default(5),
 }).refine((env) => env.NODE_ENV !== "production" || env.LINE_VERIFY_MODE !== "mock", {
@@ -18,7 +19,7 @@ const schema = z.object({
   message: "Mock LINE verification is forbidden in production",
 });
 
-export function parseEnv(input: NodeJS.ProcessEnv) {
+export function parseEnv(input: Record<string, string | undefined>) {
   const result = schema.safeParse(input);
   if (!result.success) {
     throw new Error(`Invalid server configuration: ${result.error.issues.map((issue) => issue.path.join(".")).join(", ")}`);

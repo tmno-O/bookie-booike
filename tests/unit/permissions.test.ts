@@ -11,3 +11,9 @@ it("rejects owner-only mutations by staff", () => {
   expect(() => requireOwner({ userId: "staff", venueId: "venue", role: "staff" }))
     .toThrow("Venue owner permission required");
 });
+
+it("accepts the browser origin when Next.js normalizes the request hostname", () => {
+  expect(() => requireSameOrigin(new Request("http://localhost:3100", {
+    headers: { host: "127.0.0.1:3100", origin: "http://127.0.0.1:3100" },
+  }))).not.toThrow();
+});

@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { id, instant, serviceDate } from "./common";
+import { id, instant, serviceDate, slug } from "./common";
 
-export const lineSessionInput = z.strictObject({ venueSlug: z.string().min(1).max(80), idToken: z.string().min(1).max(8192) });
+export const lineSessionInput = z.strictObject({ venueSlug: slug, idToken: z.string().min(1).max(8192) });
 export const idempotencyKey = z.string().regex(/^[A-Za-z0-9._:-]{1,128}$/);
 
 const bookingFields = {

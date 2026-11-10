@@ -47,8 +47,8 @@ export async function changeVenue(staff: Staff, patch: z.infer<typeof profilePat
 export async function releases(venueId: string) {
   await getVenue({ venueId });
   return db()`
-    select service_date, opens_at, closes_at from booking_releases
-    where venue_id = ${venueId} order by service_date
+    select to_char(service_date, 'YYYY-MM-DD') as service_date, opens_at, closes_at from booking_releases
+    where venue_id = ${venueId} order by booking_releases.service_date
   `;
 }
 
@@ -59,7 +59,7 @@ export async function saveRelease(staff: Staff, release: z.infer<typeof releaseI
       values (${staff.venueId}, ${release.serviceDate}, ${release.opensAt}, ${release.closesAt})
       on conflict (venue_id, service_date) do update
         set opens_at = excluded.opens_at, closes_at = excluded.closes_at
-      returning service_date, opens_at, closes_at
+      returning to_char(service_date, 'YYYY-MM-DD') as service_date, opens_at, closes_at
     `;
     await staffAudit(tx, staff, "release.saved", staff.venueId);
     return row;

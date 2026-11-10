@@ -12,7 +12,8 @@ const sessionSeconds = 7 * 24 * 60 * 60;
 export type Customer = { customerId: string; venueId: string; tokenHash: string };
 
 function tokenHash(request: Request) {
-  const token = new NextRequest(request).cookies.get(cookieName)?.value;
+  const cookieRequest = request instanceof NextRequest ? request : new NextRequest(request.url, { headers: request.headers });
+  const token = cookieRequest.cookies.get(cookieName)?.value;
   return token && /^[A-Za-z0-9_-]{43}$/.test(token) ? sha256(token) : null;
 }
 
