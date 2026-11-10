@@ -30,6 +30,7 @@ import { GET as settingsGet, PUT as settingsPut } from "../../app/api/mock/admin
 import { GET as teamGet } from "../../app/api/mock/admin/team/route";
 import { POST as inviteCreate } from "../../app/api/mock/admin/team/invites/route";
 import { DELETE as inviteDelete } from "../../app/api/mock/admin/team/invites/[id]/route";
+import { GET as bookingsList } from "../../app/api/mock/admin/bookings/route";
 import { addDays, today } from "../../src/mock/db";
 import { mockIdToken } from "../../src/mock/line";
 
@@ -636,5 +637,53 @@ describe("mock admin shop settings and team", () => {
     expect((await del(created.id, cookie)).status).toBe(200);
     expect((await del(created.id, cookie)).status).toBe(404);
     expect((await invite(await staffOnly(), { email: "x@y.co", role: "staff" })).status).toBe(403);
+  });
+});
+
+
+describe("mock admin booking list", () => {
+  beforeEach(async () => { await call(resetDb, "/api/mock/reset", { method: "POST", body: { queueStepSeconds: 0 } }); });
+  const staff = async () =>
+    cookieOf(await call(staffLogin, "/api/mock/admin/login", { method: "POST", body: { email: "staff@bookie.test" } }));
+  const list = async (cookie: string | undefined, qs = "") =>
+    call(bookingsList, `/api/mock/admin/bookings${qs}`, { cookie });
+  const names = async (qs: string) =>
+    ((await (await list(await staff(), qs)).json()).bookings as { name: string }[]).map((b) => b.name);
+
+  it("requires staff", async () => {
+    expect((await list(undefined)).status).toBe(401);
+    expect((await list(await login())).status).toBe(401);
+  });
+
+  it("lists tonight's bookings by default, with a total", async () => {
+    const data = await (await list(await staff())).json();
+    expect(data).toMatchObject({ serviceDate: today(), total: 6 });
+    expect(data.bookings[0]).toMatchObject({ name: "เจ๊ม่อน", party: "12+", zoneName: "Outdoor", channel: "line", status: "confirmed" });
+    expect(await names("?date=2030-01-01")).toEqual([]);
+  });
+
+  it("filters by status and zone", async () => {
+    expect(await names("?status=pending")).toEqual(["คุณเมย์", "คุณบาส", "คุณแนน"]);
+    expect(await names("?status=checked_in")).toEqual(["คุณนัท"]);
+    expect(await names("?zone=zone-outdoor")).toEqual(["เจ๊ม่อน", "คุณแพรว", "คุณบาส"]);
+    expect(await names("?zone=zone-outdoor&status=confirmed")).toEqual(["เจ๊ม่อน", "คุณแพรว"]);
+  });
+
+  it("searches by name, phone and booking reference", async () => {
+    expect(await names("?q=" + encodeURIComponent("แพรว"))).toEqual(["คุณแพรว"]);
+    expect(await names("?q=0824567890")).toEqual(["คุณแพรว"]);
+    expect(await names("?q=" + encodeURIComponent("082 456"))).toEqual(["คุณแพรว"]); // spaces ignored
+    expect(await names("?q=bl-" + today().slice(0, 4) + "-0003")).toEqual(["คุณนัท"]);
+    expect(await names("?q=zzz")).toEqual([]);
+  });
+
+  it("includes later bookings and rejects bad filters", async () => {
+    const cookie = await staff();
+    await call(staffBook, "/api/mock/admin/bookings", { method: "POST", cookie, body: {
+      name: "คุณพรุ่งนี้", phone: "0861112222", serviceDate: addDays(today(), 1), party: "1-4", zoneId: "zone-indoor" } });
+    expect(await names(`?date=${addDays(today(), 1)}`)).toEqual(["คุณพรุ่งนี้"]);
+    expect(await names("")).not.toContain("คุณพรุ่งนี้");
+    expect((await list(cookie, "?status=done")).status).toBe(400);
+    expect((await list(cookie, "?date=tonight")).status).toBe(400);
   });
 });

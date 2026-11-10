@@ -133,3 +133,15 @@
 .miniHead { margin: 22px 0 4px; font-size: 13px; font-weight: 600; }
 @media (max-width: 1100px) { .settingsGrid { grid-template-columns: 1fr; } }
 @media (max-width: 560px) { .fieldsGrid { grid-template-columns: 1fr; } }
+
+/* Booking list filters */
+.filters { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 24px; }
+.filterGroup { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.stepper { position: relative; display: flex; align-items: center; height: 36px; border: 1px solid #e8e5e1; border-radius: 7px; background: #fff; font-size: 13px; }
+.stepBtn { width: 32px; height: 100%; border: 0; background: none; font: inherit; font-size: 16px; color: #25211f; cursor: pointer; }
+.stepBtn:focus-visible { outline: 2px solid #b94e29; outline-offset: -2px; border-radius: 7px; }
+.stepDate { position: relative; padding: 0 6px; min-width: 96px; text-align: center; }
+.select { height: 36px; padding: 0 12px; border: 1px solid #e8e5e1; border-radius: 7px; background: #fff; font: inherit; font-size: 13px; color: #25211f; }
+.select:focus-visible { outline: 2px solid #b94e29; outline-offset: 1px; }
+.searchWide { width: 318px; max-width: 100%; box-sizing: border-box; height: 36px; padding: 0 11px; border: 1px solid #e8e5e1; border-radius: 7px; background: #fff; font: inherit; font-size: 13px; color: #25211f; }
+.searchWide:focus-visible { outline: 2px solid #b94e29; outline-offset: 1px; }

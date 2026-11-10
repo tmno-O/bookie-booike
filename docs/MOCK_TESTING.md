@@ -97,7 +97,14 @@ sidebar and top bar, and the entry policy is shown to customers on the select sc
 (`POST /api/mock/admin/team/invites`; duplicate invites and existing members are rejected) and cancel a pending invitation
 (`DELETE .../team/invites/{id}`). Invitations are only recorded, since the mock sends no email and invited people can't sign in.
 
-The only admin page still showing a "coming soon" placeholder is the bookings list (Admin 02).
+### Booking list
+
+`/admin/bookings` lists every booking for one night (default tonight) with a day stepper (‹ date ›, or tap the date for a picker),
+status and zone filters, and a search over name, phone and booking reference. "การจอง N รายการ" shows the result count. The page
+refreshes every 5 seconds. "ดูรายละเอียด ›" opens the same details / check-in dialog over the list and returns to the same night.
+API: `GET /api/mock/admin/bookings?date=&status=&zone=&q=` (staff only). "+ เพิ่มการจอง" opens the add-booking dialog.
+
+Every admin page from the Figma Admin file is now built (dashboard, booking list, queue, zones, open times, settings and team).
 
 ## Seed data
 
