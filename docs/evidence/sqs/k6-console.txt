@@ -1,0 +1,1600 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: /burst.js
+ web dashboard: http://127.0.0.1:5665
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 1 max VUs, 10m30s max duration (incl. graceful stop):
+              * burst: 1 iterations shared among 1 VUs (maxDuration: 10m0s, gracefulStop: 30s)
+
+
+Run     [ 100% ] setup()
+burst   [   0% ]
+
+Run     [ 100% ] setup()
+burst   [   0% ]
+
+Run     [ 100% ] setup()
+burst   [   0% ]
+
+Run     [ 100% ] setup()
+burst   [   0% ]
+
+running (00m04.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m00.2s/10m0s  0/1 shared iters
+
+running (00m05.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m01.2s/10m0s  0/1 shared iters
+
+running (00m06.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m02.2s/10m0s  0/1 shared iters
+
+running (00m07.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m03.2s/10m0s  0/1 shared iters
+
+running (00m08.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m04.2s/10m0s  0/1 shared iters
+
+running (00m09.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m05.2s/10m0s  0/1 shared iters
+
+running (00m10.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m06.2s/10m0s  0/1 shared iters
+
+running (00m11.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m07.2s/10m0s  0/1 shared iters
+
+running (00m12.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m08.2s/10m0s  0/1 shared iters
+
+running (00m13.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m09.2s/10m0s  0/1 shared iters
+
+running (00m14.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m10.2s/10m0s  0/1 shared iters
+
+running (00m15.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m11.2s/10m0s  0/1 shared iters
+
+running (00m16.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m12.2s/10m0s  0/1 shared iters
+
+running (00m17.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m13.2s/10m0s  0/1 shared iters
+
+running (00m18.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m14.2s/10m0s  0/1 shared iters
+
+running (00m19.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m15.2s/10m0s  0/1 shared iters
+
+running (00m20.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m16.2s/10m0s  0/1 shared iters
+
+running (00m21.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m17.2s/10m0s  0/1 shared iters
+
+running (00m22.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m18.2s/10m0s  0/1 shared iters
+
+running (00m23.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m19.2s/10m0s  0/1 shared iters
+
+running (00m24.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m20.2s/10m0s  0/1 shared iters
+
+running (00m25.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m21.2s/10m0s  0/1 shared iters
+
+running (00m26.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m22.2s/10m0s  0/1 shared iters
+
+running (00m27.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m23.2s/10m0s  0/1 shared iters
+
+running (00m28.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m24.2s/10m0s  0/1 shared iters
+
+running (00m29.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m25.2s/10m0s  0/1 shared iters
+
+running (00m30.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m26.2s/10m0s  0/1 shared iters
+
+running (00m31.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m27.2s/10m0s  0/1 shared iters
+
+running (00m32.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m28.2s/10m0s  0/1 shared iters
+
+running (00m33.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m29.2s/10m0s  0/1 shared iters
+
+running (00m34.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m30.2s/10m0s  0/1 shared iters
+
+running (00m35.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m31.2s/10m0s  0/1 shared iters
+
+running (00m36.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m32.2s/10m0s  0/1 shared iters
+
+running (00m37.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m33.2s/10m0s  0/1 shared iters
+
+running (00m38.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m34.2s/10m0s  0/1 shared iters
+
+running (00m39.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m35.2s/10m0s  0/1 shared iters
+
+running (00m40.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m36.2s/10m0s  0/1 shared iters
+
+running (00m41.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m37.2s/10m0s  0/1 shared iters
+
+running (00m42.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m38.2s/10m0s  0/1 shared iters
+
+running (00m43.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m39.2s/10m0s  0/1 shared iters
+
+running (00m44.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m40.2s/10m0s  0/1 shared iters
+
+running (00m45.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m41.2s/10m0s  0/1 shared iters
+
+running (00m46.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m42.2s/10m0s  0/1 shared iters
+
+running (00m47.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m43.2s/10m0s  0/1 shared iters
+
+running (00m48.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m44.2s/10m0s  0/1 shared iters
+
+running (00m49.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m45.2s/10m0s  0/1 shared iters
+
+running (00m50.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m46.2s/10m0s  0/1 shared iters
+
+running (00m51.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m47.2s/10m0s  0/1 shared iters
+
+running (00m52.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m48.2s/10m0s  0/1 shared iters
+
+running (00m53.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m49.2s/10m0s  0/1 shared iters
+
+running (00m54.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m50.2s/10m0s  0/1 shared iters
+
+running (00m55.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m51.2s/10m0s  0/1 shared iters
+
+running (00m56.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m52.2s/10m0s  0/1 shared iters
+
+running (00m57.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m53.2s/10m0s  0/1 shared iters
+
+running (00m58.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m54.2s/10m0s  0/1 shared iters
+
+running (00m59.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m55.2s/10m0s  0/1 shared iters
+
+running (01m00.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m56.2s/10m0s  0/1 shared iters
+
+running (01m01.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m57.2s/10m0s  0/1 shared iters
+
+running (01m02.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m58.2s/10m0s  0/1 shared iters
+
+running (01m03.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m59.2s/10m0s  0/1 shared iters
+
+running (01m04.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m00.2s/10m0s  0/1 shared iters
+
+running (01m05.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m01.2s/10m0s  0/1 shared iters
+
+running (01m06.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m02.2s/10m0s  0/1 shared iters
+
+running (01m07.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m03.2s/10m0s  0/1 shared iters
+
+running (01m08.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m04.2s/10m0s  0/1 shared iters
+
+running (01m09.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m05.2s/10m0s  0/1 shared iters
+
+running (01m10.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m06.2s/10m0s  0/1 shared iters
+
+running (01m11.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m07.2s/10m0s  0/1 shared iters
+
+running (01m12.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m08.2s/10m0s  0/1 shared iters
+
+running (01m13.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m09.2s/10m0s  0/1 shared iters
+
+running (01m14.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m10.2s/10m0s  0/1 shared iters
+
+running (01m15.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m11.2s/10m0s  0/1 shared iters
+
+running (01m16.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m12.2s/10m0s  0/1 shared iters
+
+running (01m17.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m13.2s/10m0s  0/1 shared iters
+
+running (01m18.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m14.2s/10m0s  0/1 shared iters
+
+running (01m19.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m15.2s/10m0s  0/1 shared iters
+
+running (01m20.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m16.2s/10m0s  0/1 shared iters
+
+running (01m21.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m17.2s/10m0s  0/1 shared iters
+
+running (01m22.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m18.2s/10m0s  0/1 shared iters
+
+running (01m23.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m19.2s/10m0s  0/1 shared iters
+
+running (01m24.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m20.2s/10m0s  0/1 shared iters
+
+running (01m25.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m21.2s/10m0s  0/1 shared iters
+
+running (01m26.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m22.2s/10m0s  0/1 shared iters
+
+running (01m27.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m23.2s/10m0s  0/1 shared iters
+
+running (01m28.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m24.2s/10m0s  0/1 shared iters
+
+running (01m29.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m25.2s/10m0s  0/1 shared iters
+
+running (01m30.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m26.2s/10m0s  0/1 shared iters
+
+running (01m31.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m27.2s/10m0s  0/1 shared iters
+
+running (01m32.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m28.2s/10m0s  0/1 shared iters
+
+running (01m33.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m29.2s/10m0s  0/1 shared iters
+
+running (01m34.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m30.2s/10m0s  0/1 shared iters
+
+running (01m35.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m31.2s/10m0s  0/1 shared iters
+
+running (01m36.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m32.2s/10m0s  0/1 shared iters
+
+running (01m37.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m33.2s/10m0s  0/1 shared iters
+
+running (01m38.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m34.2s/10m0s  0/1 shared iters
+
+running (01m39.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m35.2s/10m0s  0/1 shared iters
+
+running (01m40.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m36.2s/10m0s  0/1 shared iters
+
+running (01m41.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m37.2s/10m0s  0/1 shared iters
+
+running (01m42.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m38.2s/10m0s  0/1 shared iters
+
+running (01m43.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m39.2s/10m0s  0/1 shared iters
+
+running (01m44.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m40.2s/10m0s  0/1 shared iters
+
+running (01m45.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m41.2s/10m0s  0/1 shared iters
+
+running (01m46.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m42.2s/10m0s  0/1 shared iters
+
+running (01m47.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m43.2s/10m0s  0/1 shared iters
+
+running (01m48.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m44.2s/10m0s  0/1 shared iters
+
+running (01m49.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m45.2s/10m0s  0/1 shared iters
+
+running (01m50.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m46.2s/10m0s  0/1 shared iters
+
+running (01m51.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m47.2s/10m0s  0/1 shared iters
+
+running (01m52.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m48.2s/10m0s  0/1 shared iters
+
+running (01m53.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m49.2s/10m0s  0/1 shared iters
+
+running (01m54.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m50.2s/10m0s  0/1 shared iters
+
+running (01m55.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m51.2s/10m0s  0/1 shared iters
+
+running (01m56.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m52.2s/10m0s  0/1 shared iters
+
+running (01m57.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m53.2s/10m0s  0/1 shared iters
+
+running (01m58.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m54.2s/10m0s  0/1 shared iters
+
+running (01m59.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m55.2s/10m0s  0/1 shared iters
+
+running (02m00.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m56.2s/10m0s  0/1 shared iters
+
+running (02m01.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m57.2s/10m0s  0/1 shared iters
+
+running (02m02.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m58.2s/10m0s  0/1 shared iters
+
+running (02m03.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m59.2s/10m0s  0/1 shared iters
+
+running (02m04.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m00.2s/10m0s  0/1 shared iters
+
+running (02m05.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m01.2s/10m0s  0/1 shared iters
+
+running (02m06.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m02.2s/10m0s  0/1 shared iters
+
+running (02m07.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m03.2s/10m0s  0/1 shared iters
+
+running (02m08.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m04.2s/10m0s  0/1 shared iters
+
+running (02m09.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m05.2s/10m0s  0/1 shared iters
+
+running (02m10.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m06.2s/10m0s  0/1 shared iters
+
+running (02m11.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m07.2s/10m0s  0/1 shared iters
+
+running (02m12.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m08.2s/10m0s  0/1 shared iters
+
+running (02m13.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m09.2s/10m0s  0/1 shared iters
+
+running (02m14.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m10.2s/10m0s  0/1 shared iters
+
+running (02m15.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m11.2s/10m0s  0/1 shared iters
+
+running (02m16.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m12.2s/10m0s  0/1 shared iters
+
+running (02m17.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m13.2s/10m0s  0/1 shared iters
+
+running (02m18.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m14.2s/10m0s  0/1 shared iters
+
+running (02m19.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m15.2s/10m0s  0/1 shared iters
+
+running (02m20.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m16.2s/10m0s  0/1 shared iters
+
+running (02m21.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m17.2s/10m0s  0/1 shared iters
+
+running (02m22.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m18.2s/10m0s  0/1 shared iters
+
+running (02m23.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m19.2s/10m0s  0/1 shared iters
+
+running (02m24.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m20.2s/10m0s  0/1 shared iters
+
+running (02m25.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m21.2s/10m0s  0/1 shared iters
+
+running (02m26.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m22.2s/10m0s  0/1 shared iters
+
+running (02m27.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m23.2s/10m0s  0/1 shared iters
+
+running (02m28.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m24.2s/10m0s  0/1 shared iters
+
+running (02m29.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m25.2s/10m0s  0/1 shared iters
+
+running (02m30.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m26.2s/10m0s  0/1 shared iters
+
+running (02m31.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m27.2s/10m0s  0/1 shared iters
+
+running (02m32.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m28.2s/10m0s  0/1 shared iters
+
+running (02m33.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m29.2s/10m0s  0/1 shared iters
+
+running (02m34.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m30.2s/10m0s  0/1 shared iters
+
+running (02m35.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m31.2s/10m0s  0/1 shared iters
+
+running (02m36.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m32.2s/10m0s  0/1 shared iters
+
+running (02m37.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m33.2s/10m0s  0/1 shared iters
+
+running (02m38.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m34.2s/10m0s  0/1 shared iters
+
+running (02m39.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m35.2s/10m0s  0/1 shared iters
+
+running (02m40.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m36.2s/10m0s  0/1 shared iters
+
+running (02m41.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m37.2s/10m0s  0/1 shared iters
+
+running (02m42.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m38.2s/10m0s  0/1 shared iters
+
+running (02m43.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m39.2s/10m0s  0/1 shared iters
+
+running (02m44.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m40.2s/10m0s  0/1 shared iters
+
+running (02m45.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m41.2s/10m0s  0/1 shared iters
+
+running (02m46.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m42.2s/10m0s  0/1 shared iters
+
+running (02m47.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m43.2s/10m0s  0/1 shared iters
+
+running (02m48.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m44.2s/10m0s  0/1 shared iters
+
+running (02m49.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m45.2s/10m0s  0/1 shared iters
+
+running (02m50.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m46.2s/10m0s  0/1 shared iters
+
+running (02m51.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m47.2s/10m0s  0/1 shared iters
+
+running (02m52.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m48.2s/10m0s  0/1 shared iters
+
+running (02m53.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m49.2s/10m0s  0/1 shared iters
+
+running (02m54.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m50.2s/10m0s  0/1 shared iters
+
+running (02m55.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m51.2s/10m0s  0/1 shared iters
+
+running (02m56.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m52.2s/10m0s  0/1 shared iters
+
+running (02m57.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m53.2s/10m0s  0/1 shared iters
+
+running (02m58.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m54.2s/10m0s  0/1 shared iters
+
+running (02m59.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m55.2s/10m0s  0/1 shared iters
+
+running (03m00.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m56.2s/10m0s  0/1 shared iters
+
+running (03m01.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m57.2s/10m0s  0/1 shared iters
+
+running (03m02.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m58.2s/10m0s  0/1 shared iters
+
+running (03m03.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  02m59.2s/10m0s  0/1 shared iters
+
+running (03m04.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m00.2s/10m0s  0/1 shared iters
+
+running (03m05.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m01.2s/10m0s  0/1 shared iters
+
+running (03m06.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m02.2s/10m0s  0/1 shared iters
+
+running (03m07.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m03.2s/10m0s  0/1 shared iters
+
+running (03m08.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m04.2s/10m0s  0/1 shared iters
+
+running (03m09.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m05.2s/10m0s  0/1 shared iters
+
+running (03m10.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m06.2s/10m0s  0/1 shared iters
+
+running (03m11.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m07.2s/10m0s  0/1 shared iters
+
+running (03m12.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m08.2s/10m0s  0/1 shared iters
+
+running (03m13.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m09.2s/10m0s  0/1 shared iters
+
+running (03m14.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m10.2s/10m0s  0/1 shared iters
+
+running (03m15.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m11.2s/10m0s  0/1 shared iters
+
+running (03m16.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m12.2s/10m0s  0/1 shared iters
+
+running (03m17.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m13.2s/10m0s  0/1 shared iters
+
+running (03m18.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m14.2s/10m0s  0/1 shared iters
+
+running (03m19.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m15.2s/10m0s  0/1 shared iters
+
+running (03m20.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m16.2s/10m0s  0/1 shared iters
+
+running (03m21.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m17.2s/10m0s  0/1 shared iters
+
+running (03m22.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m18.2s/10m0s  0/1 shared iters
+
+running (03m23.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m19.2s/10m0s  0/1 shared iters
+
+running (03m24.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m20.2s/10m0s  0/1 shared iters
+
+running (03m25.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m21.2s/10m0s  0/1 shared iters
+
+running (03m26.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m22.2s/10m0s  0/1 shared iters
+
+running (03m27.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m23.2s/10m0s  0/1 shared iters
+
+running (03m28.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m24.2s/10m0s  0/1 shared iters
+
+running (03m29.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m25.2s/10m0s  0/1 shared iters
+
+running (03m30.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m26.2s/10m0s  0/1 shared iters
+
+running (03m31.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m27.2s/10m0s  0/1 shared iters
+
+running (03m32.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m28.2s/10m0s  0/1 shared iters
+
+running (03m33.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m29.2s/10m0s  0/1 shared iters
+
+running (03m34.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m30.2s/10m0s  0/1 shared iters
+
+running (03m35.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m31.2s/10m0s  0/1 shared iters
+
+running (03m36.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m32.2s/10m0s  0/1 shared iters
+
+running (03m37.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m33.2s/10m0s  0/1 shared iters
+
+running (03m38.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m34.2s/10m0s  0/1 shared iters
+
+running (03m39.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m35.2s/10m0s  0/1 shared iters
+
+running (03m40.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m36.2s/10m0s  0/1 shared iters
+
+running (03m41.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m37.2s/10m0s  0/1 shared iters
+
+running (03m42.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m38.2s/10m0s  0/1 shared iters
+
+running (03m43.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m39.2s/10m0s  0/1 shared iters
+
+running (03m44.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m40.2s/10m0s  0/1 shared iters
+
+running (03m45.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m41.2s/10m0s  0/1 shared iters
+
+running (03m46.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m42.2s/10m0s  0/1 shared iters
+
+running (03m47.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m43.2s/10m0s  0/1 shared iters
+
+running (03m48.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m44.2s/10m0s  0/1 shared iters
+
+running (03m49.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m45.2s/10m0s  0/1 shared iters
+
+running (03m50.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m46.2s/10m0s  0/1 shared iters
+
+running (03m51.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m47.2s/10m0s  0/1 shared iters
+
+running (03m52.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m48.2s/10m0s  0/1 shared iters
+
+running (03m53.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m49.2s/10m0s  0/1 shared iters
+
+running (03m54.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m50.2s/10m0s  0/1 shared iters
+
+running (03m55.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m51.2s/10m0s  0/1 shared iters
+
+running (03m56.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m52.2s/10m0s  0/1 shared iters
+
+running (03m57.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m53.2s/10m0s  0/1 shared iters
+
+running (03m58.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m54.2s/10m0s  0/1 shared iters
+
+running (03m59.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m55.2s/10m0s  0/1 shared iters
+
+running (04m00.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m56.2s/10m0s  0/1 shared iters
+
+running (04m01.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m57.2s/10m0s  0/1 shared iters
+
+running (04m02.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m58.2s/10m0s  0/1 shared iters
+
+running (04m03.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  03m59.2s/10m0s  0/1 shared iters
+
+running (04m04.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m00.2s/10m0s  0/1 shared iters
+
+running (04m05.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m01.2s/10m0s  0/1 shared iters
+
+running (04m06.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m02.2s/10m0s  0/1 shared iters
+
+running (04m07.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m03.2s/10m0s  0/1 shared iters
+
+running (04m08.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m04.2s/10m0s  0/1 shared iters
+
+running (04m09.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m05.2s/10m0s  0/1 shared iters
+
+running (04m10.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m06.2s/10m0s  0/1 shared iters
+
+running (04m11.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m07.2s/10m0s  0/1 shared iters
+
+running (04m12.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m08.2s/10m0s  0/1 shared iters
+
+running (04m13.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m09.2s/10m0s  0/1 shared iters
+
+running (04m15.2s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m10.5s/10m0s  0/1 shared iters
+
+running (04m15.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m11.2s/10m0s  0/1 shared iters
+
+running (04m16.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m12.2s/10m0s  0/1 shared iters
+
+running (04m17.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m13.2s/10m0s  0/1 shared iters
+
+running (04m18.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m14.2s/10m0s  0/1 shared iters
+
+running (04m19.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m15.2s/10m0s  0/1 shared iters
+
+running (04m20.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m16.2s/10m0s  0/1 shared iters
+
+running (04m21.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m17.2s/10m0s  0/1 shared iters
+
+running (04m22.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m18.2s/10m0s  0/1 shared iters
+
+running (04m23.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m19.2s/10m0s  0/1 shared iters
+
+running (04m24.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m20.2s/10m0s  0/1 shared iters
+
+running (04m25.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m21.2s/10m0s  0/1 shared iters
+
+running (04m26.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m22.2s/10m0s  0/1 shared iters
+
+running (04m27.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m23.2s/10m0s  0/1 shared iters
+
+running (04m28.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m24.2s/10m0s  0/1 shared iters
+
+running (04m29.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m25.2s/10m0s  0/1 shared iters
+
+running (04m30.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m26.2s/10m0s  0/1 shared iters
+
+running (04m31.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m27.2s/10m0s  0/1 shared iters
+
+running (04m32.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m28.2s/10m0s  0/1 shared iters
+
+running (04m33.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m29.2s/10m0s  0/1 shared iters
+
+running (04m34.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m30.2s/10m0s  0/1 shared iters
+
+running (04m35.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m31.2s/10m0s  0/1 shared iters
+
+running (04m36.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m32.2s/10m0s  0/1 shared iters
+
+running (04m37.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m33.2s/10m0s  0/1 shared iters
+
+running (04m38.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m34.2s/10m0s  0/1 shared iters
+
+running (04m39.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m35.2s/10m0s  0/1 shared iters
+
+running (04m40.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m36.2s/10m0s  0/1 shared iters
+
+running (04m41.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m37.2s/10m0s  0/1 shared iters
+
+running (04m42.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m38.2s/10m0s  0/1 shared iters
+
+running (04m43.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m39.2s/10m0s  0/1 shared iters
+
+running (04m44.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m40.2s/10m0s  0/1 shared iters
+
+running (04m45.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m41.2s/10m0s  0/1 shared iters
+
+running (04m46.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m42.2s/10m0s  0/1 shared iters
+
+running (04m47.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m43.2s/10m0s  0/1 shared iters
+
+running (04m48.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m44.2s/10m0s  0/1 shared iters
+
+running (04m49.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m45.2s/10m0s  0/1 shared iters
+
+running (04m50.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m46.2s/10m0s  0/1 shared iters
+
+running (04m51.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m47.2s/10m0s  0/1 shared iters
+
+running (04m52.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m48.2s/10m0s  0/1 shared iters
+
+running (04m53.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m49.2s/10m0s  0/1 shared iters
+
+running (04m54.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m50.2s/10m0s  0/1 shared iters
+
+running (04m55.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m51.2s/10m0s  0/1 shared iters
+
+running (04m56.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m52.2s/10m0s  0/1 shared iters
+
+running (04m57.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m53.2s/10m0s  0/1 shared iters
+
+running (04m58.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m54.2s/10m0s  0/1 shared iters
+
+running (04m59.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m55.2s/10m0s  0/1 shared iters
+
+running (05m00.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m56.2s/10m0s  0/1 shared iters
+
+running (05m01.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m57.2s/10m0s  0/1 shared iters
+
+running (05m02.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m58.2s/10m0s  0/1 shared iters
+
+running (05m03.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  04m59.2s/10m0s  0/1 shared iters
+
+running (05m04.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m00.2s/10m0s  0/1 shared iters
+
+running (05m05.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m01.2s/10m0s  0/1 shared iters
+
+running (05m06.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m02.2s/10m0s  0/1 shared iters
+
+running (05m07.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m03.2s/10m0s  0/1 shared iters
+
+running (05m08.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m04.2s/10m0s  0/1 shared iters
+
+running (05m09.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m05.2s/10m0s  0/1 shared iters
+
+running (05m10.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m06.2s/10m0s  0/1 shared iters
+
+running (05m11.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m07.2s/10m0s  0/1 shared iters
+
+running (05m12.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m08.2s/10m0s  0/1 shared iters
+
+running (05m13.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m09.2s/10m0s  0/1 shared iters
+
+running (05m14.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m10.2s/10m0s  0/1 shared iters
+
+running (05m15.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m11.2s/10m0s  0/1 shared iters
+
+running (05m16.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m12.2s/10m0s  0/1 shared iters
+
+running (05m17.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m13.2s/10m0s  0/1 shared iters
+
+running (05m18.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m14.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:20Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:20Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:20Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:20Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:20Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:20Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:21Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m19.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m15.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:21Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:22Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m20.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m16.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:22Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m21.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m17.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:23Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:23Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:23Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:23Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:23Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:23Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m22.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m18.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:24Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:24Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m23.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m19.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:25Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:25Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m24.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m20.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:26Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:26Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:26Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:27Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:27Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:27Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m25.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m21.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:27Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:27Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m26.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m22.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:28Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:28Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m27.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m23.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:29Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:29Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:30Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m28.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m24.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:30Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:30Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:30Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:30Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:30Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m29.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m25.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:31Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:32Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m30.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m26.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:32Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:32Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m31.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m27.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:33Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:33Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:33Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:33Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:33Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:34Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m32.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m28.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:34Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m33.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m29.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:35Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:36Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:36Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m34.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m30.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:36Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:36Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:36Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:36Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:37Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m35.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m31.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:37Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:38Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m36.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m32.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:38Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m37.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m33.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:39Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:39Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:39Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:40Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:40Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:40Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m38.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m34.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:40Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:40Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m39.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m35.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:41Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:42Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m40.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m36.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:42Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:43Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m41.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m37.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:43Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:43Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:43Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:43Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:44Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:44Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m42.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m38.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:45Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m43.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m39.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:45Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m44.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m40.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:46Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:46Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:46Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:47Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:47Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:47Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m45.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m41.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:47Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:47Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m46.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m42.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:48Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:49Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m47.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m43.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:50Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:50Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m48.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m44.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:50Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:50Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:50Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:50Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:50Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:51Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m49.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m45.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:52Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m50.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m46.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:52Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m51.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m47.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:53Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:53Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:53Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:53Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:53Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:54Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m52.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m48.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:54Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:54Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m53.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m49.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:55Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:55Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m54.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m50.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:57Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:57Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m55.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m51.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:57Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:57Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:57Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:57Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:58Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:13:58Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m56.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m52.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:59Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m57.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m53.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:13:59Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m58.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m54.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:00Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:00Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:01Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (05m59.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m55.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:01Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:01Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:01Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:01Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:01Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m00.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m56.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:02Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m01.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m57.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:03Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m02.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m58.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:04Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:04Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:04Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:05Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:05Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:05Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m03.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  05m59.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:05Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:05Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m04.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m00.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:06Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:07Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m05.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m01.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:08Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:08Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m06.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m02.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:08Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:08Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:08Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:08Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:09Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:09Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m07.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m03.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:10Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m08.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m04.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:10Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m09.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m05.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:11Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:11Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:12Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m10.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m06.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:12Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:12Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:12Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:12Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:12Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m11.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m07.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:13Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m12.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m08.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:14Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m13.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m09.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:15Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:15Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:15Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:16Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:16Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:16Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m14.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m10.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:16Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:16Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m15.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m11.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:17Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:18Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m16.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m12.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:19Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m17.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m13.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:19Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:19Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:19Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:19Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:19Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m18.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m14.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:20Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:20Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m19.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m15.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:21Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:21Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m20.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m16.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:22Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:22Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m21.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m17.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:23Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:23Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:23Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:23Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:23Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:24Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m22.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m18.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:25Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m23.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m19.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:25Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m24.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m20.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:26Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:26Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:27Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:27Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m25.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m21.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:27Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:27Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:27Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:27Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m26.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m22.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:28Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m27.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m23.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:29Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m28.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m24.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:30Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:30Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:30Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:31Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:31Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m29.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m25.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:31Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:31Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:31Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m30.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m26.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:32Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m31.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m27.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:33Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m32.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m28.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:34Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:34Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:34Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:35Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:35Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:35Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m33.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m29.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:35Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:35Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m34.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m30.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:36Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:37Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m35.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m31.2s/10m0s  0/1 shared iters
+
+running (06m36.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m32.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:38Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:38Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:38Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:39Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m37.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m33.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:39Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:39Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:39Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:39Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m38.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m34.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:40Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:41Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m39.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m35.2s/10m0s  0/1 shared iters
+
+running (06m40.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m36.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:42Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:42Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:42Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:43Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m41.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m37.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:43Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:43Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:43Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:43Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m42.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m38.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:44Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:45Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m43.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m39.2s/10m0s  0/1 shared iters
+
+running (06m44.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m40.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:46Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:46Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:46Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:47Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m45.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m41.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:47Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:47Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:47Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:47Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m46.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m42.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:48Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:49Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m47.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m43.2s/10m0s  0/1 shared iters
+
+running (06m48.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m44.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:50Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:50Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:50Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:50Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:50Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:50Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:51Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m49.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m45.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:51Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:52Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m50.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m46.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:52Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m51.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m47.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:53Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:53Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:53Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:53Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:53Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:53Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m52.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m48.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:54Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:54Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m53.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m49.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:55Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:55Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m54.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m50.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:56Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:56Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:56Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:57Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:57Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:57Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m55.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m51.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:57Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:57Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m56.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m52.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:58Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:58Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m57.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m53.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:14:59Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:14:59Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:15:00Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+
+running (06m58.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  06m54.2s/10m0s  0/1 shared iters
+time="2026-11-12T15:15:00Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:15:00Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:15:00Z" level=warning msg="Request Failed" error="Post \"http://host.docker.internal:3100/api/booking-requests\": request timeout"
+time="2026-11-12T15:15:00Z" level=info msg="{\"runId\":\"sqs20261112220800\",\"venueId\":\"10000000-0000-4000-8000-000000000001\",\"serviceDate\":\"2026-11-28\",\"maxInFlight\":250,\"byStatus\":{\"0\":286,\"202\":4714}}" source=console
+
+
+  █ THRESHOLDS 
+
+    booking_accepted
+    ✗ 'count==5000' count=4714
+
+    booking_posts
+    ✓ 'count==5000' count=5000
+
+
+  █ TOTAL RESULTS 
+
+    CUSTOM
+    booking_accepted...............: 4714   11.251427/s
+    booking_posts..................: 5000   11.934055/s
+
+    HTTP
+    http_req_duration..............: avg=17.72s min=92.77ms med=5.28s max=1m29s p(90)=1m10s  p(95)=1m29s
+      { expected_response:true }...: avg=13.52s min=92.77ms med=5.2s  max=1m29s p(90)=48.02s p(95)=1m9s 
+      { phase:booking }............: avg=18.43s min=1.09s   med=5.32s max=1m29s p(90)=1m12s  p(95)=1m29s
+    http_req_failed................: 5.49%  286 out of 5202
+    http_reqs......................: 5202   12.416191/s
+
+    EXECUTION
+    iteration_duration.............: avg=6m54s  min=6m54s   med=6m54s max=6m54s p(90)=6m54s  p(95)=6m54s
+    iterations.....................: 1      0.002387/s
+    vus............................: 1      min=0           max=1
+    vus_max........................: 1      min=1           max=1
+
+    NETWORK
+    data_received..................: 1.8 MB 4.4 kB/s
+    data_sent......................: 2.1 MB 5.0 kB/s
+
+
+
+
+running (06m59.0s), 0/1 VUs, 1 complete and 0 interrupted iterations
+burst ✓ [ 100% ] 1 VUs  06m54.3s/10m0s  1/1 shared iters
+time="2026-11-12T15:15:00Z" level=error msg="thresholds on metrics 'booking_accepted' have been crossed"

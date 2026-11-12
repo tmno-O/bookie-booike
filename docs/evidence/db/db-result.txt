@@ -1,0 +1,19 @@
+-- Outcome of every request in this run
+  status   |    result_code    | count 
+-----------+-------------------+-------
+ confirmed | -                 |     1
+ rejected  | TABLE_UNAVAILABLE |  4999
+(2 rows)
+
+-- Timing measured from the database
+ requests | accept_window_s | decided_after_last_accept_s | first_accept_to_all_decided_s 
+----------+-----------------+-----------------------------+-------------------------------
+     5000 |           68.54 |                        0.11 |                         68.64
+(1 row)
+
+-- Confirmed bookings for the table and night (must be exactly 1)
+  reference   |  status   | service_date | table_name 
+--------------+-----------+--------------+------------
+ BL-2026-0030 | confirmed | 2026-11-30   | A2
+(1 row)
+

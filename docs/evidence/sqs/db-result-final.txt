@@ -1,0 +1,18 @@
+-- Final outcome after the worker drained the SQS backlog (captured 2026-11-12T15:45:37Z)
+  status   |    result_code    | count 
+-----------+-------------------+-------
+ confirmed | -                 |     1
+ rejected  | TABLE_UNAVAILABLE |  4999
+(2 rows)
+
+ requests | accept_window_s | decided_after_last_accept_s | first_accept_to_all_decided_s 
+----------+-----------------+-----------------------------+-------------------------------
+     5000 |          403.13 |                     1767.78 |                       2170.91
+(1 row)
+
+              decided               | count 
+------------------------------------+-------
+ by SQS worker (before DB run)      |  4187
+ during DB run (DB drain or worker) |   813
+(2 rows)
+
