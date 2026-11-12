@@ -1,5 +1,7 @@
 # แผน Backend: Bookie Bookie (Bookie Lyon)
 
+> **สถานะ 13 พ.ย. 2569:** แผนเริ่มต้นของ backend ทำครบแล้ว (เก็บไว้เป็นบันทึก). ต่อด้วย [backend-dev-2.md](backend-dev-2.md) และ [DEPLOY.md](DEPLOY.md).
+
 ## Context
 โฟลเดอร์ `Hackathon-Final` มีแต่เอกสาร ไม่มีโค้ด ไม่ใช่ git repo; remote `https://github.com/tmno-O/bookie-booike.git` ว่าง
 ผู้ใช้รับบท Backend ต้องสร้างระบบจองโต๊ะร้านผ่าน LINE OA/LIFF ตามเอกสาร ทำทีละขั้น แต่ละขั้นเสร็จ = test ผ่าน + commit + push `main`

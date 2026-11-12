@@ -1,6 +1,6 @@
 # Bookie Bookie
 
-ระบบจองโต๊ะผ่าน LINE OA และ LIFF ใช้ Next.js, Supabase Postgres และ SQS FIFO. ดู [API contract](docs/API_CONTRACT.md), [คู่มือทดสอบ mock และ real](docs/MOCK_TESTING.md) และ [แผน backend](docs/backend/BACKEND_PLAN.md).
+ระบบจองโต๊ะผ่าน LINE OA และ LIFF ใช้ Next.js และ Supabase Postgres. คิวจองเลือกได้สองแบบด้วย `QUEUE_DRIVER`: `sqs` ใช้ SQS FIFO กับ booking worker (ค่าเริ่มต้น ใช้ในเครื่อง) และ `db` เก็บคิวในตาราง Postgres แล้วตัดสินด้วย procedure โดยไม่ต้องมี worker (ใช้บน Vercel). ดู [API contract](docs/API_CONTRACT.md), [คู่มือทดสอบ mock และ real](docs/MOCK_TESTING.md), [คู่มือ deploy](docs/DEPLOY.md), [หลักฐานทดสอบโหลด](docs/evidence/README.md) และ [แผน backend](docs/backend/BACKEND_PLAN.md).
 
 ## รันในเครื่อง
 
@@ -27,6 +27,8 @@ npm run dev -- --port 3100
 npm run worker
 ```
 
+ถ้าต้องการทดสอบคิวแบบเดียวกับ production ให้ตั้ง `$env:QUEUE_DRIVER = 'db'` ก่อน `npm run dev` และไม่ต้องรัน worker. API ตัดสินคำขอทันทีหลังตอบ `202`. ห้ามรันสองโหมดกับฐานข้อมูลเดียวกันพร้อมกัน เพราะ drain ของโหมด `db` จะหยิบคำขอ `queued` ของโหมด `sqs` ไปตัดสินด้วย.
+
 - [หน้าจองของลูกค้า](http://localhost:3100/book/bookie-demo) เดินจาก login ถึงรับคิว เลือกคืนและโซน แล้วดูผลกับประวัติการจอง. ใช้หน้าต่างปกติคู่กับหน้าต่างส่วนตัว หรือใช้สองโปรไฟล์เบราว์เซอร์ เพื่อเห็นคิวขยับหลังส่งคำขอแรก.
 - [หน้าแอดมิน](http://localhost:3100/admin/login) ใช้ `owner@bookie.test` หรือ `staff@bookie.test` กับรหัส local `BookieDemo123!`. เจ้าของจัดการเวลาเปิดจอง ข้อมูลร้าน และคำเชิญ. ทั้งสอง role จัดการจอง คิว เช็กอิน และโซน.
 - [เดโมเลือกโต๊ะผ่าน API เดิม](http://localhost:3100/book/bookie-demo/demo) และ [สถานะ DB กับคิว](http://localhost:3100/api/health) ใช้ทดสอบระบบเดิมและการเชื่อมต่อ.
@@ -42,7 +44,7 @@ npm test
 npm run test:integration
 ```
 
-Integration tests ใช้ Supabase, ElasticMQ และ LINE mock. พัก booking worker ของเดโมระหว่างรันชุดนี้. Tests สร้างร้านกับคิวแยกชั่วคราวและล้างข้อมูลร้านทดสอบเมื่อจบ.
+Integration tests ใช้ Supabase, ElasticMQ และ LINE mock. พัก booking worker ของเดโมระหว่างรันชุดนี้. Tests สร้างร้านกับคิวแยกชั่วคราวและล้างข้อมูลร้านทดสอบเมื่อจบ. `tests/integration/db-queue.test.ts` ทดสอบโหมด `QUEUE_DRIVER=db` (ลำดับคิว, drain พร้อมกัน, idempotency, retry แล้ว `SYSTEM_ERROR`, health).
 
 ### k6 spike และ burst
 
@@ -75,6 +77,17 @@ docker exec supabase_db_Hackathon-Final psql -U postgres -d postgres -c "select 
 
 ### ผลทดสอบ local วันที่ 12 พฤศจิกายน 2569
 
+เทียบสองโหมดคิวด้วย burst 5,000 คำขอ ส่งพร้อมกัน 250 (รายละเอียด เงื่อนไข และไฟล์หลักฐานอยู่ใน [docs/evidence](docs/evidence/README.md)):
+
+| | `sqs` + worker | `db` |
+| --- | --- | --- |
+| ได้ `202` | 4,714 (timeout 286) | 5,000 |
+| เวลารับคำขอครบ | 403 วินาที | 68.5 วินาที |
+| POST median / p95 | 5.3 / 90.0 วินาที | 3.4 / 4.4 วินาที |
+| ผลการจอง | confirmed 1, rejected 4,999 | confirmed 1, rejected 4,999 |
+
+ผลก่อนหน้านี้:
+
 - Browser E2E โหมด real ผ่านสอง session LINE แยกกัน ครบรับคิว จองอัตโนมัติ จองแบบรอจัดสรร ประวัติ และทุกหน้าแอดมิน. โหมด mock ผ่านการจองและค้นเลขอ้างอิงบน JSON แยก.
 - Spike ใช้ 20 VUs จองโต๊ะ A2 คืน 9 ธันวาคม 2569. รับ `202` ครบ 20 รายการ ยืนยัน 1 รายการ อีก 19 รายการได้ `TABLE_UNAVAILABLE`. k6 checks ผ่าน 79/79.
 - Burst ใช้ k6 v2.3.0 กับ Next dev, Supabase และ ElasticMQ. คืนทดสอบ 11 ธันวาคม 2569, `RUN_ID=integratedburst20261112b`, `MAX_IN_FLIGHT=250`. ส่งและรับ `202` ครบ 5,000 รายการ, p95 ของ POST 5.34 วินาที. DB หลังระบายคิวยืนยัน 1 รายการและปฏิเสธ 4,999 รายการด้วย `TABLE_UNAVAILABLE`.
@@ -85,12 +98,16 @@ docker exec supabase_db_Hackathon-Final psql -U postgres -d postgres -c "select 
 - คิวเรียกทีละ 1 คนโดยค่าเริ่มต้น และให้เวลาเลือก 120 วินาที. คืนบริการมีเวลาเปิดจองตาม Bangkok และใช้วันพิเศษก่อนค่ามาตรฐาน.
 - `auto` เลือกโต๊ะว่างขนาดเล็กสุดที่พอในโซน. `manual` สร้างรายการรอจัดสรรและถือโต๊ะเมื่อยืนยัน. ตั้งผ่าน `PATCH /api/staff/venues/{venueId}/settings`. การจองที่ยืนยันและเช็กอินแล้วนับรวมในความจุของคืนบริการ.
 - เวลาให้บริการตามกฎร้านมีค่าเริ่มต้น `18:00–02:00` และช่วงจอง 30 วัน. กฎระดับโต๊ะมาก่อนโซนและร้าน. ลูกค้ายกเลิกก่อนเวลาให้บริการอย่างน้อย 120 นาทีโดยค่าเริ่มต้น.
-- `202` หมายถึง broker รับคำขอ. หากได้ `503 QUEUE_UNAVAILABLE` ให้ส่งซ้ำด้วย `Idempotency-Key` เดิม. Worker ตรวจ `pending_publish` และหมดอายุ ticket ทุก 15 วินาที. ใช้ `npm run reconcile` เพื่อตรวจทันที.
-- Worker ต่อ visibility ระหว่างประมวลผลและลบข้อความหลัง commit. เมื่อ retry ครบ ระบบบันทึก `rejected/SYSTEM_ERROR` พร้อม audit. ติดตาม `pending_publish`, `queued` และ `notification_outbox` จากฐานข้อมูลฝั่ง server.
+- `202` หมายถึงคำขอเข้าคิวแล้ว ยังไม่ใช่การจองสำเร็จ ให้ติดตามผลจาก status API.
+- โหมด `sqs`: `202` หลัง broker รับคำขอ. หากได้ `503 QUEUE_UNAVAILABLE` ให้ส่งซ้ำด้วย `Idempotency-Key` เดิม. Worker ตรวจ `pending_publish` และหมดอายุ ticket ทุก 15 วินาที (`npm run reconcile` ตรวจทันที). Worker ต่อ visibility ระหว่างประมวลผลและลบข้อความหลัง commit.
+- โหมด `db`: คำขอบันทึกเป็น `queued` ใน transaction เดียวกับที่รับคำขอ (ได้ `queue_seq`). `drain_booking_requests()` หยิบเฉพาะคำขอเก่าสุดของแต่ละร้าน/คืน ล็อกด้วย `FOR UPDATE SKIP LOCKED` แล้ว commit ทีละรายการ จึงรันหลายตัวพร้อมกันได้โดยลำดับในคืนเดียวกันไม่สลับ. API เรียกหลังตอบด้วย `after()` แบบ exclusive และ Supabase Cron เรียกทุก 1 วินาทีเป็นตัวสำรอง. `booking_housekeeping()` ทำงานเก็บกวาดแทน reconcile. ลำดับคิวคือลำดับที่คำขอปรากฏในฐานข้อมูล (commit) ซึ่งเทียบเท่าลำดับที่ broker รับในโหมด `sqs`.
+- ทั้งสองโหมดเรียก `process_booking_request()` ตัวเดียวกัน. เมื่อ retry ครบ `BOOKING_MAX_RECEIVES` ระบบบันทึก `rejected/SYSTEM_ERROR` พร้อม audit. ติดตาม `pending_publish`, `queued` และ `notification_outbox` จากฐานข้อมูลฝั่ง server.
 
-## เชื่อม LINE และ AWS SQS
+## Deploy, LINE และ AWS SQS
+
+- Production ที่แนะนำคือ Vercel + Supabase cloud ด้วย `QUEUE_DRIVER=db` ไม่ต้องใช้ AWS และไม่ต้องมี worker server. ขั้นตอนครบอยู่ใน [docs/DEPLOY.md](docs/DEPLOY.md). `vercel.json` ตั้ง function ไว้ที่ `sin1` และต่อฐานข้อมูลผ่าน transaction pooler ด้วย `DATABASE_PREPARE=false`.
 
 - ตั้ง `NEXT_PUBLIC_API_MODE=real` และ `LINE_VERIFY_MODE=real`. ตั้ง LIFF Endpoint URL เป็น `https://<host>/book/<slug>/login` พร้อม scope `openid`. เจ้าของตั้ง LINE Login channel ID, LIFF ID และ provider ID ผ่าน staff API. ใช้ HTTPS สำหรับ session cookie ใน production.
-- ตั้ง `SQS_QUEUE_URL` ไปที่ FIFO queue และนำ `SQS_ENDPOINT` ออก. ให้ AWS credentials ของ workload มีสิทธิ์ส่ง รับ ลบ ต่อ visibility และอ่าน queue attributes.
+- ถ้าใช้ `QUEUE_DRIVER=sqs` บน cloud ให้ตั้ง `SQS_QUEUE_URL` ไปที่ FIFO queue นำ `SQS_ENDPOINT` ออก และรัน `npm run worker` บน host ที่รันค้างได้. ให้ AWS credentials ของ workload มีสิทธิ์ส่ง รับ ลบ ต่อ visibility และอ่าน queue attributes.
 - เปิด LINE push โดยตั้ง access token ของ Messaging API channel ที่ใช้ provider เดียวกับ LINE Login แล้วตั้ง `LINE_NOTIFICATIONS_ENABLED=true` และรัน `npm run worker:notifications`. เก็บ `LINE_SECRET_KEY` ใน secret store ของ environment.
 - การทดสอบ local ใช้ LINE mock กับ ElasticMQ. งานนอกขอบเขตเดโมคือการชำระเงิน มัดจำ คืนเงิน, rich menu publish, LINE webhook, ส่งอีเมลคำเชิญ และคืนโต๊ะเมื่อ no-show.

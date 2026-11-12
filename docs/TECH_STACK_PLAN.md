@@ -2,6 +2,8 @@
 
 5 พฤศจิกายน 2569 · ฉบับ Feature 1–4 + LIFF/FIFO | เอกสารออกแบบ ยังไม่มีระบบเปิดใช้งาน ไม่มีผล pilot/load test หรือธุรกรรมจริงที่ยืนยันแล้ว
 
+> **อัปเดต 13 พ.ย. 2569:** โค้ดจริงรองรับคิวสองแบบด้วย `QUEUE_DRIVER`. `sqs` ทำตามเอกสารนี้ (SQS FIFO + worker). `db` เก็บคิวในตาราง Postgres แล้วตัดสินด้วย `drain_booking_requests()` ลำดับคิวจึงเป็นลำดับที่คำขอ commit ลงฐานข้อมูลแทนลำดับที่ broker รับ ใช้สำหรับ Vercel ที่รัน worker ไม่ได้. ดู [README](../README.md) และ [DEPLOY](DEPLOY.md).
+
 แนะนำ LINE OA รายร้าน + LIFF, TypeScript/Next.js API, Supabase PostgreSQL/Auth/Storage, SQS FIFO และ Node.js worker แยก สำหรับ Gateway ใช้ adapter และ sandbox ก่อน ยังไม่เลือกผู้ให้บริการหรือเส้นทางเงินจริง
 
 รายละเอียดขอบเขตที่ตัดสินใจแล้วอยู่ [FEATURE_REQUIREMENTS.md](./FEATURE_REQUIREMENTS.md) ข้อเสนอ/คำถามค้างอยู่ [OPEN_DECISIONS.md](./OPEN_DECISIONS.md) ไม่ถือว่าเครื่องมือที่แนะนำเป็นระบบที่ติดตั้งแล้ว

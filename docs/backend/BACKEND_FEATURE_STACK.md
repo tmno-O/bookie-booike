@@ -2,6 +2,8 @@
 
 5 พฤศจิกายน 2569 · ฉบับ Feature 1–4 + LIFF/FIFO | ผู้รับบทบาท: คุณ (Backend) | เอกสารออกแบบ ยังไม่มีระบบเปิดใช้งาน ไม่มีผล pilot/load test หรือธุรกรรมจริงที่ยืนยันแล้ว
 
+> **อัปเดต 13 พ.ย. 2569:** โค้ดจริงรองรับคิวสองแบบด้วย `QUEUE_DRIVER`. `sqs` ทำตามเอกสารนี้ (SQS FIFO + worker). `db` เก็บคิวในตาราง Postgres แล้วตัดสินด้วย `drain_booking_requests()` ลำดับคิวจึงเป็นลำดับที่คำขอ commit ลงฐานข้อมูลแทนลำดับที่ broker รับ ใช้สำหรับ Vercel ที่รัน worker ไม่ได้. ดู [README](../../README.md) และ [DEPLOY](../DEPLOY.md).
+
 ธุรกิจมี 4 ฟีเจอร์ตามไฟล์ใหม่ ส่วน 15 รายการในเอกสารก่อนเป็นความสามารถทางเทคนิคประกอบ ไม่ใช่การเพิ่ม scope ธุรกิจใหม่ อ่าน [FEATURE_REQUIREMENTS.md](./FEATURE_REQUIREMENTS.md) และ [OPEN_DECISIONS.md](./OPEN_DECISIONS.md) ควบคู่
 
 ## F1. LINE integration / onboarding

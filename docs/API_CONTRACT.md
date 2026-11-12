@@ -13,8 +13,8 @@ JSON ใช้ camelCase. ส่ง `Content-Type: application/json` เมื�
 | `GET /api/me`, `POST /api/session/logout` | อ่าน `{user:{userId,displayName}}` หรือลบ session |
 | `POST /api/venues/{venueId}/queue-tickets` | รับ `{name,phone}`. คืน `201` สำหรับ ticket ใหม่ หรือ `200` สำหรับ ticket เดิมที่ยังใช้งานได้. ก่อนเปิดจองคืน `403 NOT_OPEN` |
 | `GET /api/me/queue-tickets/{id}` | คืน `{requestId,status,position,ready,bookingRequestId,bookingId}` เฉพาะเจ้าของ ticket. สถานะ `waiting`, `ready`, `used`, `expired` |
-| `POST /api/booking-requests` | รับ `{venueId,ticketId,serviceDate,zoneId,partyBucket}` และ `Idempotency-Key`. คืน `202 {requestId}` เมื่อ broker รับคำขอ |
-| `GET /api/me/booking-requests/{requestId}` | คืน `{requestId,status,resultCode,bookingId}`. สถานะ `pending_publish`, `queued`, `confirmed`, `rejected` |
+| `POST /api/booking-requests` | รับ `{venueId,ticketId,serviceDate,zoneId,partyBucket}` และ `Idempotency-Key`. คืน `202 {requestId}` เมื่อคำขอเข้าคิว (`QUEUE_DRIVER=sqs`: broker รับแล้ว, `db`: บันทึกลงตารางแล้ว) |
+| `GET /api/me/booking-requests/{requestId}` | คืน `{requestId,status,resultCode,bookingId}`. สถานะ `pending_publish` (เฉพาะ `sqs`), `queued`, `confirmed`, `rejected` |
 | `GET /api/me/bookings`, `GET /api/me/bookings/{bookingId}` | คืนรายการแบบ `{bookings,nextOffset}` หรือ booking เดี่ยว. รองรับ `date`, `limit` 1–100 (ค่าเริ่มต้น 50), `offset` |
 | `POST /api/me/bookings/{bookingId}/cancel` | ยกเลิกตาม cutoff ของร้าน. การจองที่เช็กอินแล้วคืน `409 ALREADY_CHECKED_IN` |
 
@@ -23,8 +23,14 @@ JSON ใช้ camelCase. ส่ง `Content-Type: application/json` เมื�
 - การรับคำขอต้องใช้ ticket สถานะ `ready` ของลูกค้าในร้านนั้น. ส่งก่อนเปิดคืนบริการได้ `409 NIGHT_NOT_OPEN`. คิวที่หมดอายุหรือใช้แล้วได้ `409 TICKET_NOT_READY`. ปิดโซนได้ `409 ZONE_CLOSED`.
 - Worker โหมด `auto` เลือกโต๊ะว่างขนาดเล็กสุดที่รองรับกลุ่มในโซน. โต๊ะไม่พอได้ `rejected/ZONE_FULL`. โหมด `manual` สร้าง booking สถานะ `pending_allocation` และเริ่มถือโต๊ะเมื่อร้านจัดสรรสำเร็จ. ค่า `confirmed` ใน **booking request** หมายถึงสร้าง booking แล้ว ให้ดูสถานะการจัดสรรจาก **booking**.
 - Booking คืน `reference` รูปแบบ `BL-YYYY-NNNN` (เลขรันอาจยาวเกิน 4 หลัก), `name`, `phone`, `zoneName`, `party`, `source`, `status` และ `checkedInAt`. สถานะ booking คือ `pending_allocation`, `confirmed`, `checked_in`, `cancelled`. รายการเก่าที่บันทึกเพียงเลขท้ายเบอร์โทรคืน `phone: ""`.
-- เมื่อได้ `503 QUEUE_UNAVAILABLE` ให้ส่ง payload เดิมด้วย key เดิม. Key เดิมกับ payload ต่างได้ `422 IDEMPOTENCY_CONFLICT`.
+- โหมด `sqs` อาจได้ `503 QUEUE_UNAVAILABLE` ให้ส่ง payload เดิมด้วย key เดิม. โหมด `db` ไม่มีขั้น publish จึงไม่มี error นี้. Key เดิมกับ payload ต่างได้ `422 IDEMPOTENCY_CONFLICT`.
 - API เลือกโต๊ะเดิมยังรองรับ `{venueId,serviceDate,partySize,tableId}` สำหรับ `customer_picks` หรือ `zoneId` สำหรับ `auto_assign`. ส่ง `serviceAt` แบบ ISO พร้อม offset และ `contactPhone` ได้. กรณีแย่งโต๊ะใน flow นี้ใช้ `TABLE_UNAVAILABLE`.
+
+## ระบบ
+
+| Method และ path | สัญญา |
+| --- | --- |
+| `GET /api/health` | คืน `{ok,checks:{database,queue}}` และ `503` เมื่อมีส่วนใดล่ม. โหมด `db` ไม่เช็ค SQS เพราะคิวอยู่ในฐานข้อมูล |
 
 ## พนักงาน
 
