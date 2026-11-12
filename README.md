@@ -50,6 +50,29 @@ $env:SERVICE_DATE = (Get-Date).AddDays(2).ToString('yyyy-MM-dd')
 k6 run tests/load/booking-spike.js
 ```
 
+### ยิงคำขอจอง 5,000 รายการใน batch เดียว
+
+รันกับสภาพแวดล้อมทดสอบที่เปิด LINE mock และมี booking worker. สคริปต์สร้าง session ก่อนเริ่มยิง `POST /api/booking-requests` จึงวัด latency ของการรับคำขอแยกจาก login และการติดตามผล. ค่าเริ่มต้นใช้ 200 sessions ส่ง session ละ 25 คำขอภายใต้ rate limit 30 ต่อนาที. ตั้ง `VENUE_SLUG` และ `TABLE_ID` เพื่อเลือกโต๊ะในร้านทดสอบอื่น ค่าปริยายคือ `bookie-demo` โต๊ะ A2.
+
+```powershell
+$env:SERVICE_DATE = (Get-Date).AddDays(8).ToString('yyyy-MM-dd')
+$env:RUN_ID = [guid]::NewGuid().ToString('N')
+$env:BOOKING_REQUESTS = '5000'
+$env:MAX_IN_FLIGHT = '5000'
+$testPath = (Resolve-Path 'tests/load/booking-burst.js').Path
+docker run --rm --mount "type=bind,src=$testPath,dst=/burst.js,readonly" -e BASE_URL=http://host.docker.internal:3100 -e SERVICE_DATE -e RUN_ID -e BOOKING_REQUESTS -e MAX_IN_FLIGHT -e REQUESTS_PER_SESSION -e VENUE_SLUG -e TABLE_ID grafana/k6:latest run /burst.js
+```
+
+เลือก `SERVICE_DATE` ที่โต๊ะยังว่าง. ถ้าใช้ k6 ที่ติดตั้งในเครื่อง ให้รัน `k6 run tests/load/booking-burst.js` ซึ่งใช้ `http://localhost:3100` โดยปริยาย. `MAX_IN_FLIGHT` คือเพดานคำขอพร้อมกันของ k6. ตั้งต่ำกว่าจำนวนคำขอเพื่อทดสอบเป็นชุดย่อยบนเครื่องที่มีทรัพยากรจำกัด. ปรับ `REQUESTS_PER_SESSION` ให้สอดคล้องกับ rate limit ของสภาพแวดล้อมทดสอบ.
+
+เกณฑ์รับคำขอคือ `booking_posts=5000` และ `booking_accepted=5000` โดย `booking_accepted` นับ HTTP `202`. ดู latency ของการส่งคำขอจาก `http_req_duration{phase:booking}`. หลัง worker ระบายคิว ให้ตรวจผลจาก DB โดยใช้ `RUN_ID` ของรอบนั้น.
+
+```powershell
+docker exec supabase_db_Hackathon-Final psql -U postgres -d postgres -c "select status, result_code, count(*) from public.booking_requests where idempotency_key like 'burst-${env:RUN_ID}-%' group by status, result_code;"
+```
+
+เมื่อรับครบและทดสอบโต๊ะเดียวที่ว่าง ผลที่คาดคือ `confirmed` 1 และ `rejected/TABLE_UNAVAILABLE` 4,999. หากยังมี `queued` หรือ `pending_publish` ให้รอ worker และตรวจซ้ำ. รายงานจำนวน HTTP ที่ได้แต่ละสถานะกับจำนวน booking ที่ยืนยันแยกกัน.
+
 ## พฤติกรรมและการกู้คืน
 
 - หนึ่งโต๊ะมี allocation active ได้หนึ่งรายการต่อคืนบริการ. ความจุโซนนับจำนวนคนจาก booking ที่ยืนยันแล้วในคืนนั้น. `auto_assign` เลือกโต๊ะว่างขนาดเล็กสุดที่จุพอ.
