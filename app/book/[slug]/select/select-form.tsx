@@ -50,7 +50,7 @@ export default function SelectForm({ slug }: { slug: string }) {
       else if (queue.status === "expired") router.replace(`/book/${slug}/waiting`);
       else if (queue.status === "used" && queue.bookingRequestId) {
         setBusy(true);
-        const { booking } = await waitForBooking(queue.bookingRequestId, controller.signal);
+        const { booking } = await waitForBooking(`/api/me/booking-requests/${queue.bookingRequestId}`, controller.signal, true);
         if (!controller.signal.aborted) router.replace(`/book/${slug}/confirmed?b=${booking.id}`);
       } else { setVenue(v); setDate(v.today); }
     }).catch((e) => {

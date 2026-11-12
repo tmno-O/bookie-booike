@@ -25,7 +25,7 @@ export const bookingListQuery = dashboardQuery.extend({
 
 const count = z.number().int().nonnegative();
 export const dashboardData = z.object({
-  serviceDate, today: serviceDate,
+  serviceDate, today: serviceDate, maxAdvanceDays: count,
   metrics: z.object({ bookings: count, guests: count, pendingRequests: count, checkedIn: count }),
   bookings: z.array(booking),
   zones: z.array(z.object({ id, name: z.string(), status: z.enum(["active", "closed"]), seats: count, booked: count })),

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { id, instant, serviceDate, slug } from "./common";
 import { partyBucket } from "./party";
+import { contactInput } from "./queue";
 
 export const lineSessionInput = z.strictObject({ venueSlug: slug, idToken: z.string().min(1).max(8192) });
 export const idempotencyKey = z.string().regex(/^[A-Za-z0-9._:-]{1,128}$/);
@@ -26,10 +27,13 @@ const legacyBookingInput = z.strictObject({
 export const ticketBookingInput = z.strictObject({ venueId: id, ticketId: id, zoneId: id, serviceDate, partyBucket });
 export const customerBookingInput = z.union([ticketBookingInput, legacyBookingInput]);
 
-export const staffBookingInput = z.strictObject({
+const legacyStaffBookingInput = z.strictObject({
   customerId: id,
   ...bookingFields,
 }).refine(validateTarget, "Specify either tableId or zoneId");
+
+export const staffAssistedInput = contactInput.extend({ serviceDate, party: partyBucket, zoneId: id });
+export const staffBookingInput = z.union([staffAssistedInput, legacyStaffBookingInput]);
 
 export const requestAccepted = z.object({ requestId: id });
 export const requestStatus = z.object({

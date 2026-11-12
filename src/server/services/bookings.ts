@@ -84,8 +84,9 @@ export async function staffDashboard(venueId: string, serviceDate: string) {
       ))::int as count
     `;
     const zones = await zoneUsage(tx, venueId, serviceDate);
+    const [window] = await tx<{ maxAdvanceDays: number }[]>`select max_advance_days from queue_opening(${venueId})`;
     return {
-      serviceDate, today: bangkokDate(), bookings: rows.map(bookingView), zones,
+      serviceDate, today: bangkokDate(), maxAdvanceDays: window.maxAdvanceDays, bookings: rows.map(bookingView), zones,
       metrics: {
         bookings: rows.length,
         guests: rows.reduce((sum, row) => sum + row.partySize, 0),

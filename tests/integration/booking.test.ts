@@ -26,6 +26,8 @@ import { staffProfile } from "@/contracts/staff";
 import { GET as staffDashboard } from "../../app/api/staff/venues/[venueId]/dashboard/route";
 import { GET as staffBookings } from "../../app/api/staff/venues/[venueId]/bookings/route";
 import { POST as checkIn } from "../../app/api/staff/venues/[venueId]/bookings/[bookingId]/check-in/route";
+import { GET as staffAvailability } from "../../app/api/staff/venues/[venueId]/availability/route";
+import { GET as staffRequestStatus } from "../../app/api/staff/venues/[venueId]/booking-requests/[requestId]/route";
 import { GET as staffBookingDetails } from "../../app/api/staff/venues/[venueId]/bookings/[bookingId]/route";
 import { dashboardData } from "@/contracts/staff";
 import { GET as staffVenue } from "../../app/api/staff/venues/[venueId]/route";
@@ -303,6 +305,38 @@ it("checks guests in once on the Bangkok service night without releasing their s
   expect(await availabilityResponse.json()).toMatchObject({ zones: [{ id: zoneId, tablesLeft: 0 }] });
 });
 
+it("upserts one staff contact by full phone and allocates the last zone table through FIFO", async () => {
+  const date = day(13);
+  const sql = db();
+  await sql`insert into booking_releases (venue_id, service_date, opens_at) values (${venueId}, ${date}, now() + interval '1 day')`;
+  const path = `/?date=${date}&partyBucket=1-4`;
+  const publicView = await availability(request("GET", { path }), context({ venueId }));
+  expect(await publicView.json()).toMatchObject({ nightOpen: false, zones: [{ available: false }] });
+  const staffView = await staffAvailability(request("GET", { token: staffToken, path }), context({ venueId }));
+  expect(await staffView.json()).toMatchObject({ zones: [{ id: zoneId, available: true, tablesLeft: 1 }] });
+
+  const data = { name: "Assisted Guest", phone: "0817776655", serviceDate: date, party: "1-4", zoneId };
+  const submit = (token: string, key: string) => staffBooking(request("POST", { token, key, data }), context({ venueId }));
+  const key = randomUUID();
+  const submitted = await Promise.all([submit(staffToken, key), submit(ownerToken, randomUUID())]);
+  const accepted = await Promise.all(submitted.map(async (response) => {
+    expect(response.status, await response.clone().text()).toBe(202);
+    return response.json();
+  }));
+  expect(await (await submit(staffToken, key)).json()).toEqual(accepted[0]);
+  await consumeBookingMessage(await nextMessage());
+  await consumeBookingMessage(await nextMessage());
+  const statuses = await Promise.all(accepted.map(async ({ requestId }) =>
+    (await staffRequestStatus(request("GET", { token: staffToken }), context({ venueId, requestId }))).json()));
+  expect(statuses.map((status) => status.status).sort()).toEqual(["confirmed", "rejected"]);
+  expect(statuses.find((status) => status.status === "rejected").resultCode).toBe("ZONE_FULL");
+  const bookingId = statuses.find((status) => status.status === "confirmed").bookingId;
+  const booking = await staffBookingDetails(request("GET", { token: staffToken }), context({ venueId, bookingId }));
+  expect(await booking.json()).toMatchObject({ name: data.name, phone: data.phone, source: "staff_assisted", tableId });
+  expect(await sql`select customer_id from venue_customers where venue_id = ${venueId} and staff_contact_phone = ${data.phone}`).toHaveLength(1);
+  expect(await sql`select distinct customer_id from booking_requests where venue_id = ${venueId} and service_date = ${date}`).toHaveLength(1);
+});
+
 async function getStatus(requestId: string, cookie = alice.cookie) {
   const response = await readRequest(request("GET", { cookie }), context({ requestId }));
   expect(response.status, await response.clone().text()).toBe(200);
@@ -404,7 +438,11 @@ afterAll(async () => {
       await tx`delete from booking_releases where venue_id in ${tx(venues)}`;
       await tx`delete from venue_tables where venue_id in ${tx(venues)}`;
       await tx`delete from zones where venue_id in ${tx(venues)}`;
+      const staffContacts = await tx<{ customerId: string }[]>`
+        delete from venue_customers where venue_id in ${tx(venues)} and staff_contact_phone is not null returning customer_id
+      `;
       await tx`delete from venue_customers where venue_id in ${tx(venues)}`;
+      for (const { customerId } of staffContacts) await tx`delete from customers where id = ${customerId}`;
       const identities = await tx<{ customerId: string }[]>`
         delete from customer_identities where provider_id = ${venueSlug} returning customer_id
       `;

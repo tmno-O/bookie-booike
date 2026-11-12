@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { partyBucket } from "./party";
 import { clockTime, id, instant, label, selectionMode, serviceDate, slug, status } from "./common";
 
 function ianaZone(value: string) {
@@ -68,6 +69,7 @@ export const venueBookingProfile = venuePublic.extend({
   today: serviceDate, maxAdvanceDays: z.number().int().nonnegative(),
   shop: z.object({ name: label, phone: z.string(), address: z.string(), entryPolicy: z.string() }),
 });
+export const availabilityQuery = z.object({ date: serviceDate, partyBucket: partyBucket.optional() });
 export const availability = z.object({
   venueId: id, serviceDate,
   nightOpen: z.boolean().optional(),

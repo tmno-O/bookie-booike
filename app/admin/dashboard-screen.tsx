@@ -16,6 +16,7 @@ type Row = { id: string; reference: string; name: string; phone: string; party: 
 type Dashboard = {
   serviceDate: string;
   today: string;
+  maxAdvanceDays?: number;
   metrics: { bookings: number; guests: number; pendingRequests: number; checkedIn: number };
   bookings: Row[];
   zones: { id: string; name: string; seats: number; booked: number; status: "open" | "closed" }[];
@@ -151,7 +152,7 @@ export default function DashboardScreen({ addBooking = false, bookingId }: { add
         ))}
       </div>
       {bookingId && <BookingDetailsDialog bookingId={bookingId} onClose={() => router.push("/admin")} />}
-      {addBooking && date && <AddBookingDialog today={data?.today ?? date} onClose={() => router.push("/admin")} />}
+      {addBooking && date && <AddBookingDialog today={data?.today ?? date} maxAdvanceDays={data?.maxAdvanceDays} onClose={() => router.push("/admin")} />}
     </AdminShell>
   );
 }

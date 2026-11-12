@@ -6,13 +6,14 @@ import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { ApiError, notFound } from "@/lib/errors";
 import { sqs } from "@/lib/sqs";
+import { upsertStaffContact } from "./staff";
 
 type Actor = { type: "customer"; id: string; tokenHash: string } | { type: "staff"; id: string };
 type QueueRequest = { id: string; payloadHash: string };
 
 type BookingSubmission = BookingInput & { ticketId?: string; partyBucket?: PartyBucket; contactName?: string };
 
-export async function createBookingRequest(booking: BookingSubmission, customerId: string, actor: Actor, key: string) {
+export async function createBookingRequest(booking: BookingSubmission, customerId: string | null, actor: Actor, key: string) {
   const { venueId, serviceDate, serviceAt, partySize, tableId, zoneId, ticketId, partyBucket } = booking;
   const startsAt = serviceAt ? new Date(serviceAt).toISOString() : null;
   const payload = [customerId, serviceDate, startsAt, partySize, tableId, zoneId, booking.contactPhone];
@@ -52,10 +53,12 @@ export async function createBookingRequest(booking: BookingSubmission, customerI
       return new ApiError(400, "INVALID_BOOKING_TARGET", "Booking target does not match the venue selection mode");
     }
 
-    const [customer] = await tx`
-      select 1 from venue_customers where venue_id = ${venueId} and customer_id = ${customerId}
-    `;
-    if (!customer) return new ApiError(404, "NOT_FOUND", "Customer not found");
+    if (customerId) {
+      const [customer] = await tx`
+        select 1 from venue_customers where venue_id = ${venueId} and customer_id = ${customerId}
+      `;
+      if (!customer) return new ApiError(404, "NOT_FOUND", "Customer not found");
+    }
 
     let { contactName, contactPhone } = booking;
     if (ticketId) {
@@ -82,9 +85,11 @@ export async function createBookingRequest(booking: BookingSubmission, customerI
       if (zone.status === "closed") return new ApiError(409, "ZONE_CLOSED", "โซนนี้ปิดรับจอง");
     }
 
+    const skipRelease = actor.type === "staff" && Boolean(partyBucket);
     const candidates = await tx<{ resultCode: string | null }[]>`
-      select result_code from booking_candidates(
-        ${venueId}, ${serviceDate}, ${tableId ?? null}, ${zoneId ?? null}, ${partySize}, ${startsAt}, clock_timestamp()
+      select result_code from booking_candidates_for(
+        ${venueId}, ${serviceDate}, ${tableId ?? null}, ${zoneId ?? null}, ${partySize}, ${startsAt},
+        clock_timestamp(), ${skipRelease}
       ) order by capacity, id
     `;
     if (!candidates.some((candidate) => candidate.resultCode === null)) {
@@ -93,6 +98,13 @@ export async function createBookingRequest(booking: BookingSubmission, customerI
         partyBucket ? "ไม่มีโต๊ะที่รองรับคำขอนี้" : "No eligible table for this request");
     }
 
+    let resolvedCustomerId = customerId;
+    if (!resolvedCustomerId) {
+      if (!skipRelease || !contactName || !contactPhone) {
+        return new ApiError(400, "INVALID_INPUT", "Staff-assisted bookings require a name and phone");
+      }
+      resolvedCustomerId = await upsertStaffContact(tx, venueId, contactName, contactPhone);
+    }
     const phoneLastFour = contactPhone?.slice(-4) ?? null;
     if (phoneLastFour && actor.type === "customer") {
       await tx`update venue_customers set phone_last_four = ${phoneLastFour}
@@ -103,7 +115,7 @@ export async function createBookingRequest(booking: BookingSubmission, customerI
         (venue_id, customer_id, actor_type, actor_id, source, service_date, service_at, party_size,
           table_id, zone_id, phone_last_four, idempotency_key, payload_hash, ticket_id, party_bucket,
           contact_name, contact_phone)
-      values (${venueId}, ${customerId}, ${actor.type}, ${actor.id},
+      values (${venueId}, ${resolvedCustomerId}, ${actor.type}, ${actor.id},
         ${actor.type === "customer" ? "liff" : "staff_assisted"}, ${serviceDate}, ${startsAt}, ${partySize},
         ${tableId ?? null}, ${zoneId ?? null}, ${phoneLastFour}, ${key}, ${payloadHash}, ${ticketId ?? null},
         ${partyBucket ?? null}, ${contactName ?? null}, ${contactPhone ?? null})

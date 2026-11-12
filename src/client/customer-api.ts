@@ -53,5 +53,5 @@ async function bookZone(init: ApiInit) {
     method: "POST", signal: init.signal, idempotencyKey: ticketId,
     body: { venueId: await venueId(), ticketId, serviceDate, partyBucket: party, zoneId },
   });
-  return waitForBooking(requestId, init.signal);
+  return waitForBooking(`/api/me/booking-requests/${requestId}`, init.signal, true);
 }

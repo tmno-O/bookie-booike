@@ -2,6 +2,7 @@ import type { z } from "zod";
 import type { booking } from "@/contracts/booking";
 import { bangkokDate } from "@/lib/service-date";
 import type { dashboardData, staffProfile } from "@/contracts/staff";
+import { waitForBooking } from "./booking-result";
 import { apiRequest, type ApiInit } from "./transport";
 
 type StaffProfile = z.infer<typeof staffProfile>;
@@ -30,8 +31,13 @@ export async function staffApi<T>(path: string, init?: ApiInit): Promise<T> {
 
   const { venue } = await getProfile();
   if (path === "/venue") return apiRequest(`/api/venues/by-slug/${encodeURIComponent(venue.slug)}`, init);
-  if (path.startsWith("/availability?")) return apiRequest(`/api/venues/${venue.id}${path}`, init);
-  const endpoint = `/api/staff/venues/${venue.id}${path.replace(/^\/admin(?=\/)/, "")}`;
+  const base = `/api/staff/venues/${venue.id}`;
+  const endpoint = `${base}${path.replace(/^\/admin(?=\/)/, "")}`;
+  if (path === "/admin/bookings" && init?.method === "POST") {
+    const { requestId } = await apiRequest<{ requestId: string }>(`${base}/booking-requests`, init);
+    const { booking } = await waitForBooking(`${base}/booking-requests/${requestId}`, init.signal);
+    return { booking: viewBooking(await apiRequest<StaffBooking>(`${base}/bookings/${booking.id}`)) } as T;
+  }
   if (path.startsWith("/admin/dashboard")) {
     const result = await apiRequest<z.infer<typeof dashboardData>>(endpoint, init);
     return { ...result, bookings: result.bookings.map(viewBooking) } as T;
