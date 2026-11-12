@@ -44,7 +44,7 @@ async function book(customer: (typeof customers)[number], serviceDate: string, k
 /** Drain until no request for the test venue is still queued (background drains may be running too). */
 async function settle() {
   for (let i = 0; i < 20; i++) {
-    await drainBookingQueue(500, 10);
+    await drainBookingQueue({ maxSeconds: 10 });
     const [{ queued }] = await db()<{ queued: number }[]>`
       select count(*)::int as queued from booking_requests where venue_id = ${venueId} and status = 'queued'
     `;
@@ -154,7 +154,13 @@ describe.sequential("Database booking queue", () => {
     `);
     try {
       const id = await book(customers[0], date);
-      for (let i = 0; i < 3; i++) await sql`call drain_booking_requests(10, 5, 2)`;
+      // Each failed attempt ends the run; a background drain from the POST may hold the row briefly.
+      for (let i = 0; i < 20; i++) {
+        await sql`call drain_booking_requests(10, 5, 2)`;
+        const [{ status }] = await sql<{ status: string }[]>`select status from booking_requests where id = ${id}`;
+        if (status !== "queued") break;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
       const [row] = await sql<{ status: string; resultCode: string | null; attempts: number }[]>`
         select status, result_code, attempts from booking_requests where id = ${id}
       `;
@@ -167,6 +173,24 @@ describe.sequential("Database booking queue", () => {
         drop function if exists public.dbq_fail_${venueId.replaceAll("-", "")}();
       `);
     }
+  });
+
+  it("skips an exclusive drain while another one is running", async () => {
+    const date = day(9);
+    const holder = await db().reserve();
+    try {
+      // Background drains from the POST are exclusive too, so they skip while the lock is held.
+      await holder`select pg_advisory_lock(hashtextextended('booking-drain', 5))`;
+      const id = await book(customers[1], date);
+      await drainBookingQueue({ exclusive: true });
+      const [pending] = await db()<{ status: string }[]>`select status from booking_requests where id = ${id}`;
+      expect(pending.status).toBe("queued");
+    } finally {
+      await holder`select pg_advisory_unlock(hashtextextended('booking-drain', 5))`;
+      holder.release();
+    }
+    await drainBookingQueue({ exclusive: true });
+    expect((await night(date))[0].status).toBe("confirmed");
   });
 
   it("reports healthy without SQS and runs housekeeping", async () => {
