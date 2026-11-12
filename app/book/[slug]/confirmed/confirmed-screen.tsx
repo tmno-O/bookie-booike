@@ -3,7 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Shell, shellStyles as s } from "../shell";
-import { api, asFailure, partyLabel, thaiDate, type Booking } from "../flow";
+import { api, asFailure, bookingStatusLabel, partyLabel, thaiDate, type Booking } from "../flow";
 import styles from "./confirmed.module.css";
 
 export default function ConfirmedScreen({ slug }: { slug: string }) {
@@ -19,11 +19,16 @@ export default function ConfirmedScreen({ slug }: { slug: string }) {
     return () => { active = false; };
   }, [id]);
 
+  const status = booking?.status ?? "confirmed";
+  const pending = status === "pending_allocation" || status === "pending";
+
   return (
     <Shell slug={slug} back={`/book/${slug}/bookings`} cta={{ href: `/book/${slug}/bookings`, label: "ดูการจองของฉัน" }}>
-      <p className={s.eyebrow}>การจองสำเร็จ</p>
-      <h1 className={s.title}>ยืนยันการจองแล้ว</h1>
-      <p className={s.subtitle}>นำข้อมูลการจองนี้แสดงกับพนักงานเมื่อมาถึง</p>
+      <p className={s.eyebrow}>สถานะการจอง</p>
+      <h1 className={s.title}>{booking ? bookingStatusLabel[status] : "รายละเอียดการจอง"}</h1>
+      {booking && status !== "cancelled" && <p className={s.subtitle}>
+        {pending ? "ร้านได้รับคำขอแล้ว กรุณาติดตามสถานะการจัดสรรโซน" : "นำข้อมูลการจองนี้แสดงกับพนักงานเมื่อมาถึง"}
+      </p>}
       {error && <p role="alert" className={s.error}>{error}</p>}
       {booking && <>
         <div className={styles.ref}>
@@ -33,7 +38,7 @@ export default function ConfirmedScreen({ slug }: { slug: string }) {
         <dl className={styles.details}>
           <div className={styles.wide}><dt className={styles.dl}>คืนที่จอง</dt><dd className={`${styles.dd} ${styles.lg}`}>{thaiDate(booking.serviceDate)}</dd></div>
           <div><dt className={styles.dl}>จำนวนผู้เข้าร่วม</dt><dd className={styles.dd}>{partyLabel(booking.party)}</dd></div>
-          <div><dt className={styles.dl}>โซน</dt><dd className={styles.dd}>{booking.zoneName}</dd></div>
+          <div><dt className={styles.dl}>{pending ? "โซนที่ขอ" : "โซน"}</dt><dd className={styles.dd}>{booking.zoneName}</dd></div>
         </dl>
         <p className={styles.contact}><b>ชื่อลูกค้า</b>{booking.name}<br /><span style={{ fontWeight: 400 }}>เบอร์โทร&nbsp; {booking.phone}</span></p>
         <p className={styles.line}>การแจ้งเตือน LINE</p>

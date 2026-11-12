@@ -15,6 +15,8 @@ import { venueBookingProfile } from "@/contracts/venue";
 import { POST as logout } from "../../app/api/session/logout/route";
 import { POST as requestBooking } from "../../app/api/booking-requests/route";
 import { GET as readRequest } from "../../app/api/me/booking-requests/[requestId]/route";
+import { GET as readBookings } from "../../app/api/me/bookings/route";
+import { booking as bookingContract } from "@/contracts/booking";
 import { GET as readBooking } from "../../app/api/me/bookings/[bookingId]/route";
 import { POST as cancel } from "../../app/api/me/bookings/[bookingId]/cancel/route";
 import { GET as staffVenue } from "../../app/api/staff/venues/[venueId]/route";
@@ -202,6 +204,15 @@ it("consumes ready tickets once and resolves the last zone table through FIFO", 
   const status = await getStatus((await manual.json()).requestId);
   const [pending] = await sql`select status, table_id from bookings where id = ${status.bookingId}`;
   expect(pending).toMatchObject({ status: "pending_allocation", tableId: null });
+  const list = await readBookings(request("GET", { cookie: alice.cookie, path: `/?date=${day(11)}&limit=1` }), context({}));
+  const { bookings, nextOffset } = await list.json();
+  expect(nextOffset).toBeNull();
+  expect(bookings.map((entry: unknown) => bookingContract.parse(entry))).toMatchObject([{
+    id: status.bookingId, status: "pending_allocation", zoneName: "Zone", party: "1-4",
+    name: contact.name, phone: contact.phone, source: "liff",
+  }]);
+  const denied = await readBookings(request("GET", { cookie: bob.cookie, path: `/?date=${day(11)}` }), context({}));
+  expect(await denied.json()).toEqual({ bookings: [], nextOffset: null });
   expect(await sql`select booking_id from booking_allocations where booking_id = ${status.bookingId}`).toHaveLength(0);
   await sql`update venue_settings set allocation_mode = 'auto' where venue_id = ${venueId}`;
 });

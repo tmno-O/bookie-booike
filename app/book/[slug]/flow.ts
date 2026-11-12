@@ -19,7 +19,16 @@ export async function api<T>(path: string, init?: ApiInit): Promise<T> {
 export type Booking = {
   id: string; reference: string; name: string; phone: string;
   serviceDate: string; party: string; zoneName: string;
+  status?: "confirmed" | "pending_allocation" | "pending" | "checked_in" | "cancelled";
 };
+
+export const bookingStatusLabel = {
+  pending_allocation: "รอร้านจัดสรรโซน",
+  pending: "รอร้านจัดสรรโซน",
+  confirmed: "ยืนยันการจองแล้ว",
+  checked_in: "เช็กอินแล้ว",
+  cancelled: "ยกเลิกการจองแล้ว",
+} satisfies Record<NonNullable<Booking["status"]>, string>;
 
 const KEY = "bookie.customer";
 export const saveCustomer = (c: { name: string; phone: string }) => {

@@ -2,13 +2,15 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
-import { api, realApiMode, saveCustomer, type LineUser } from "../flow";
+import { api, asFailure, realApiMode, saveCustomer, type LineUser } from "../flow";
 import styles from "./details.module.css";
+
+const defaultName = realApiMode ? "" : "เจ๊ม่อน";
 
 // Step 1: collect booker details, keep them for the queue request on the next screen.
 export default function DetailsForm({ slug }: { slug: string }) {
   const router = useRouter();
-  const [name, setName] = useState(realApiMode ? "" : "เจ๊ม่อน");
+  const [name, setName] = useState(defaultName);
   const [phone, setPhone] = useState(realApiMode ? "" : "0919119911");
   const [error, setError] = useState("");
   const [user, setUser] = useState<LineUser>();
@@ -16,7 +18,11 @@ export default function DetailsForm({ slug }: { slug: string }) {
   // Requires a LINE session (api() redirects to /login on 401); prefill the name from the LINE profile.
   useEffect(() => {
     let active = true;
-    api<{ user: LineUser }>("/me").then((r) => { if (active) { setUser(r.user); setName(r.user.displayName); } }).catch(() => undefined);
+    api<{ user: LineUser }>("/me").then((r) => {
+      if (!active) return;
+      setUser(r.user);
+      setName((current) => current === defaultName ? r.user.displayName : current);
+    }).catch((e) => { if (active) setError(asFailure(e).message); });
     return () => { active = false; };
   }, []);
 
@@ -56,7 +62,7 @@ export default function DetailsForm({ slug }: { slug: string }) {
         {user && <p className={styles.hint}>เข้าสู่ระบบด้วย LINE: {user.displayName} · <button type="button" className={styles.linkButton} onClick={logout}>ออกจากระบบ</button></p>}
       </div>
       <div className={styles.footer}>
-        <button type="submit" className={styles.cta}>ดำเนินการต่อ</button>
+        <button type="submit" className={styles.cta} disabled={realApiMode && !user}>ดำเนินการต่อ</button>
       </div>
     </form>
   );

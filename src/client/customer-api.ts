@@ -19,8 +19,7 @@ export async function customerApi<T>(path: string, init?: ApiInit): Promise<T> {
     case "/queue":
       return apiRequest(`/api/venues/${await venueId()}/queue-tickets`, init);
     case "/bookings":
-      if (init?.method !== "POST") return apiRequest(`/api/me${path}`, init);
-      return bookZone(init) as Promise<T>;
+      return init?.method === "POST" ? bookZone(init) as Promise<T> : apiRequest("/api/me/bookings", init);
     case "/line/accounts":
       return { accounts: MOCK_LINE_ACCOUNTS } as T;
     case "/line/login":
@@ -38,6 +37,7 @@ export async function customerApi<T>(path: string, init?: ApiInit): Promise<T> {
         const result = await apiRequest<{ nightOpen: boolean }>(`/api/venues/${await venueId()}${path}`, init);
         return { ...result, open: result.nightOpen } as T;
       }
+      if (path.startsWith("/bookings?")) return apiRequest(`/api/me${path}`, init);
       if (path.startsWith("/bookings/")) {
         return { booking: await apiRequest(`/api/me${path}`, init) } as T;
       }

@@ -38,11 +38,15 @@ export const requestStatus = z.object({
   resultCode: z.string().nullable(),
   bookingId: id.nullable(),
 });
+export const bookingStatus = z.enum(["confirmed", "pending_allocation", "checked_in", "cancelled"]);
 export const booking = z.object({
   id, venueId: id, customerId: id, tableId: id.nullable(), zoneId: id,
   serviceDate, serviceAt: instant, partySize: z.number().int().positive(),
-  status: z.enum(["confirmed", "pending_allocation", "checked_in", "cancelled"]),
-  createdAt: instant, cancelledAt: instant.nullable(),
+  status: bookingStatus,
+  createdAt: instant, cancelledAt: instant.nullable(), checkedInAt: instant.nullable(),
+  reference: z.string().regex(/^BL-\d{4}-\d{4,}$/),
+  name: z.string(), phone: z.string(), zoneName: z.string(), party: partyBucket,
+  source: z.enum(["liff", "staff_assisted"]),
 });
 export const cancellationInput = z.strictObject({ status: z.literal("cancelled") });
 export type BookingInput = z.infer<typeof legacyBookingInput>;
