@@ -1,0 +1,41 @@
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 20px; align-items: start; margin-top: 20px; }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px; border: 1px solid #e8e5e1; border-radius: 8px; background: #fff; }
+.tool { height: 36px; padding: 0 14px; border: 1px solid #e8e5e1; border-radius: 7px; background: #fff; font: inherit; font-size: 13px; color: #25211f; cursor: pointer; }
+.tool:hover:not(:disabled) { border-color: #b94e29; }
+.tool:focus-visible { outline: 2px solid #b94e29; outline-offset: 1px; }
+.tool:disabled { opacity: 0.5; cursor: not-allowed; }
+.toolOn { border-color: #b94e29; background: #fdeee6; color: #b94e29; font-weight: 600; }
+.toolSelect { height: 36px; padding: 0 8px; border: 1px solid #e8e5e1; border-radius: 7px; background: #fff; font: inherit; font-size: 13px; }
+.state { margin-left: auto; font-size: 12px; color: #77716c; }
+.stage { margin-top: 12px; padding: 12px; border-radius: 8px; background: #f0eee9; }
+.hint { margin: 0 0 8px; font-size: 12px; color: #77716c; }
+.canvas { display: block; width: 100%; height: auto; touch-action: none; background: #faf9f6; border: 1px solid #e8e5e1; border-radius: 6px; user-select: none; }
+.gridLine { stroke: #efece7; stroke-width: 1; }
+.marker rect { fill: #ece9e3; stroke: #d9d5d0; }
+.marker text { fill: #77716c; font-size: 12px; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.zone polygon { fill: #fff; stroke: #b9b3ac; stroke-width: 1.5; stroke-linejoin: round; }
+.zone text { fill: #25211f; font-size: 16px; font-weight: 600; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.selected polygon, .selected rect { stroke: #b94e29; stroke-width: 2.5; }
+.selected polygon { fill: #fdeee6; }
+.conflict polygon, .conflict rect { stroke: #b3261e; stroke-width: 2.5; fill: #fdecea; }
+.handle { fill: #fff; stroke: #b94e29; stroke-width: 2; cursor: grab; }
+.drawing { fill: rgba(185, 78, 41, 0.12); stroke: #b94e29; stroke-width: 2; stroke-dasharray: 6 4; }
+.drawPoint { fill: #b94e29; }
+.panel { padding: 20px; border: 1px solid #e8e5e1; border-radius: 10px; background: #fff; }
+.panelTitle { margin: 0; font-size: 18px; font-weight: 600; }
+.panelSub { margin: 4px 0 0; font-size: 13px; color: #77716c; }
+.panelRule { height: 1px; margin: 14px 0; border: 0; background: #e8e5e1; }
+.label { display: block; margin: 14px 0 6px; font-size: 13px; font-weight: 500; }
+.control { width: 100%; box-sizing: border-box; height: 38px; padding: 0 11px; border: 1px solid #e8e5e1; border-radius: 7px; background: #fff; font: inherit; font-size: 14px; }
+.control:focus-visible { outline: 2px solid #b94e29; outline-offset: 1px; }
+.fact { margin: 0; font-size: 14px; }
+.ok { color: #456a53; }
+.muted { color: #77716c; font-size: 12px; }
+.unplaced { display: grid; gap: 8px; margin-top: 8px; }
+.unplacedRow { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 14px; }
+.banner { margin-top: 16px; padding: 12px 16px; border-radius: 8px; font-size: 13px; }
+.bannerOk { background: #e8f2ea; color: #456a53; }
+.bannerWarn { background: #fff4e5; color: #8a5a12; }
+.previewBox { max-width: 720px; margin: 20px auto 0; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }

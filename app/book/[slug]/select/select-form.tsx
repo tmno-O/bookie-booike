@@ -4,6 +4,8 @@ import Link from "next/link";
 import { waitForBooking } from "@/client/booking-result";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
+import type { FloorPlan } from "@/lib/floor-plan";
+import FloorPlanView from "@/ui/floor-plan-view";
 import { api, asFailure, realApiMode, thaiDate } from "../flow";
 import styles from "./select.module.css";
 
@@ -31,6 +33,7 @@ export default function SelectForm({ slug }: { slug: string }) {
   const [zones, setZones] = useState<Zone[]>([]);
   const [night, setNight] = useState<{ open: boolean; opensAt: string }>({ open: true, opensAt: "" });
   const [zoneId, setZoneId] = useState<string>();
+  const [plan, setPlan] = useState<FloorPlan | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [returnTo, setReturnTo] = useState<"waiting" | "queue">();
@@ -65,6 +68,14 @@ export default function SelectForm({ slug }: { slug: string }) {
     });
     return () => { controller.abort(); };
   }, [requestId, router, slug]);
+
+  // The shop's published floor plan; without one the built-in map below is shown.
+  useEffect(() => {
+    if (!venue) return;
+    let active = true;
+    api<{ plan: FloorPlan | null }>("/floor-plan").then((r) => { if (active) setPlan(r.plan); }).catch(() => undefined);
+    return () => { active = false; };
+  }, [venue]);
 
   const loadZones = () => api<NightInfo>(availabilityPath)
     .then((r) => { setZones(r.zones); setNight({ open: r.open, opensAt: r.opensAt }); return r.zones; });
@@ -138,16 +149,35 @@ export default function SelectForm({ slug }: { slug: string }) {
         </div>
 
         <span className={styles.label} id="zone-label">โซนที่ต้องการ</span>
-        <div className={styles.map} role="group" aria-labelledby="zone-label">
-          <span className={`${styles.mapNote} ${styles.stage}`}>เวที</span>
-          {zoneButton("VIP", styles.vip)}
-          <div className={styles.row}>{zoneButton("Indoor")}{zoneButton("Outdoor")}</div>
-          <span className={`${styles.mapNote} ${styles.entrance}`}>↑ ทางเข้า</span>
-        </div>
-        {zones.some((z) => !MAP_ZONES.includes(z.name)) && (
-          <div className={styles.row} style={{ flexWrap: "wrap", marginTop: 12 }}>
-            {zones.filter((z) => !MAP_ZONES.includes(z.name)).map((z) => zoneButton(z.name))}
-          </div>
+        {plan?.zones.length ? (
+          <>
+            <div role="group" aria-labelledby="zone-label">
+              <FloorPlanView plan={plan} selectedId={zoneId} onSelect={setZoneId}
+                zones={Object.fromEntries(zones.map((z) => [z.id, {
+                  name: z.name, badge: z.available ? undefined : z.closed ? "ปิด" : "เต็ม",
+                  disabled: !z.available || !night.open || busy || !!returnTo,
+                }]))} />
+            </div>
+            {zones.some((z) => !plan.zones.some((shape) => shape.zoneId === z.id)) && (
+              <div className={styles.row} style={{ flexWrap: "wrap", marginTop: 12 }}>
+                {zones.filter((z) => !plan.zones.some((shape) => shape.zoneId === z.id)).map((z) => zoneButton(z.name))}
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <div className={styles.map} role="group" aria-labelledby="zone-label">
+              <span className={`${styles.mapNote} ${styles.stage}`}>เวที</span>
+              {zoneButton("VIP", styles.vip)}
+              <div className={styles.row}>{zoneButton("Indoor")}{zoneButton("Outdoor")}</div>
+              <span className={`${styles.mapNote} ${styles.entrance}`}>↑ ทางเข้า</span>
+            </div>
+            {zones.some((z) => !MAP_ZONES.includes(z.name)) && (
+              <div className={styles.row} style={{ flexWrap: "wrap", marginTop: 12 }}>
+                {zones.filter((z) => !MAP_ZONES.includes(z.name)).map((z) => zoneButton(z.name))}
+              </div>
+            )}
+          </>
         )}
         {!night.open && night.opensAt && <p role="status" className={styles.error} style={{ color: "#b94e29" }}>คืนนี้ยังไม่เปิดรับจอง · เปิดรับจอง {openText(night.opensAt)} น.</p>}
         <p className={styles.hint}>แตะพื้นที่บนผังเพื่อเลือกโซน</p>

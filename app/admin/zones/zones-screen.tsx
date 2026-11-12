@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { AdminShell } from "../admin-shell";
@@ -42,6 +43,7 @@ export default function ZonesScreen() {
           <p className={styles.sub}>กำหนดโซนและความจุที่เปิดรับจอง</p>
         </div>
         <div className={styles.actions}>
+          <Link href="/admin/zones/plan" className={`${styles.btn} ${styles.btnOutline}`}>จัดการผังร้าน</Link>
           <button type="button" className={`${styles.btn} ${styles.btnPrimary}`} onClick={() => setDialog({})}>+ เพิ่มโซน</button>
         </div>
       </div>

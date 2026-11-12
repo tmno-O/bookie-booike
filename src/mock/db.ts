@@ -1,6 +1,7 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import type { FloorPlan } from "@/lib/floor-plan";
 
 // Mock JSON "database" for local end-to-end testing. Single-process only:
 // writes are serialised with an in-memory lock and saved atomically to one JSON file.
@@ -41,6 +42,7 @@ export type Db = {
   lineUsers: LineUser[];
   profile: ShopProfile;
   invites: Invite[];
+  floorPlan: { draft: FloorPlan | null; published: FloorPlan | null; publishedAt: string | null };
   queue: QueueEntry[];
   bookings: Booking[];
   seq: number;
@@ -88,6 +90,7 @@ export function seed(opts: { opensInSeconds?: number; queueStepSeconds?: number 
     lineUsers: [],
     profile: { ...DEFAULT_PROFILE },
     invites: [],
+    floorPlan: { draft: null, published: null, publishedAt: null },
     queue: [],
     // Tonight's sample bookings (same as the admin designs). Pending requests do not hold a table until
     // staff allocate them. VIP (24 seats = 2 tables) has 1 of 2 tables taken, so one more customer booking fills it.
@@ -112,6 +115,7 @@ async function load(): Promise<Db> {
     db.lineUsers ??= []; // databases saved before LINE login existed
     db.profile ??= { ...DEFAULT_PROFILE };
     db.invites ??= [];
+    db.floorPlan ??= { draft: null, published: null, publishedAt: null }; // databases saved before floor plans existed
     const legacy = db.venue as Db["venue"] & { opensAt?: string };
     legacy.holdUntil ??= legacy.opensAt ?? new Date(0).toISOString();
     legacy.schedule ??= structuredClone(DEFAULT_SCHEDULE);

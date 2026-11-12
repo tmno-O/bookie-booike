@@ -1,0 +1,14 @@
+.plan { display: block; width: 100%; height: auto; background: #faf9f6; border: 1px solid #e8e5e1; border-radius: 8px; user-select: none; }
+.marker rect { fill: #ece9e3; stroke: #e0dcd5; }
+.marker text { fill: #77716c; font-size: 15px; text-anchor: middle; dominant-baseline: central; }
+.zone { cursor: pointer; outline: none; }
+.zone polygon { fill: #fff; stroke: #d9d5d0; stroke-width: 1.5; stroke-linejoin: round; transition: stroke 0.12s, fill 0.12s; }
+.zone:hover polygon { stroke: #b94e29; }
+.zone:focus-visible polygon { stroke: #b94e29; stroke-width: 3; }
+.zoneOn polygon { fill: #fdeee6; stroke: #b94e29; stroke-width: 2.5; }
+.zoneOff { cursor: not-allowed; }
+.zoneOff polygon { fill: #f1efec; stroke: #e0dcd7; }
+.zoneOff:hover polygon { stroke: #e0dcd7; }
+.zoneName { fill: #25211f; font-size: 22px; font-weight: 600; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.zoneBadge { fill: #77716c; font-size: 16px; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.zoneOff .zoneName { fill: #a29d98; }

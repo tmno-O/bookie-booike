@@ -8,6 +8,7 @@ JSON ใช้ camelCase. ส่ง `Content-Type: application/json` เมื�
 | --- | --- |
 | `GET /api/venues/by-slug/{slug}` | ข้อมูลร้าน, `liffId`, `opensAt`, `open`, `secondsUntilOpen`, `today`, `maxAdvanceDays` และ `shop` ที่มีชื่อ เบอร์ ที่อยู่ และนโยบายเข้าร้าน |
 | `GET /api/venues/{venueId}/availability?date=YYYY-MM-DD&partyBucket=1-4` | `nightOpen`, `opensAt`, `zones[]` ที่มี `id,name,tablesLeft,available,closed` และ `tables[]` สำหรับ client เลือกโต๊ะ. `partyBucket` ใช้คำนวณความพร้อมของโซน |
+| `GET /api/venues/{venueId}/floor-plan` | คืน `{plan}` เป็นผังที่ร้านเผยแพร่แล้วเท่านั้น (`null` เมื่อยังไม่เคยเผยแพร่ ให้ใช้ผังมาตรฐานของแอป). `plan` คือ `{zones:[{zoneId,points[{x,y}]}], markers:[{id,kind:entrance\|stage,label,x,y,width,height}]}` บนผ้าใบ 600×420 |
 | `GET /api/venues/{venueId}/releases` | ช่วงเปิดรับที่ตั้งไว้รายคืน |
 | `POST /api/session/line` | รับ `{venueSlug,idToken}` และตั้ง cookie `bookie_session` สำหรับร้าน. โหมดทดสอบรับ `mock:<id>:<name>` |
 | `GET /api/me`, `POST /api/session/logout` | อ่าน `{user:{userId,displayName}}` หรือลบ session |
@@ -49,6 +50,7 @@ JSON ใช้ camelCase. ส่ง `Content-Type: application/json` เมื�
 | `GET /queue?date=&status=` | คำขอที่สร้าง booking แล้ว เรียง `queueNo` ตามคืนบริการ พร้อม `requestedAt`. สถานะ `pending`, `allocated` หรือ filter `all` |
 | `GET /queue/{bookingId}`, `POST /queue/{bookingId}/allocate` | GET คืน `{request,phone,zones}`. POST รับ `{zoneId?}` เพื่อยืนยันในโซนเดิมหรือย้ายโซน. ได้ `ZONE_FULL` เมื่อโต๊ะไม่พอ และ `ALREADY_ALLOCATED` เมื่อจัดสรรไปแล้ว |
 | `GET/POST /zones`, `GET/PATCH/DELETE /zones/{zoneId}` | GET รองรับ `date` สำหรับจำนวนที่จอง. POST และ PATCH รับ `seats` สำหรับโซนที่จัดการโต๊ะอัตโนมัติ 12 ที่นั่งต่อโต๊ะ จำนวน `ceil(seats/12)`. คงโต๊ะที่มีจองล่วงหน้า. ชื่อซ้ำได้ `ZONE_NAME_TAKEN` และลดต่ำกว่าที่จองได้ `CAPACITY_BELOW_BOOKED`. DELETE ปิดรับจอง. Payload เดิมที่ใช้ `capacity` ยังรองรับ |
+| `GET/PUT /floor-plan`, `POST /floor-plan/publish` | GET (ทุก role) คืน `{plan,publishedAt,hasUnpublished}` ของฉบับร่าง. PUT (owner) บันทึกฉบับร่างหลังตรวจ: โซนเป็นรูปหลายเหลี่ยมไม่ตัดกันเอง ไม่ซ้อนกัน อยู่ในผ้าใบ ขั้นต่ำประมาณ 20×20 และทุก `zoneId` ต้องเป็นโซนของร้าน (ไม่เช่นนั้น `UNKNOWN_ZONE`). POST publish (owner) คัดลอกฉบับร่างเป็นฉบับเผยแพร่ ได้ `NO_FLOOR_PLAN` เมื่อยังไม่มีฉบับร่าง. ลูกค้าเห็นเฉพาะฉบับที่เผยแพร่แล้ว |
 | `GET/POST /tables`, `GET/PATCH/DELETE /tables/{tableId}` | จัดการโต๊ะแบบกำหนดเอง. โซนที่ sync จาก `seats` จัดการโต๊ะผ่านความจุโซน |
 | `GET /hours`, `PUT /hours/standard`, `POST /hours/special`, `DELETE /hours/special/{id}` | เจ้าของเท่านั้น. มาตรฐานรับ `{daysBefore,time}` (0–365 วัน, HH:mm). วันพิเศษรับ `{serviceDate,opensOn,time}` และใช้วันที่บริการเป็น `id`. วันซ้ำได้ `SPECIAL_DAY_EXISTS` |
 | `GET/PUT /settings` | เจ้าของอ่านและบันทึก `{name,phone,address,entryPolicy}` ใน `profile`. PUT รับ object ของข้อมูลร้านโดยตรง |

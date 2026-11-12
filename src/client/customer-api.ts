@@ -18,6 +18,8 @@ export async function customerApi<T>(path: string, init?: ApiInit): Promise<T> {
       return apiRequest(`/api/venues/by-slug/${encodeURIComponent(customerVenueSlug())}`, init);
     case "/queue":
       return apiRequest(`/api/venues/${await venueId()}/queue-tickets`, init);
+    case "/floor-plan":
+      return apiRequest(`/api/venues/${await venueId()}/floor-plan`, init);
     case "/bookings":
       return init?.method === "POST" ? bookZone(init) as Promise<T> : apiRequest("/api/me/bookings", init);
     case "/line/accounts":
