@@ -37,7 +37,12 @@ export default function BookingDetailsDialog({ bookingId, onClose }: { bookingId
       const r = await adminApi<{ booking: Detail }>(`/admin/bookings/${bookingId}/check-in`, { method: "POST" });
       setBooking(r.booking); setView("checked");
     } catch (e) {
-      setError(asFailure(e).message);
+      const failure = asFailure(e);
+      setError(failure.message);
+      if (failure.code === "ALREADY_CHECKED_IN" || failure.code === "NOT_SERVICE_DATE") {
+        const result = await adminApi<{ booking: Detail }>(`/admin/bookings/${bookingId}`).catch(() => undefined);
+        if (result) setBooking(result.booking);
+      }
     } finally { setBusy(false); }
   }
 

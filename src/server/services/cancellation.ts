@@ -4,9 +4,10 @@ import { getBooking } from "./bookings";
 
 export async function cancelBooking(venueId: string, bookingId: string, type: "customer" | "staff", actorId: string) {
   const [result] = await db()<{
-    code: "NOT_FOUND" | "CUTOFF_PASSED" | "CANCELLED";
+    code: "NOT_FOUND" | "CUTOFF_PASSED" | "ALREADY_CHECKED_IN" | "CANCELLED";
   }[]>`select cancel_booking(${venueId}, ${bookingId}, ${type}, ${actorId}) as code`;
   if (result.code === "NOT_FOUND") notFound("Booking");
+  if (result.code === "ALREADY_CHECKED_IN") throw new ApiError(409, result.code, "Checked-in bookings cannot be cancelled");
   if (result.code === "CUTOFF_PASSED") {
     throw new ApiError(409, "CANCELLATION_CUTOFF_PASSED", "The customer cancellation cutoff has passed");
   }

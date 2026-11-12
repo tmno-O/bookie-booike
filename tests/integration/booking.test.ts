@@ -25,6 +25,7 @@ import { GET as staffMe } from "../../app/api/staff/me/route";
 import { staffProfile } from "@/contracts/staff";
 import { GET as staffDashboard } from "../../app/api/staff/venues/[venueId]/dashboard/route";
 import { GET as staffBookings } from "../../app/api/staff/venues/[venueId]/bookings/route";
+import { POST as checkIn } from "../../app/api/staff/venues/[venueId]/bookings/[bookingId]/check-in/route";
 import { GET as staffBookingDetails } from "../../app/api/staff/venues/[venueId]/bookings/[bookingId]/route";
 import { dashboardData } from "@/contracts/staff";
 import { GET as staffVenue } from "../../app/api/staff/venues/[venueId]/route";
@@ -272,6 +273,34 @@ it("reads staff booking details, filters by contact and reference, and counts se
     serviceDate: date, metrics: { bookings: 1, guests: 4, pendingRequests: 0, checkedIn: 0 },
     zones: [{ id: zoneId, seats: 12, booked: 4 }],
   });
+});
+
+it("checks guests in once on the Bangkok service night without releasing their seats", async () => {
+  async function reserve(date: string) {
+    const response = await book(date);
+    expect(response.status, await response.clone().text()).toBe(202);
+    await consumeBookingMessage(await nextMessage());
+    return (await getStatus((await response.json()).requestId)).bookingId as string;
+  }
+  const tomorrow = await reserve(day(1));
+  const act = (bookingId: string) => checkIn(request("POST", { token: staffToken }), context({ venueId, bookingId }));
+  const early = await act(tomorrow);
+  expect(early.status).toBe(409);
+  expect(await early.json()).toMatchObject({ error: { code: "NOT_SERVICE_DATE" } });
+
+  const bookingId = await reserve(day(0));
+  const attempts = await Promise.all([act(bookingId), act(bookingId)]);
+  expect(attempts.map((attempt) => attempt.status).sort()).toEqual([200, 409]);
+  expect(await attempts.find((attempt) => attempt.ok)!.json()).toMatchObject({
+    status: "checked_in", checkedInAt: expect.any(String), canCheckIn: false,
+  });
+  expect(await attempts.find((attempt) => !attempt.ok)!.json()).toMatchObject({ error: { code: "ALREADY_CHECKED_IN" } });
+  const log = await db()`select id from audit_logs where entity_id = ${bookingId} and action = 'booking.checked_in'`;
+  expect(log).toHaveLength(1);
+  const result = await cancel(request("POST", { cookie: alice.cookie }), context({ bookingId }));
+  expect(await result.json()).toMatchObject({ error: { code: "ALREADY_CHECKED_IN" } });
+  const availabilityResponse = await availability(request("GET", { path: `/?date=${day(0)}&partyBucket=1-4` }), context({ venueId }));
+  expect(await availabilityResponse.json()).toMatchObject({ zones: [{ id: zoneId, tablesLeft: 0 }] });
 });
 
 async function getStatus(requestId: string, cookie = alice.cookie) {
