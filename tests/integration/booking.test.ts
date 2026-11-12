@@ -19,6 +19,10 @@ import { GET as readBookings } from "../../app/api/me/bookings/route";
 import { booking as bookingContract } from "@/contracts/booking";
 import { GET as readBooking } from "../../app/api/me/bookings/[bookingId]/route";
 import { POST as cancel } from "../../app/api/me/bookings/[bookingId]/cancel/route";
+import { POST as staffSignIn } from "../../app/api/staff/session/route";
+import { POST as staffSignOut } from "../../app/api/staff/session/logout/route";
+import { GET as staffMe } from "../../app/api/staff/me/route";
+import { staffProfile } from "@/contracts/staff";
 import { GET as staffVenue } from "../../app/api/staff/venues/[venueId]/route";
 import { PATCH as patchSettings } from "../../app/api/staff/venues/[venueId]/settings/route";
 import { PATCH as patchRules } from "../../app/api/staff/venues/[venueId]/rules/route";
@@ -215,6 +219,31 @@ it("consumes ready tickets once and resolves the last zone table through FIFO", 
   expect(await denied.json()).toEqual({ bookings: [], nextOffset: null });
   expect(await sql`select booking_id from booking_allocations where booking_id = ${status.bookingId}`).toHaveLength(0);
   await sql`update venue_settings set allocation_mode = 'auto' where venue_id = ${venueId}`;
+});
+
+it("authenticates staff cookies, scopes them to one venue and revokes on logout", async () => {
+  const data = { email: "owner@bookie.test", password: "BookieDemo123!", venueSlug };
+  const cross = request("POST", { data });
+  cross.headers.set("Origin", "https://other.test");
+  expect((await staffSignIn(cross, context({}))).status).toBe(403);
+
+  const signIn = await staffSignIn(request("POST", { data }), context({}));
+  expect(signIn.status, await signIn.clone().text()).toBe(200);
+  expect(staffProfile.parse(await signIn.json())).toMatchObject({ staff: { email: data.email, role: "owner" }, venue: { id: venueId } });
+  const header = signIn.headers.get("set-cookie")!;
+  expect(header).toContain("HttpOnly");
+  expect(header).toContain("SameSite=lax");
+  const cookie = header.split(";")[0];
+  expect((await staffMe(request("GET", { cookie }), context({}))).status).toBe(200);
+  expect((await staffVenue(request("GET", { cookie }), context({ venueId: otherVenueId }))).status).toBe(404);
+  const crossMutation = request("PATCH", { cookie, data: { allocationMode: "manual" } });
+  crossMutation.headers.set("Origin", "https://other.test");
+  expect((await patchSettings(crossMutation, context({ venueId }))).status).toBe(403);
+
+  const signOut = await staffSignOut(request("POST", { cookie }), context({}));
+  expect(signOut.status).toBe(204);
+  expect(signOut.headers.get("set-cookie")).toContain("Max-Age=0");
+  expect((await staffMe(request("GET", { cookie }), context({}))).status).toBe(401);
 });
 
 async function getStatus(requestId: string, cookie = alice.cookie) {

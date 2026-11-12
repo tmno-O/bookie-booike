@@ -1,10 +1,11 @@
-import { apiRequest, type ApiInit } from "@/client/transport";
+import { staffApi } from "@/client/staff-api";
+import { apiRequest, realApiMode, type ApiInit } from "@/client/transport";
 
 export type Staff = { email: string; displayName: string; role: "owner" | "staff" };
-export { asFailure, type ApiFailure as Failure } from "@/client/transport";
+export { asFailure, realApiMode, type ApiFailure as Failure } from "@/client/transport";
 
 export function adminApi<T>(path: string, init?: ApiInit): Promise<T> {
-  return apiRequest(`/api/mock${path}`, init);
+  return realApiMode ? staffApi(path, init) : apiRequest(`/api/mock${path}`, init);
 }
 
 export const PARTY_LABEL: Record<string, string> = { "1-4": "1–4 คน", "5-8": "5–8 คน", "9-12": "9–12 คน", "12+": "12+ คน" };

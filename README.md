@@ -28,7 +28,7 @@ npm run worker
 
 เปิด [หน้าเดโม](http://localhost:3100/book/bookie-demo) และใช้ปุ่มเข้าสู่ระบบทดสอบ. เลือกคืนบริการ โต๊ะ และจำนวนคน. หน้าจอจะติดตามคำขอจนได้ผลจาก worker และมีปุ่มยกเลิกรายการที่เพิ่งจอง. ตรวจ DB และคิวได้ที่ [health endpoint](http://localhost:3100/api/health).
 
-บัญชี Supabase สำหรับเดโม local คือ `owner@bookie.test` กับ `staff@bookie.test` ใช้รหัส `BookieDemo123!`. เรียก `supabase.auth.signInWithPassword` ด้วย publishable key แล้วส่ง `session.access_token` เป็น Bearer token ให้ staff API. ใช้ `npx supabase migration up` เมื่อมี migration ใหม่. สำหรับฐานข้อมูลเดโมเดิมที่ยังไม่มีบัญชีตัวอย่าง ให้รัน `npx supabase db reset --local` เมื่อพร้อมล้างข้อมูลเดโมในเครื่อง.
+บัญชี Supabase สำหรับเดโม local คือ `owner@bookie.test` กับ `staff@bookie.test` ใช้รหัส `BookieDemo123!`. ในโหมด `NEXT_PUBLIC_API_MODE=real` ใช้บัญชีเหล่านี้ที่ [หน้าเข้าสู่ระบบร้านค้า](http://localhost:3100/admin/login). Staff API ยังรับ Bearer token จาก Supabase Auth สำหรับ client ที่เรียก API โดยตรง. ใช้ `npx supabase migration up` เมื่อมี migration ใหม่. สำหรับฐานข้อมูลเดโมเดิมที่ยังไม่มีบัญชีตัวอย่าง ให้รัน `npx supabase db reset --local` เมื่อพร้อมล้างข้อมูลเดโมในเครื่อง.
 
 ## ทดสอบ
 

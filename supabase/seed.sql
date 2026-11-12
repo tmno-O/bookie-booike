@@ -25,11 +25,11 @@ insert into auth.users (
 )
 select '00000000-0000-0000-0000-000000000000', fixture.id, 'authenticated', 'authenticated',
   fixture.email, extensions.crypt('BookieDemo123!', extensions.gen_salt('bf')), now(),
-  '', '', '', '', '{"provider":"email","providers":["email"]}', '{}', now(), now()
+  '', '', '', '', '{"provider":"email","providers":["email"]}', jsonb_build_object('display_name', fixture.display_name), now(), now()
 from (values
-  ('90000000-0000-4000-8000-000000000001'::uuid, 'owner@bookie.test'),
-  ('90000000-0000-4000-8000-000000000002'::uuid, 'staff@bookie.test')
-) fixture(id, email)
+  ('90000000-0000-4000-8000-000000000001'::uuid, 'owner@bookie.test', 'เจ้าของร้าน'),
+  ('90000000-0000-4000-8000-000000000002'::uuid, 'staff@bookie.test', 'พนักงาน')
+) fixture(id, email, display_name)
 on conflict (id) do nothing;
 
 insert into auth.identities (id, provider_id, user_id, identity_data, provider, created_at, updated_at)

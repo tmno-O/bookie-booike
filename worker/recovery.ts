@@ -18,5 +18,6 @@ export async function reconcilePending(venueId?: string) {
   await expireQueueTickets(venueId);
   await sql`delete from booking_rate_limits where window_start < now() - interval '1 hour'`;
   await sql`delete from customer_sessions where expires_at < now()`;
+  await sql`delete from staff_sessions where expires_at < now()`;
   return published;
 }
