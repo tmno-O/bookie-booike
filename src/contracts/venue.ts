@@ -21,6 +21,12 @@ export const profilePatch = z.strictObject({
   imageUrl: httpsUrl.nullable(),
   timezone: z.string().refine(ianaZone),
 }).partial();
+export const shopProfileInput = z.strictObject({
+  name: label,
+  phone: z.string().trim().regex(/^(?:[0-9 +()-]{6,20})?$/),
+  address: z.string().trim().max(200),
+  entryPolicy: z.string().trim().max(300),
+});
 export const settingsPatch = z.strictObject({
   tableSelectionMode: selectionMode.optional(),
   allocationMode: z.enum(["auto", "manual"]).optional(),

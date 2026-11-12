@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { booking, bookingStatus } from "./booking";
-import { id, serviceDate, slug } from "./common";
+import { id, instant, serviceDate, slug } from "./common";
 
 export const staffLoginInput = z.strictObject({
   email: z.string().trim().toLowerCase().max(254).pipe(z.email()),
@@ -8,9 +8,20 @@ export const staffLoginInput = z.strictObject({
   venueSlug: slug.optional(),
 });
 
+export const inviteInput = z.strictObject({
+  email: z.string().trim().toLowerCase().max(254).pipe(z.email()),
+  role: z.literal("staff"),
+});
+
 export const staffRole = z.enum(["owner", "staff"]);
+const teamMember = z.object({ email: z.email(), displayName: z.string(), role: staffRole });
+export const teamData = z.object({
+  members: z.array(teamMember),
+  invites: z.array(z.object({ id, email: z.email(), role: z.literal("staff"), createdAt: instant })),
+  canEdit: z.boolean(),
+});
 export const staffProfile = z.object({
-  staff: z.object({ email: z.email(), displayName: z.string(), role: staffRole }),
+  staff: teamMember,
   venue: z.object({ id, slug, name: z.string() }),
 });
 

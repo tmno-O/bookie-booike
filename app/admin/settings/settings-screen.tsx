@@ -22,7 +22,11 @@ export default function SettingsScreen() {
 
   const load = useCallback(() => adminApi<{ profile: Profile; canEdit: boolean }>("/admin/settings")
     .then((r) => { setProfile(r.profile); setCanEdit(r.canEdit); })
-    .catch((e) => { if (asFailure(e).status === 401) router.replace("/admin/login"); else setError(asFailure(e).message); }), [router]);
+    .catch((e) => {
+      const failure = asFailure(e);
+      if (failure.status === 401) router.replace("/admin/login");
+      else setError(failure.code === "FORBIDDEN" ? "เฉพาะเจ้าของร้านที่จัดการข้อมูลร้านได้" : failure.message);
+    }), [router]);
 
   useEffect(() => {
     let active = true;

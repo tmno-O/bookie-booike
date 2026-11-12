@@ -1,7 +1,7 @@
 import postgres from "postgres";
 import type { z } from "zod";
 import {
-  lineIntegrationPatch, profilePatch, releaseInput, ruleInput, settingsPatch,
+  lineIntegrationPatch, profilePatch, releaseInput, ruleInput, settingsPatch, shopProfileInput,
 } from "@/contracts/venue";
 import { db } from "@/lib/db";
 import { ApiError, notFound } from "@/lib/errors";
@@ -24,8 +24,7 @@ export function columns(value: Record<string, string | number | boolean | null>)
   return Object.fromEntries(Object.entries(value).map(([key, field]) => [postgres.fromCamel(key), field]));
 }
 
-export async function getVenue(lookup: { venueId: string } | { slug: string }) {
-  const sql = db();
+export async function getVenue(lookup: { venueId: string } | { slug: string }, sql: postgres.ISql = db()) {
   const predicate = "venueId" in lookup ? sql`v.id = ${lookup.venueId}` : sql`v.slug = ${lookup.slug}`;
   const [venue] = await sql<{
     id: string; slug: string; name: string; description: string | null; contact: string | null;
@@ -45,13 +44,18 @@ export async function getVenue(lookup: { venueId: string } | { slug: string }) {
 
 export async function getPublicVenue(slug: string) {
   const venue = await getVenue({ slug });
-  const { name, phone, address, entryPolicy } = venue;
-  return { ...venue, ...await queueOpening(venue.id), shop: { name, phone, address, entryPolicy } };
+  return { ...venue, ...await queueOpening(venue.id), shop: shopProfile(venue) };
 }
 
-export async function changeVenue(staff: Staff, patch: z.infer<typeof profilePatch> | z.infer<typeof settingsPatch>, action: string) {
+export function shopProfile({ name, phone, address, entryPolicy }: z.infer<typeof shopProfileInput>) {
+  return { name, phone, address, entryPolicy };
+}
+
+export async function changeVenue(
+  staff: Staff, patch: z.infer<typeof profilePatch | typeof settingsPatch | typeof shopProfileInput>, action: string,
+) {
   if (!Object.keys(patch).length) throw new ApiError(400, "EMPTY_PATCH", "Provide a field to update");
-  await staffChange(staff, async (tx) => {
+  return staffChange(staff, async (tx) => {
     const { allocationMode, ...fields } = patch as typeof patch & { allocationMode?: "auto" | "manual" };
     if (Object.keys(fields).length) await tx`update venues set ${tx(columns(fields))} where id = ${staff.venueId}`;
     if (allocationMode) {
@@ -59,8 +63,8 @@ export async function changeVenue(staff: Staff, patch: z.infer<typeof profilePat
         on conflict (venue_id) do update set allocation_mode = excluded.allocation_mode`;
     }
     await staffAudit(tx, staff, action, staff.venueId);
+    return getVenue(staff, tx);
   });
-  return getVenue(staff);
 }
 
 export async function releases(venueId: string) {

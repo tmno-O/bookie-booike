@@ -41,10 +41,14 @@ import { PUT as putHours } from "../../app/api/staff/venues/[venueId]/hours/stan
 import { POST as addSpecial } from "../../app/api/staff/venues/[venueId]/hours/special/route";
 import { DELETE as deleteSpecial } from "../../app/api/staff/venues/[venueId]/hours/special/[id]/route";
 import { hoursData } from "@/contracts/hours";
+import { GET as team } from "../../app/api/staff/venues/[venueId]/team/route";
+import { POST as invite } from "../../app/api/staff/venues/[venueId]/team/invites/route";
+import { DELETE as revokeInvite } from "../../app/api/staff/venues/[venueId]/team/invites/[id]/route";
+import { teamData } from "@/contracts/staff";
 import { GET as staffBookingDetails } from "../../app/api/staff/venues/[venueId]/bookings/[bookingId]/route";
 import { dashboardData } from "@/contracts/staff";
 import { GET as staffVenue } from "../../app/api/staff/venues/[venueId]/route";
-import { PATCH as patchSettings } from "../../app/api/staff/venues/[venueId]/settings/route";
+import { GET as settings, PATCH as patchSettings, PUT as putSettings } from "../../app/api/staff/venues/[venueId]/settings/route";
 import { PATCH as patchRules } from "../../app/api/staff/venues/[venueId]/rules/route";
 import { PATCH as patchLine } from "../../app/api/staff/venues/[venueId]/line-integration/route";
 import { DELETE as closeTable } from "../../app/api/staff/venues/[venueId]/tables/[tableId]/route";
@@ -479,6 +483,48 @@ it("lets only owners edit hours and applies Bangkok special releases to customer
   } finally {
     await putHours(request("PUT", { ...owner, data: initial.standard }), params);
     await db()`delete from booking_releases where venue_id = ${venueId} and service_date = ${date}`;
+  }
+});
+
+it("publishes owner shop edits and scopes staff invitations to the venue", async () => {
+  const params = context({ venueId });
+  const owner = { token: ownerToken };
+  const staff = { token: staffToken };
+  const original = (await (await settings(request("GET", owner), params)).json()).profile;
+  const shop = { name: "Updated Venue", phone: "+66 81 234 5678", address: "Bangkok", entryPolicy: "Bring your booking reference" };
+  const sendInvite = (email: string, options = owner) =>
+    invite(request("POST", { ...options, data: { email, role: "staff" } }), params);
+
+  try {
+    for (const denied of [
+      await settings(request("GET", staff), params),
+      await putSettings(request("PUT", { ...staff, data: shop }), params),
+      await sendInvite("pending@example.com", staff),
+    ]) {
+      expect(denied.status).toBe(403);
+      expect(await denied.json()).toMatchObject({ error: { code: "FORBIDDEN" } });
+    }
+    const saved = await putSettings(request("PUT", { ...owner, data: shop }), params);
+    expect(await saved.json()).toEqual({ profile: shop });
+    const publicProfile = await publicVenue(request("GET"), context({ slug: venueSlug }));
+    expect(await publicProfile.json()).toMatchObject({ shop });
+    expect(await (await sendInvite("STAFF@BOOKIE.TEST")).json()).toMatchObject({ error: { code: "ALREADY_MEMBER" } });
+
+    const responses = await Promise.all([sendInvite(" pending@example.com "), sendInvite("PENDING@EXAMPLE.COM")]);
+    expect(responses.map((response) => response.status).sort()).toEqual([201, 409]);
+    expect(await responses.find((response) => !response.ok)!.json()).toMatchObject({ error: { code: "INVITE_EXISTS" } });
+    const { invite: savedInvite } = await responses.find((response) => response.ok)!.json();
+    const ownerTeam = teamData.parse(await (await team(request("GET", owner), params)).json());
+    expect(ownerTeam).toMatchObject({ canEdit: true, invites: [{ id: savedInvite.id, email: "pending@example.com" }] });
+    expect(ownerTeam.members.map(({ role }) => role)).toEqual(["owner", "staff"]);
+    expect(await (await team(request("GET", staff), params)).json()).toMatchObject({ canEdit: false, invites: [] });
+
+    expect((await revokeInvite(request("DELETE", staff), context({ venueId, id: savedInvite.id }))).status).toBe(403);
+    expect((await revokeInvite(request("DELETE", owner), context({ venueId: otherVenueId, id: savedInvite.id }))).status).toBe(404);
+    expect(await (await revokeInvite(request("DELETE", owner), context({ venueId, id: savedInvite.id }))).json()).toEqual({ ok: true });
+    expect(await (await team(request("GET", owner), params)).json()).toMatchObject({ invites: [] });
+  } finally {
+    await putSettings(request("PUT", { ...owner, data: original }), params);
   }
 });
 
