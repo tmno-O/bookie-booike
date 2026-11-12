@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import { ChangeMessageVisibilityCommand, CreateQueueCommand, DeleteQueueCommand } from "@aws-sdk/client-sqs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { POST as signIn } from "../../app/api/session/line/route";
+import { GET as customerProfile } from "../../app/api/me/route";
 import { POST as logout } from "../../app/api/session/logout/route";
 import { POST as requestBooking } from "../../app/api/booking-requests/route";
 import { GET as readRequest } from "../../app/api/me/booking-requests/[requestId]/route";
@@ -67,6 +68,8 @@ async function login(slug: string, subject: string, name: string) {
   const cookie = response.headers.get("set-cookie")!;
   expect(cookie).toContain("HttpOnly");
   const { customerId } = await response.json();
+  const profile = await customerProfile(request("GET", { cookie: cookie.split(";")[0] }), context({}));
+  expect(await profile.json()).toEqual({ user: { userId: customerId, displayName: name } });
   return { cookie: cookie.split(";")[0], customerId };
 }
 

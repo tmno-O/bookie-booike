@@ -2,14 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
-import { api, saveCustomer, type LineUser } from "../flow";
+import { api, realApiMode, saveCustomer, type LineUser } from "../flow";
 import styles from "./details.module.css";
 
 // Step 1: collect booker details, keep them for the queue request on the next screen.
 export default function DetailsForm({ slug }: { slug: string }) {
   const router = useRouter();
-  const [name, setName] = useState("เจ๊ม่อน");
-  const [phone, setPhone] = useState("0919119911");
+  const [name, setName] = useState(realApiMode ? "" : "เจ๊ม่อน");
+  const [phone, setPhone] = useState(realApiMode ? "" : "0919119911");
   const [error, setError] = useState("");
   const [user, setUser] = useState<LineUser>();
 
@@ -52,7 +52,7 @@ export default function DetailsForm({ slug }: { slug: string }) {
               onChange={(e) => { setPhone(e.target.value); setError(""); }} />
           </div>
         </div>
-        {error ? <p role="alert" className={styles.error}>{error}</p> : <p className={styles.hint}>ข้อมูลตัวอย่างสำหรับทดลองต้นแบบ</p>}
+        {error ? <p role="alert" className={styles.error}>{error}</p> : !realApiMode && <p className={styles.hint}>ข้อมูลตัวอย่างสำหรับทดลองต้นแบบ</p>}
         {user && <p className={styles.hint}>เข้าสู่ระบบด้วย LINE: {user.displayName} · <button type="button" className={styles.linkButton} onClick={logout}>ออกจากระบบ</button></p>}
       </div>
       <div className={styles.footer}>

@@ -1,15 +1,68 @@
 "use client";
 
+import Script from "next/script";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type FormEvent } from "react";
-import { api, asFailure } from "../flow";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { api, asFailure, realApiMode } from "../flow";
 import styles from "./login.module.css";
 
 type Account = { userId: string; displayName: string };
 
-// Mock "Log in with LINE": pick a fake LINE account, send its mock ID token (same format as
-// LINE_VERIFY_MODE=mock) to the mock session endpoint, then continue to the booking flow.
-export default function LoginScreen({ slug }: { slug: string }) {
+type Liff = {
+  init(options: { liffId: string }): Promise<void>;
+  isLoggedIn(): boolean;
+  getIDToken(): string | null;
+  login(options: { redirectUri: string }): void;
+};
+
+export default function LoginScreen({ slug, mockLine }: { slug: string; mockLine: boolean }) {
+  const demo = !realApiMode || mockLine;
+  return demo ? <DemoLogin slug={slug} /> : <LiffLogin slug={slug} />;
+}
+
+function LiffLogin({ slug }: { slug: string }) {
+  const router = useRouter();
+  const [sdkLoaded, setSdkLoaded] = useState(false);
+  const [sdk, setSdk] = useState<Liff>();
+  const [error, setError] = useState("");
+  const initialized = useRef<Promise<void> | null>(null);
+
+  useEffect(() => {
+    const liff = (window as Window & { liff?: Liff }).liff;
+    if (!sdkLoaded || !liff) return;
+    let active = true;
+    initialized.current ??= api<{ liffId: string | null }>(`/venues/by-slug/${encodeURIComponent(slug)}`).then(({ liffId }) => {
+      if (!liffId) throw new Error("ร้านยังไม่ได้ตั้งค่า LINE");
+      return liff.init({ liffId });
+    });
+    void initialized.current.then(async () => {
+      if (!active) return;
+      if (!liff.isLoggedIn()) { setSdk(liff); return; }
+      const idToken = liff.getIDToken();
+      if (!idToken) throw new Error("LINE ไม่ได้ส่ง ID token");
+      await api("/line/login", { method: "POST", body: { idToken } });
+      if (active) router.replace(`/book/${slug}/details`);
+    }).catch((e) => active && setError(e instanceof Error ? e.message : asFailure(e).message));
+    return () => { active = false; };
+  }, [router, sdkLoaded, slug]);
+
+  return (
+    <div className={styles.root}>
+      <Script src="https://static.line-scdn.net/liff/edge/2/sdk.js" onReady={() => setSdkLoaded(true)}
+        onError={() => setError("โหลด LINE ไม่สำเร็จ")} />
+      <main className={styles.screen}>
+        <p className={styles.brand}>Bookie lyon.</p>
+        <h1 className={styles.title}>เข้าสู่ระบบด้วย LINE</h1>
+        <p className={styles.subtitle}>เพื่อรับคิวและดูการจองของคุณ</p>
+        <button type="button" className={styles.go} disabled={!sdk}
+          onClick={() => sdk?.login({ redirectUri: `${location.origin}${location.pathname}` })}>เข้าสู่ระบบ</button>
+        {error && <p role="alert" className={styles.error}>{error}</p>}
+      </main>
+    </div>
+  );
+}
+
+function DemoLogin({ slug }: { slug: string }) {
   const router = useRouter();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [custom, setCustom] = useState("");

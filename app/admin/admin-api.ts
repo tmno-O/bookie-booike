@@ -1,22 +1,11 @@
+import { apiRequest, type ApiInit } from "@/client/transport";
+
 export type Staff = { email: string; displayName: string; role: "owner" | "staff" };
-export type Failure = { code: string; message: string; status: number };
+export { asFailure, type ApiFailure as Failure } from "@/client/transport";
 
-export async function adminApi<T>(path: string, init?: { method?: string; body?: unknown }): Promise<T> {
-  const response = await fetch(`/api/mock${path}`, {
-    method: init?.method ?? "GET",
-    headers: init?.body === undefined ? undefined : { "Content-Type": "application/json" },
-    body: init?.body === undefined ? undefined : JSON.stringify(init.body),
-    cache: "no-store",
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw { code: data.error?.code ?? "ERROR", message: data.error?.message ?? "เกิดข้อผิดพลาด", status: response.status } satisfies Failure;
-  }
-  return data as T;
+export function adminApi<T>(path: string, init?: ApiInit): Promise<T> {
+  return apiRequest(`/api/mock${path}`, init);
 }
-
-export const asFailure = (e: unknown): Failure =>
-  typeof e === "object" && e && "status" in e ? (e as Failure) : { code: "NETWORK", message: "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้", status: 0 };
 
 export const PARTY_LABEL: Record<string, string> = { "1-4": "1–4 คน", "5-8": "5–8 คน", "9-12": "9–12 คน", "12+": "12+ คน" };
 export const STATUS_LABEL = { pending: "รอจัดสรร", confirmed: "ยืนยันแล้ว", checked_in: "เช็กอินแล้ว" } as const;
