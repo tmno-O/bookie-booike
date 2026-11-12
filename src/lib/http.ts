@@ -27,6 +27,11 @@ export function json(data: unknown, init?: ResponseInit) {
   return Response.json(data, { ...init, headers });
 }
 
+// parseEnv() lists only the names of invalid variables, never their values, so this is safe to log.
+export function configIssue(error: unknown): string | undefined {
+  return error instanceof Error && error.message.startsWith("Invalid server configuration:") ? error.message : undefined;
+}
+
 export function route<T extends Record<string, string>>(
   handler: (request: Request, params: T) => Promise<Response>,
 ) {
@@ -38,7 +43,8 @@ export function route<T extends Record<string, string>>(
         return json({ error: { code: error.code, message: error.message } }, { status: error.status });
       }
       console.error("API failure", error instanceof Error ? error.name : "UnknownError",
-        typeof error === "object" && error && "code" in error ? error.code : undefined);
+        typeof error === "object" && error && "code" in error ? error.code : undefined,
+        configIssue(error));
       return json({ error: { code: "INTERNAL_ERROR", message: "Unexpected server error" } }, { status: 500 });
     }
   };
