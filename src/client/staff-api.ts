@@ -1,6 +1,7 @@
 import type { z } from "zod";
 import type { booking } from "@/contracts/booking";
 import { bangkokDate } from "@/lib/service-date";
+import type { zoneView } from "@/contracts/venue";
 import type { dashboardData, staffProfile } from "@/contracts/staff";
 import { waitForBooking } from "./booking-result";
 import { apiRequest, type ApiInit } from "./transport";
@@ -14,6 +15,10 @@ function viewBooking(entry: StaffBooking) {
     status: entry.status === "pending_allocation" ? "pending" : entry.status,
     channel: entry.source === "liff" ? "line" : "staff",
   };
+}
+
+function viewZone(zone: z.infer<typeof zoneView>) {
+  return { ...zone, status: zone.status === "active" ? "open" : zone.status };
 }
 
 let profileRequest: Promise<StaffProfile> | undefined;
@@ -52,6 +57,13 @@ export async function staffApi<T>(path: string, init?: ApiInit): Promise<T> {
   }
   if (path.startsWith("/admin/bookings/")) {
     return { booking: viewBooking(await apiRequest<StaffBooking>(endpoint, init)) } as T;
+  }
+  if (path === "/admin/zones" && (!init?.method || init.method === "GET")) {
+    const result = await apiRequest<{ zones: z.infer<typeof zoneView>[] }>(endpoint, init);
+    return { ...result, zones: result.zones.map(viewZone) } as T;
+  }
+  if (path === "/admin/zones" || path.startsWith("/admin/zones/")) {
+    return { zone: viewZone(await apiRequest<z.infer<typeof zoneView>>(endpoint, init)) } as T;
   }
   return apiRequest(endpoint, init);
 }

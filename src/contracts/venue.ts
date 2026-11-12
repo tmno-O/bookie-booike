@@ -26,9 +26,17 @@ export const settingsPatch = z.strictObject({
   allocationMode: z.enum(["auto", "manual"]).optional(),
   cancelCutoffMinutes: z.number().int().min(0).max(525600).optional(),
 });
-const zoneFields = z.strictObject({ name: label, capacity, status });
-export const zoneInput = zoneFields.extend({ status: status.default("active") });
-export const zonePatch = zoneFields.partial();
+const zoneStatus = z.enum(["active", "open", "closed"]);
+const legacyZone = z.strictObject({ name: label, capacity, status: status.default("active") });
+const seatsZone = z.strictObject({ name: label, seats: capacity, status: zoneStatus.default("active") });
+export const zoneInput = z.union([seatsZone, legacyZone]);
+export const zonePatch = z.strictObject({ name: label, capacity, seats: capacity, status: zoneStatus }).partial()
+  .refine((zone) => zone.capacity === undefined || zone.seats === undefined, "Use either seats or capacity");
+export const zonesQuery = z.object({ date: serviceDate.optional() });
+export const zoneView = z.object({
+  id, name: label, status, seats: capacity, tables: z.number().int().nonnegative(),
+  tablesUsed: z.number().int().nonnegative(), bookedSeats: z.number().int().nonnegative(),
+});
 const tableFields = z.strictObject({
   zoneId: id, name: label, capacity,
   priceSatang: z.number().int().min(0).max(2147483647).nullable(),

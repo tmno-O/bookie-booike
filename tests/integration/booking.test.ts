@@ -32,6 +32,10 @@ import { GET as staffQueue } from "../../app/api/staff/venues/[venueId]/queue/ro
 import { GET as staffQueueItem } from "../../app/api/staff/venues/[venueId]/queue/[bookingId]/route";
 import { POST as staffAllocate } from "../../app/api/staff/venues/[venueId]/queue/[bookingId]/allocate/route";
 import { staffQueueRow } from "@/contracts/queue";
+import { POST as createZone, GET as listZones } from "../../app/api/staff/venues/[venueId]/zones/route";
+import { PATCH as patchZone } from "../../app/api/staff/venues/[venueId]/zones/[zoneId]/route";
+import { POST as createTable } from "../../app/api/staff/venues/[venueId]/tables/route";
+import { zoneView } from "@/contracts/venue";
 import { GET as staffBookingDetails } from "../../app/api/staff/venues/[venueId]/bookings/[bookingId]/route";
 import { dashboardData } from "@/contracts/staff";
 import { GET as staffVenue } from "../../app/api/staff/venues/[venueId]/route";
@@ -388,6 +392,49 @@ it("allocates competing pending requests atomically and can move the other to a 
   expect(await sql`select id from audit_logs where venue_id = ${venueId} and action = 'booking.allocated'`).toHaveLength(2);
   await sql`update venue_settings set allocation_mode = 'auto' where venue_id = ${venueId}`;
   await sql`update zones set status = 'closed' where id = ${fallbackZoneId}`;
+});
+
+it("syncs twelve-seat tables while protecting upcoming reservations and closed zones", async () => {
+  const sql = db();
+  const create = (name: string) => createZone(request("POST", {
+    token: staffToken, data: { name, seats: 25, status: "open" },
+  }), context({ venueId }));
+  const created = await create("Managed zone");
+  expect(created.status, await created.clone().text()).toBe(201);
+  const zone = zoneView.parse(await created.json());
+  expect(zone).toMatchObject({ seats: 25, tables: 3, status: "active" });
+  expect(await (await create("MANAGED ZONE")).json()).toMatchObject({ error: { code: "ZONE_NAME_TAKEN" } });
+  const table = await createTable(request("POST", {
+    token: staffToken, data: { zoneId: zone.id, name: "Extra", capacity: 12 },
+  }), context({ venueId }));
+  expect(await table.json()).toMatchObject({ error: { code: "ZONE_SEATS_MANAGED" } });
+
+  const date = day(16);
+  const submit = await staffBooking(request("POST", {
+    token: staffToken, key: randomUUID(),
+    data: { name: "Seat Guest", phone: "0819988776", serviceDate: date, party: "1-4", zoneId: zone.id },
+  }), context({ venueId }));
+  expect(submit.status, await submit.clone().text()).toBe(202);
+  await consumeBookingMessage(await nextMessage());
+  const status = await staffRequestStatus(request("GET", { token: staffToken }), context({ venueId, requestId: (await submit.json()).requestId }));
+  const { bookingId } = await status.json();
+  const [booked] = await sql<{ tableId: string }[]>`select table_id from bookings where id = ${bookingId}`;
+  const change = (data: object) => patchZone(request("PATCH", { token: staffToken, data }), context({ venueId, zoneId: zone.id }));
+  expect(await (await change({ seats: 3 })).json()).toMatchObject({ error: { code: "CAPACITY_BELOW_BOOKED" } });
+  expect(await (await change({ seats: 12 })).json()).toMatchObject({ seats: 12, tables: 1 });
+  const tables = await sql`select id, status, capacity from venue_tables where venue_id = ${venueId} and zone_id = ${zone.id}`;
+  expect(tables.filter((row) => row.status === "active")).toEqual([{ id: booked.tableId, status: "active", capacity: 12 }]);
+  expect(tables.filter((row) => row.status === "closed")).toHaveLength(2);
+  expect(await (await change({ status: "closed" })).json()).toMatchObject({ status: "closed", tables: 1 });
+
+  const list = await listZones(request("GET", { token: staffToken, path: `/?date=${date}` }), context({ venueId }));
+  expect(await list.json()).toMatchObject({ zones: expect.arrayContaining([
+    expect.objectContaining({ id: zone.id, bookedSeats: 4, tablesUsed: 1 }),
+  ]) });
+  const publicView = await availability(request("GET", { path: `/?date=${date}&partyBucket=1-4` }), context({ venueId }));
+  expect(await publicView.json()).toMatchObject({ zones: expect.arrayContaining([
+    expect.objectContaining({ id: zone.id, available: false, closed: true }),
+  ]) });
 });
 
 async function getStatus(requestId: string, cookie = alice.cookie) {

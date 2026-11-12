@@ -1,8 +1,12 @@
-import { zoneInput } from "@/contracts/venue";
-import { body, json } from "@/lib/http";
+import { zoneInput, zonesQuery } from "@/contracts/venue";
+import { body, input, json } from "@/lib/http";
+import { bangkokDate } from "@/lib/service-date";
+import { changeZone, listZones } from "@/server/services/zones";
 import { staffRoute } from "@/server/staff-route";
-import { changeInventory, inventory } from "@/server/services/inventory";
 
-export const GET = staffRoute(async (_request, staff) => json({ zones: await inventory(staff.venueId, "zones") }));
+export const GET = staffRoute(async (request, staff) => {
+  const { date } = input(zonesQuery, Object.fromEntries(new URL(request.url).searchParams));
+  return json(await listZones(staff.venueId, date ?? bangkokDate()));
+});
 export const POST = staffRoute(async (request, staff) =>
-  json(await changeInventory(staff, "zones", await body(request, zoneInput)), { status: 201 }));
+  json(await changeZone(staff, await body(request, zoneInput)), { status: 201 }));
