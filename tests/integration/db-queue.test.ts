@@ -110,7 +110,9 @@ describe.sequential("Database booking queue", () => {
     const ids = await Promise.all(customers.map((customer) => book(customer, date)));
     await settle();
 
-    const rows = await night(date);
+    // Concurrent inserts can commit out of queue_seq order, so the winner is the first request
+    // decided, not necessarily the lowest sequence number (as with SQS, order is arrival in the queue).
+    const rows = [...await night(date)].sort((a, b) => a.decidedAt.getTime() - b.decidedAt.getTime());
     expect(rows.map((row) => row.id).sort()).toEqual([...ids].sort());
     expect(rows[0]).toMatchObject({ status: "confirmed", resultCode: null });
     for (const row of rows.slice(1)) expect(row).toMatchObject({ status: "rejected", resultCode: "TABLE_UNAVAILABLE" });

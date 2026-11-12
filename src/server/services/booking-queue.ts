@@ -10,7 +10,19 @@ type DrainOptions = { maxItems?: number; maxSeconds?: number; exclusive?: boolea
  * requests from holding one connection each.
  */
 export async function drainBookingQueue({ maxItems = 500, maxSeconds = 8, exclusive = false }: DrainOptions = {}) {
-  await db()`call drain_booking_requests(${maxItems}, ${maxSeconds}, ${env().BOOKING_MAX_RECEIVES}, ${exclusive})`;
+  const limits = [maxItems, maxSeconds, env().BOOKING_MAX_RECEIVES];
+  if (!limits.every((value) => Number.isInteger(value) && value > 0)) throw new Error("Drain limits must be positive integers");
+  // The procedure commits after each request. Run it alone on a reserved connection over the simple
+  // protocol so no pipelined query shares the connection while its transaction state changes.
+  const connection = await db().reserve();
+  try {
+    await connection.unsafe(`call drain_booking_requests(${limits.join(", ")}, ${exclusive})`).simple();
+  } catch (error) {
+    await connection.unsafe("rollback").simple().catch(() => undefined);
+    throw error;
+  } finally {
+    connection.release();
+  }
 }
 
 /** In db mode, decide new requests right after the response is sent; Supabase Cron picks up anything missed. */
