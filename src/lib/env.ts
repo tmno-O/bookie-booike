@@ -10,7 +10,7 @@ const schema = z.object({
   SUPABASE_PUBLISHABLE_KEY: z.string().min(1),
   SQS_REGION: z.string().min(1).default("us-east-1"),
   SQS_ENDPOINT: httpUrl.optional(),
-  QUEUE_DRIVER: z.enum(["sqs", "db"]).default("sqs"),
+  QUEUE_DRIVER: z.enum(["db", "sqs"]).default("db"),
   SQS_QUEUE_URL: httpUrl.refine((url) => new URL(url).pathname.endsWith(".fifo")).optional(),
   LINE_VERIFY_MODE: z.enum(["real", "mock"]).default("real"),
   LINE_SECRET_KEY: z.string().regex(/^[0-9a-f]{64}$/i),

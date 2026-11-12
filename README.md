@@ -1,6 +1,6 @@
 # Bookie Bookie
 
-ระบบจองโต๊ะผ่าน LINE OA และ LIFF ใช้ Next.js และ Supabase Postgres. คิวจองเลือกได้สองแบบด้วย `QUEUE_DRIVER`: `sqs` ใช้ SQS FIFO กับ booking worker (ค่าเริ่มต้น ใช้ในเครื่อง) และ `db` เก็บคิวในตาราง Postgres แล้วตัดสินด้วย procedure โดยไม่ต้องมี worker (ใช้บน Vercel). ดู [API contract](docs/API_CONTRACT.md), [คู่มือทดสอบ mock และ real](docs/MOCK_TESTING.md), [คู่มือ deploy](docs/DEPLOY.md), [หลักฐานทดสอบโหลด](docs/evidence/README.md) และ [แผน backend](docs/backend/BACKEND_PLAN.md).
+ระบบจองโต๊ะผ่าน LINE OA และ LIFF ใช้ Next.js และ Supabase Postgres. คิวจองหลักคือ **DB queue** (`QUEUE_DRIVER=db` ค่าเริ่มต้น): เก็บคิวในตาราง Postgres แล้วตัดสินด้วย procedure ไม่ต้องมี worker ใช้ทั้งในเครื่องและบน Vercel. SQS FIFO กับ booking worker (`QUEUE_DRIVER=sqs`) ยังคงไว้เป็นทางเลือกสำหรับขยายระบบ และใช้ทำซ้ำผลเปรียบเทียบ k6. ระบบออกแบบด้วย SQS FIFO ก่อน แล้ววัดผลเทียบ ([หลักฐาน](docs/evidence/README.md)) พบว่า DB queue รับคำขอเร็วกว่าและไม่ต้องมี server แยก จึงเลือกเป็นตัวหลัก. ดู [API contract](docs/API_CONTRACT.md), [คู่มือทดสอบ mock และ real](docs/MOCK_TESTING.md), [คู่มือ deploy](docs/DEPLOY.md), [หลักฐานทดสอบโหลด](docs/evidence/README.md) และ [แผน backend](docs/backend/BACKEND_PLAN.md).
 
 ## รันในเครื่อง
 
@@ -9,25 +9,20 @@
 ```powershell
 npm ci
 npx supabase start
-docker compose up -d
 if (!(Test-Path .env.local)) { Copy-Item .env.example .env.local }
 node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 ```
 
-ใส่คีย์ที่สร้างใน `LINE_SECRET_KEY` และใช้ `PUBLISHABLE_KEY` จาก `npx supabase status -o env` สำหรับ `SUPABASE_PUBLISHABLE_KEY`. ค่าในตัวอย่างชี้ไปที่ Supabase API พอร์ต `56321`, Postgres พอร์ต `56322` และ ElasticMQ พอร์ต `9324`. ใช้ `npx supabase migration up --local` เมื่อต้องอัปเดต schema ของฐานข้อมูล local เดิม.
+ใส่คีย์ที่สร้างใน `LINE_SECRET_KEY` และใช้ `PUBLISHABLE_KEY` จาก `npx supabase status -o env` สำหรับ `SUPABASE_PUBLISHABLE_KEY`. ค่าในตัวอย่างชี้ไปที่ Supabase API พอร์ต `56321` และ Postgres พอร์ต `56322`. ใช้ `npx supabase migration up --local` เมื่อต้องอัปเดต schema ของฐานข้อมูล local เดิม.
 
-ตั้ง `LINE_VERIFY_MODE=mock` ใน `.env.local` สำหรับบัญชี LINE ทดสอบ แล้วเปิด terminal แยกสำหรับเว็บกับ worker.
+ตั้ง `LINE_VERIFY_MODE=mock` ใน `.env.local` สำหรับบัญชี LINE ทดสอบ แล้วรันเว็บ. คิวโหมด `db` ไม่ต้องรัน worker: API ตัดสินคำขอทันทีหลังตอบ `202`.
 
 ```powershell
 $env:NEXT_PUBLIC_API_MODE = 'real'
 npm run dev -- --port 3100
 ```
 
-```powershell
-npm run worker
-```
-
-ถ้าต้องการทดสอบคิวแบบเดียวกับ production ให้ตั้ง `$env:QUEUE_DRIVER = 'db'` ก่อน `npm run dev` และไม่ต้องรัน worker. API ตัดสินคำขอทันทีหลังตอบ `202`. ห้ามรันสองโหมดกับฐานข้อมูลเดียวกันพร้อมกัน เพราะ drain ของโหมด `db` จะหยิบคำขอ `queued` ของโหมด `sqs` ไปตัดสินด้วย.
+**ทางเลือก SQS FIFO:** ตั้ง `QUEUE_DRIVER=sqs` ใน `.env.local` แล้วรัน `docker compose up -d` (ElasticMQ พอร์ต `9324`) และเปิด terminal แยกรัน `npm run worker`. ห้ามรันสองโหมดกับฐานข้อมูลเดียวกันพร้อมกัน เพราะ drain ของโหมด `db` จะหยิบคำขอ `queued` ของโหมด `sqs` ไปตัดสินด้วย.
 
 - [หน้าจองของลูกค้า](http://localhost:3100/book/bookie-demo) เดินจาก login ถึงรับคิว เลือกคืนและโซน แล้วดูผลกับประวัติการจอง. ใช้หน้าต่างปกติคู่กับหน้าต่างส่วนตัว หรือใช้สองโปรไฟล์เบราว์เซอร์ เพื่อเห็นคิวขยับหลังส่งคำขอแรก.
 - [หน้าแอดมิน](http://localhost:3100/admin/login) ใช้ `owner@bookie.test` หรือ `staff@bookie.test` กับรหัส local `BookieDemo123!`. เจ้าของจัดการเวลาเปิดจอง ข้อมูลร้าน และคำเชิญ. ทั้งสอง role จัดการจอง คิว เช็กอิน และโซน.
@@ -44,11 +39,11 @@ npm test
 npm run test:integration
 ```
 
-Integration tests ใช้ Supabase, ElasticMQ และ LINE mock. พัก booking worker ของเดโมระหว่างรันชุดนี้. Tests สร้างร้านกับคิวแยกชั่วคราวและล้างข้อมูลร้านทดสอบเมื่อจบ. `tests/integration/db-queue.test.ts` ทดสอบโหมด `QUEUE_DRIVER=db` (ลำดับคิว, drain พร้อมกัน, idempotency, retry แล้ว `SYSTEM_ERROR`, health).
+Integration tests ใช้ Supabase, ElasticMQ (`docker compose up -d`) และ LINE mock. `tests/integration/booking.test.ts` ทดสอบฟีเจอร์ทั้งหมดผ่านโหมด `sqs` จึงต้องพัก booking worker ของเดโม (ถ้าเปิดอยู่) ระหว่างรัน. Tests สร้างร้านกับคิวแยกชั่วคราวและล้างข้อมูลร้านทดสอบเมื่อจบ. `tests/integration/db-queue.test.ts` ทดสอบโหมด `QUEUE_DRIVER=db` (ลำดับคิว, drain พร้อมกัน, idempotency, retry แล้ว `SYSTEM_ERROR`, health).
 
 ### k6 spike และ burst
 
-รันเมื่อเว็บและ booking worker ทำงาน. เลือกคืนอนาคตสองคืนที่โต๊ะ A2 ของ `bookie-demo` ยังว่าง. แต่ละชุดจองโต๊ะเดียวและบันทึกผล contention ในฐานข้อมูล local.
+รันเมื่อเว็บทำงาน (และ booking worker ถ้าใช้โหมด `sqs`). เลือกคืนอนาคตสองคืนที่โต๊ะ A2 ของ `bookie-demo` ยังว่าง. แต่ละชุดจองโต๊ะเดียวและบันทึกผล contention ในฐานข้อมูล local.
 
 ```powershell
 $env:BASE_URL = 'http://localhost:3100'
@@ -67,13 +62,13 @@ $testPath = (Resolve-Path 'tests/load/booking-burst.js').Path
 docker run --rm --mount "type=bind,src=$testPath,dst=/burst.js,readonly" -e BASE_URL=http://host.docker.internal:3100 -e SERVICE_DATE -e RUN_ID -e BOOKING_REQUESTS -e MAX_IN_FLIGHT -e REQUESTS_PER_SESSION -e VENUE_SLUG -e TABLE_ID grafana/k6:latest run /burst.js
 ```
 
-ถ้าใช้ k6 ในเครื่อง ให้รัน `k6 run tests/load/booking-burst.js` กับ `BASE_URL=http://localhost:3100`. เกณฑ์คือ `booking_posts=5000` และ `booking_accepted=5000` ซึ่งนับ HTTP `202`. ดู latency ของ POST จาก `http_req_duration{phase:booking}`. หลัง worker ระบายคิว ให้ตรวจผลตาม `RUN_ID`.
+ถ้าใช้ k6 ในเครื่อง ให้รัน `k6 run tests/load/booking-burst.js` กับ `BASE_URL=http://localhost:3100`. เกณฑ์คือ `booking_posts=5000` และ `booking_accepted=5000` ซึ่งนับ HTTP `202`. ดู latency ของ POST จาก `http_req_duration{phase:booking}`. หลังคิวว่าง ให้ตรวจผลตาม `RUN_ID`.
 
 ```powershell
 docker exec supabase_db_Hackathon-Final psql -U postgres -d postgres -c "select status, result_code, count(*) from public.booking_requests where idempotency_key like 'burst-${env:RUN_ID}-%' group by status, result_code;"
 ```
 
-สำหรับโต๊ะเดียวที่ว่าง ผลที่คาดคือ `confirmed` 1 และ `rejected/TABLE_UNAVAILABLE` 4,999. หากยังมี `queued` หรือ `pending_publish` ให้รอ worker และตรวจซ้ำ.
+สำหรับโต๊ะเดียวที่ว่าง ผลที่คาดคือ `confirmed` 1 และ `rejected/TABLE_UNAVAILABLE` 4,999. หากยังมี `queued` หรือ `pending_publish` ให้รอแล้วตรวจซ้ำ.
 
 ### ผลทดสอบ local วันที่ 12 พฤศจิกายน 2569
 
@@ -99,13 +94,13 @@ docker exec supabase_db_Hackathon-Final psql -U postgres -d postgres -c "select 
 - `auto` เลือกโต๊ะว่างขนาดเล็กสุดที่พอในโซน. `manual` สร้างรายการรอจัดสรรและถือโต๊ะเมื่อยืนยัน. ตั้งผ่าน `PATCH /api/staff/venues/{venueId}/settings`. การจองที่ยืนยันและเช็กอินแล้วนับรวมในความจุของคืนบริการ.
 - เวลาให้บริการตามกฎร้านมีค่าเริ่มต้น `18:00–02:00` และช่วงจอง 30 วัน. กฎระดับโต๊ะมาก่อนโซนและร้าน. ลูกค้ายกเลิกก่อนเวลาให้บริการอย่างน้อย 120 นาทีโดยค่าเริ่มต้น.
 - `202` หมายถึงคำขอเข้าคิวแล้ว ยังไม่ใช่การจองสำเร็จ ให้ติดตามผลจาก status API.
-- โหมด `sqs`: `202` หลัง broker รับคำขอ. หากได้ `503 QUEUE_UNAVAILABLE` ให้ส่งซ้ำด้วย `Idempotency-Key` เดิม. Worker ตรวจ `pending_publish` และหมดอายุ ticket ทุก 15 วินาที (`npm run reconcile` ตรวจทันที). Worker ต่อ visibility ระหว่างประมวลผลและลบข้อความหลัง commit.
-- โหมด `db`: คำขอบันทึกเป็น `queued` ใน transaction เดียวกับที่รับคำขอ (ได้ `queue_seq`). `drain_booking_requests()` หยิบเฉพาะคำขอเก่าสุดของแต่ละร้าน/คืน ล็อกด้วย `FOR UPDATE SKIP LOCKED` แล้ว commit ทีละรายการ จึงรันหลายตัวพร้อมกันได้โดยลำดับในคืนเดียวกันไม่สลับ. API เรียกหลังตอบด้วย `after()` แบบ exclusive และ Supabase Cron เรียกทุก 1 วินาทีเป็นตัวสำรอง. `booking_housekeeping()` ทำงานเก็บกวาดแทน reconcile. ลำดับคิวคือลำดับที่คำขอปรากฏในฐานข้อมูล (commit) ซึ่งเทียบเท่าลำดับที่ broker รับในโหมด `sqs`.
+- โหมด `sqs` (ทางเลือก): `202` หลัง broker รับคำขอ. หากได้ `503 QUEUE_UNAVAILABLE` ให้ส่งซ้ำด้วย `Idempotency-Key` เดิม. Worker ตรวจ `pending_publish` และหมดอายุ ticket ทุก 15 วินาที (`npm run reconcile` ตรวจทันที). Worker ต่อ visibility ระหว่างประมวลผลและลบข้อความหลัง commit.
+- โหมด `db` (หลัก): คำขอบันทึกเป็น `queued` ใน transaction เดียวกับที่รับคำขอ (ได้ `queue_seq`). `drain_booking_requests()` หยิบเฉพาะคำขอเก่าสุดของแต่ละร้าน/คืน ล็อกด้วย `FOR UPDATE SKIP LOCKED` แล้ว commit ทีละรายการ จึงรันหลายตัวพร้อมกันได้โดยลำดับในคืนเดียวกันไม่สลับ. API เรียกหลังตอบด้วย `after()` แบบ exclusive และ Supabase Cron เรียกทุก 1 วินาทีเป็นตัวสำรอง. `booking_housekeeping()` ทำงานเก็บกวาดแทน reconcile. ลำดับคิวคือลำดับที่คำขอปรากฏในฐานข้อมูล (commit) ซึ่งเทียบเท่าลำดับที่ broker รับในโหมด `sqs`.
 - ทั้งสองโหมดเรียก `process_booking_request()` ตัวเดียวกัน. เมื่อ retry ครบ `BOOKING_MAX_RECEIVES` ระบบบันทึก `rejected/SYSTEM_ERROR` พร้อม audit. ติดตาม `pending_publish`, `queued` และ `notification_outbox` จากฐานข้อมูลฝั่ง server.
 
-## Deploy, LINE และ AWS SQS
+## Deploy, LINE และ SQS (ทางเลือก)
 
-- Production ที่แนะนำคือ Vercel + Supabase cloud ด้วย `QUEUE_DRIVER=db` ไม่ต้องใช้ AWS และไม่ต้องมี worker server. ขั้นตอนครบอยู่ใน [docs/DEPLOY.md](docs/DEPLOY.md). `vercel.json` ตั้ง function ไว้ที่ `sin1` และต่อฐานข้อมูลผ่าน transaction pooler ด้วย `DATABASE_PREPARE=false`.
+- Production คือ Vercel + Supabase cloud ด้วย `QUEUE_DRIVER=db` ไม่ต้องใช้ AWS และไม่ต้องมี worker server. ขั้นตอนครบอยู่ใน [docs/DEPLOY.md](docs/DEPLOY.md). `vercel.json` ตั้ง function ไว้ที่ `sin1` และต่อฐานข้อมูลผ่าน transaction pooler ด้วย `DATABASE_PREPARE=false`.
 
 - ตั้ง `NEXT_PUBLIC_API_MODE=real` และ `LINE_VERIFY_MODE=real`. ตั้ง LIFF Endpoint URL เป็น `https://<host>/book/<slug>/login` พร้อม scope `openid`. เจ้าของตั้ง LINE Login channel ID, LIFF ID และ provider ID ผ่าน staff API. ใช้ HTTPS สำหรับ session cookie ใน production.
 - ถ้าใช้ `QUEUE_DRIVER=sqs` บน cloud ให้ตั้ง `SQS_QUEUE_URL` ไปที่ FIFO queue นำ `SQS_ENDPOINT` ออก และรัน `npm run worker` บน host ที่รันค้างได้. ให้ AWS credentials ของ workload มีสิทธิ์ส่ง รับ ลบ ต่อ visibility และอ่าน queue attributes.

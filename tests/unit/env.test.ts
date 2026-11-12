@@ -25,13 +25,13 @@ describe("server configuration", () => {
   it("rejects an invalid pool size", () => {
     expect(() => parseEnv({ ...local, DATABASE_POOL_MAX: "0" })).toThrow("DATABASE_POOL_MAX");
   });
-  it("needs no SQS settings for the database queue", () => {
-    expect(parseEnv({ ...local, SQS_QUEUE_URL: undefined, QUEUE_DRIVER: "db" }).QUEUE_DRIVER).toBe("db");
+  it("defaults to the database queue and needs no SQS settings", () => {
+    expect(parseEnv({ ...local, SQS_QUEUE_URL: undefined }).QUEUE_DRIVER).toBe("db");
   });
   it("requires an SQS queue for the SQS driver", () => {
-    expect(() => parseEnv({ ...local, SQS_QUEUE_URL: undefined })).toThrow("SQS_QUEUE_URL");
+    expect(() => parseEnv({ ...local, SQS_QUEUE_URL: undefined, QUEUE_DRIVER: "sqs" })).toThrow("SQS_QUEUE_URL");
   });
   it("requires FIFO", () => {
-    expect(() => parseEnv({ ...local, SQS_QUEUE_URL: "http://localhost/standard" })).toThrow("SQS_QUEUE_URL");
+    expect(() => parseEnv({ ...local, QUEUE_DRIVER: "sqs", SQS_QUEUE_URL: "http://localhost/standard" })).toThrow("SQS_QUEUE_URL");
   });
 });

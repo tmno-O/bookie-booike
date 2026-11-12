@@ -13,7 +13,7 @@ JSON ใช้ camelCase. ส่ง `Content-Type: application/json` เมื�
 | `GET /api/me`, `POST /api/session/logout` | อ่าน `{user:{userId,displayName}}` หรือลบ session |
 | `POST /api/venues/{venueId}/queue-tickets` | รับ `{name,phone}`. คืน `201` สำหรับ ticket ใหม่ หรือ `200` สำหรับ ticket เดิมที่ยังใช้งานได้. ก่อนเปิดจองคืน `403 NOT_OPEN` |
 | `GET /api/me/queue-tickets/{id}` | คืน `{requestId,status,position,ready,bookingRequestId,bookingId}` เฉพาะเจ้าของ ticket. สถานะ `waiting`, `ready`, `used`, `expired` |
-| `POST /api/booking-requests` | รับ `{venueId,ticketId,serviceDate,zoneId,partyBucket}` และ `Idempotency-Key`. คืน `202 {requestId}` เมื่อคำขอเข้าคิว (`QUEUE_DRIVER=sqs`: broker รับแล้ว, `db`: บันทึกลงตารางแล้ว) |
+| `POST /api/booking-requests` | รับ `{venueId,ticketId,serviceDate,zoneId,partyBucket}` และ `Idempotency-Key`. คืน `202 {requestId}` เมื่อคำขอเข้าคิว (`QUEUE_DRIVER=db` ค่าเริ่มต้น: บันทึกลงตารางแล้ว, `sqs`: broker รับแล้ว) |
 | `GET /api/me/booking-requests/{requestId}` | คืน `{requestId,status,resultCode,bookingId}`. สถานะ `pending_publish` (เฉพาะ `sqs`), `queued`, `confirmed`, `rejected` |
 | `GET /api/me/bookings`, `GET /api/me/bookings/{bookingId}` | คืนรายการแบบ `{bookings,nextOffset}` หรือ booking เดี่ยว. รองรับ `date`, `limit` 1–100 (ค่าเริ่มต้น 50), `offset` |
 | `POST /api/me/bookings/{bookingId}/cancel` | ยกเลิกตาม cutoff ของร้าน. การจองที่เช็กอินแล้วคืน `409 ALREADY_CHECKED_IN` |

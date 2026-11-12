@@ -61,6 +61,9 @@ import { consumeBookingMessage, receiveBookingMessage } from "../../worker/consu
 import { reconcilePending } from "../../worker/recovery";
 import { deliverNextNotification } from "../../worker/notifications";
 
+// This suite covers the optional SQS FIFO driver with the Node worker; db-queue.test.ts covers the default.
+process.env.QUEUE_DRIVER = "sqs";
+
 const venueId = randomUUID();
 const otherVenueId = randomUUID();
 const zoneId = randomUUID();

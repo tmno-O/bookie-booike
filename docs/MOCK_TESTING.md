@@ -14,7 +14,7 @@ Open <http://localhost:3100/book/bookie-demo/login> in a phone-sized window. Eve
 ## Real mode with local services
 
 Follow the [local setup](../README.md#รันในเครื่อง) and start Next.js with `NEXT_PUBLIC_API_MODE=real`.
-Keep `LINE_VERIFY_MODE=mock` for the local LINE account picker. This mode writes to Supabase and runs the booking worker through ElasticMQ (`QUEUE_DRIVER=sqs`, the default). With `QUEUE_DRIVER=db` no worker is needed: the API decides requests from a Postgres queue right after responding.
+Keep `LINE_VERIFY_MODE=mock` for the local LINE account picker. This mode writes to Supabase. With the default `QUEUE_DRIVER=db` no worker is needed: the API decides requests from a Postgres queue right after responding. The optional `QUEUE_DRIVER=sqs` runs the booking worker through ElasticMQ.
 
 1. Open [/book/bookie-demo](http://localhost:3100/book/bookie-demo) in two browser profiles, or in one regular and one private window. Sign in with different accounts and enter a name and phone in each.
 2. Join the queue in both windows. With the default admission window of 1, the first ticket is ready and the second waits at position 2. Submit the first booking to advance the second ticket.

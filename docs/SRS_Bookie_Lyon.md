@@ -6,7 +6,7 @@
 **สถานะ:** ข้อกำหนดเสนอ ยังไม่ผ่านการอนุมัติจากผู้มีส่วนได้ส่วนเสีย  
 **แหล่งข้อมูล:** `Bookie-Lyon-Pitch-Deck (1).html`, `Bookie-Lyon-Explainer.html`, `TECH_STACK_PLAN.md`, `backend/BACKEND_PLAN.md`, `backend/BACKEND_FEATURE_STACK.md` และ `backend/เอกสาร Backend.pdf`
 
-> **อัปเดต 13 พ.ย. 2569:** "broker รับ" ในเอกสารนี้หมายถึงโหมด `QUEUE_DRIVER=sqs`. โหมด `db` ที่ใช้บน Vercel รับคำขอเข้าคิวเมื่อบันทึกลงตาราง Postgres และเรียงตามลำดับที่ commit โดยยังคง FIFO ต่อร้าน/คืนบริการ, idempotency และไม่ oversell ตาม FR-15–FR-19. ดู [DEPLOY.md](DEPLOY.md).
+> **อัปเดต 13 พ.ย. 2569:** ระบบจริงใช้ DB queue เป็นคิวหลัก. "broker รับ" ในเอกสารนี้หมายถึงโหมดทางเลือก `QUEUE_DRIVER=sqs`. โหมดหลัก `db` รับคำขอเข้าคิวเมื่อบันทึกลงตาราง Postgres และเรียงตามลำดับที่ commit โดยยังคง FIFO ต่อร้าน/คืนบริการ, idempotency และไม่ oversell ตาม FR-15–FR-19. ดู [DEPLOY.md](DEPLOY.md).
 
 ## 1. บทนำ
 

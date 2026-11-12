@@ -52,7 +52,7 @@
    | `DATABASE_URL` | Transaction pooler (พอร์ต 6543) |
    | `DATABASE_PREPARE` | `false` |
    | `DATABASE_POOL_MAX` | `2` |
-   | `QUEUE_DRIVER` | `db` |
+   | `QUEUE_DRIVER` | `db` (ค่าเริ่มต้น ระบุไว้ให้ชัด) |
    | `SUPABASE_URL` | Project Settings → API → URL |
    | `SUPABASE_PUBLISHABLE_KEY` | Project Settings → API Keys → publishable key |
    | `NEXT_PUBLIC_API_MODE` | `real` (ฝังตอน build แก้แล้วต้อง Redeploy) |
