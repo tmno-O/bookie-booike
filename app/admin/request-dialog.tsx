@@ -43,12 +43,22 @@ export default function RequestDialog({ requestId, onClose }: { requestId: strin
       setRequest(r.request); setView("done");
     } catch (e) {
       const f = asFailure(e);
-      if (f.code === "ZONE_FULL") {
+      if (f.code === "ZONE_FULL" || f.code === "ZONE_CLOSED" || f.code === "ZONE_NOT_FOUND") {
         setFull(true);
-        setError("โซนนี้เต็มแล้ว กรุณาเลือกโซนอื่นเพื่อจัดสรร");
-        const fresh = await adminApi<{ zones: Zone[] }>(`/admin/queue/${requestId}`).catch(() => undefined);
-        if (fresh) { setZones(fresh.zones); setChosen(fresh.zones.find((z) => z.available)?.id ?? ""); }
-      } else setError(f.message);
+        setError(f.code === "ZONE_FULL" ? "โซนนี้เต็มแล้ว กรุณาเลือกโซนอื่นเพื่อจัดสรร" : f.message);
+        const fresh = await adminApi<{ request: Row; zones: Zone[] }>(`/admin/queue/${requestId}`).catch(() => undefined);
+        if (fresh) {
+          setRequest(fresh.request);
+          setZones(fresh.zones);
+          setChosen(fresh.zones.find((z) => z.available)?.id ?? "");
+        }
+      } else {
+        setError(f.message);
+        if (f.code === "ALREADY_ALLOCATED") {
+          const fresh = await adminApi<{ request: Row }>(`/admin/queue/${requestId}`).catch(() => undefined);
+          if (fresh) setRequest(fresh.request);
+        }
+      }
     } finally { setBusy(false); }
   }
 

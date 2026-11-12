@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AdminShell } from "../admin-shell";
 import RequestDialog from "../request-dialog";
-import { adminApi, asFailure, clockTime, PARTY_LABEL, queueDate, type Staff } from "../admin-api";
+import { adminApi, asFailure, clockTime, PARTY_LABEL, queueDate, realApiMode, type Staff } from "../admin-api";
 import styles from "../admin.module.css";
 
 type Row = {
@@ -15,10 +15,10 @@ type Data = { serviceDate: string; pending: number; requests: Row[] };
 const FILTERS = [{ key: "all", label: "ทั้งหมด" }, { key: "pending", label: "รอจัดสรร" }, { key: "allocated", label: "จัดสรรแล้ว" }] as const;
 
 // Staff booking queue (Figma "Admin · 03 · คิวการจอง", node 131:175)
-export default function QueueScreen({ requestId }: { requestId?: string }) {
+export default function QueueScreen({ requestId, initialDate }: { requestId?: string; initialDate?: string }) {
   const router = useRouter();
   const [staff, setStaff] = useState<Staff>();
-  const [date, setDate] = useState<string>();
+  const [date, setDate] = useState(initialDate);
   const [data, setData] = useState<Data>();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>("all");
   const [error, setError] = useState("");
@@ -32,7 +32,10 @@ export default function QueueScreen({ requestId }: { requestId?: string }) {
 
   useEffect(() => {
     let active = true;
-    const load = () => adminApi<Data>(`/admin/queue${date ? `?date=${date}` : ""}`).then((r) => {
+    const params = new URLSearchParams();
+    if (date) params.set("date", date);
+    if (realApiMode) params.set("status", filter);
+    const load = () => adminApi<Data>(`/admin/queue?${params}`).then((r) => {
       if (!active) return;
       setData(r); setError(""); setDate((d) => d ?? r.serviceDate);
     }).catch((e) => {
@@ -42,7 +45,7 @@ export default function QueueScreen({ requestId }: { requestId?: string }) {
     void load();
     const timer = setInterval(load, 5000); // new customer requests arrive while the page is open
     return () => { active = false; clearInterval(timer); };
-  }, [date, router]);
+  }, [date, filter, router]);
 
   const rows = useMemo(() => (data?.requests ?? []).filter((r) => filter === "all" || r.status === filter), [data, filter]);
 
@@ -86,15 +89,15 @@ export default function QueueScreen({ requestId }: { requestId?: string }) {
                 <td>{PARTY_LABEL[r.party]}</td>
                 <td>{r.zoneName}</td>
                 <td><span className={`${styles.s} ${r.status === "pending" ? styles.sOrange : styles.sGreen}`}>{r.status === "pending" ? "รอจัดสรร" : "จัดสรรแล้ว"}</span></td>
-                <td style={{ textAlign: "right" }}><Link href={`/admin/queue/${r.id}`} className={styles.rowLink} style={{ color: "#25211f" }}>ดูรายละเอียด ›</Link></td>
+                <td style={{ textAlign: "right" }}><Link href={`/admin/queue/${r.id}${date ? `?date=${date}` : ""}`} className={styles.rowLink} style={{ color: "#25211f" }}>ดูรายละเอียด ›</Link></td>
               </tr>
             ))}
           </tbody>
         </table>
-        {data && rows.length === 0 && <p className={styles.empty}>{data.requests.length ? "ไม่พบรายการที่ตรงกับตัวกรอง" : "ยังไม่มีคำขอในคืนนี้"}</p>}
+        {data && rows.length === 0 && <p className={styles.empty}>{filter !== "all" || data.requests.length ? "ไม่พบรายการที่ตรงกับตัวกรอง" : "ยังไม่มีคำขอในคืนนี้"}</p>}
       </div>
       <p className={styles.muted} style={{ marginTop: 26 }}>ลำดับคิวเริ่มเมื่อคำขอถูกส่งเข้าสู่ระบบหลังเปิดจอง</p>
-      {requestId && <RequestDialog requestId={requestId} onClose={() => router.push("/admin/queue")} />}
+      {requestId && <RequestDialog requestId={requestId} onClose={() => router.push(`/admin/queue${date ? `?date=${date}` : ""}`)} />}
     </AdminShell>
   );
 }

@@ -28,6 +28,10 @@ import { GET as staffBookings } from "../../app/api/staff/venues/[venueId]/booki
 import { POST as checkIn } from "../../app/api/staff/venues/[venueId]/bookings/[bookingId]/check-in/route";
 import { GET as staffAvailability } from "../../app/api/staff/venues/[venueId]/availability/route";
 import { GET as staffRequestStatus } from "../../app/api/staff/venues/[venueId]/booking-requests/[requestId]/route";
+import { GET as staffQueue } from "../../app/api/staff/venues/[venueId]/queue/route";
+import { GET as staffQueueItem } from "../../app/api/staff/venues/[venueId]/queue/[bookingId]/route";
+import { POST as staffAllocate } from "../../app/api/staff/venues/[venueId]/queue/[bookingId]/allocate/route";
+import { staffQueueRow } from "@/contracts/queue";
 import { GET as staffBookingDetails } from "../../app/api/staff/venues/[venueId]/bookings/[bookingId]/route";
 import { dashboardData } from "@/contracts/staff";
 import { GET as staffVenue } from "../../app/api/staff/venues/[venueId]/route";
@@ -335,6 +339,55 @@ it("upserts one staff contact by full phone and allocates the last zone table th
   expect(await booking.json()).toMatchObject({ name: data.name, phone: data.phone, source: "staff_assisted", tableId });
   expect(await sql`select customer_id from venue_customers where venue_id = ${venueId} and staff_contact_phone = ${data.phone}`).toHaveLength(1);
   expect(await sql`select distinct customer_id from booking_requests where venue_id = ${venueId} and service_date = ${date}`).toHaveLength(1);
+});
+
+it("allocates competing pending requests atomically and can move the other to a free zone", async () => {
+  const date = day(15);
+  const fallbackZoneId = randomUUID();
+  const sql = db();
+  await sql`insert into zones (id, venue_id, name, capacity) values (${fallbackZoneId}, ${venueId}, 'Fallback', 4)`;
+  await sql`insert into venue_tables (venue_id, zone_id, name, capacity) values (${venueId}, ${fallbackZoneId}, 'Fallback table', 4)`;
+  await sql`insert into venue_settings (venue_id, allocation_mode) values (${venueId}, 'manual')
+    on conflict (venue_id) do update set allocation_mode = 'manual'`;
+
+  const submit = (token: string, phone: string) => staffBooking(request("POST", {
+    token, key: randomUUID(), data: { name: "Manual Guest", phone, serviceDate: date, party: "1-4", zoneId },
+  }), context({ venueId }));
+  const submissions = await Promise.all([submit(staffToken, "0819221111"), submit(ownerToken, "0819222222")]);
+  expect(submissions.map((response) => response.status)).toEqual([202, 202]);
+  await consumeBookingMessage(await nextMessage());
+  await consumeBookingMessage(await nextMessage());
+  const getQueue = (status: string) => staffQueue(request("GET", {
+    token: staffToken, path: `/?date=${date}&status=${status}`,
+  }), context({ venueId }));
+  const before = await (await getQueue("pending")).json();
+  expect(before.pending).toBe(2);
+  const items = before.requests.map((value: unknown) => staffQueueRow.parse(value));
+  expect(items.map((row: { queueNo: number }) => row.queueNo)).toEqual([1, 2]);
+
+  const allocate = (bookingId: string, zone?: string) => staffAllocate(request("POST", {
+    token: staffToken, data: zone ? { zoneId: zone } : undefined,
+  }), context({ venueId, bookingId }));
+  const outcomes = await Promise.all(items.map((row: { id: string }) => allocate(row.id)));
+  expect(outcomes.map((result) => result.status).sort()).toEqual([200, 409]);
+  const winner = outcomes.findIndex((result) => result.ok);
+  const [winning, remaining] = [items[winner], items[1 - winner]];
+  expect(await outcomes[1 - winner].json()).toMatchObject({ error: { code: "ZONE_FULL" } });
+  expect(await (await allocate(winning.id)).json()).toMatchObject({ error: { code: "ALREADY_ALLOCATED" } });
+
+  const detail = await staffQueueItem(request("GET", { token: staffToken }), context({ venueId, bookingId: remaining.id }));
+  expect(await detail.json()).toMatchObject({
+    request: { status: "pending", zoneId }, zones: expect.arrayContaining([
+      { id: zoneId, name: "Zone", available: false, tablesLeft: 0, closed: false },
+      { id: fallbackZoneId, name: "Fallback", available: true, tablesLeft: 1, closed: false },
+    ]),
+  });
+  const moved = await allocate(remaining.id, fallbackZoneId);
+  expect(await moved.json()).toMatchObject({ request: { id: remaining.id, zoneId: fallbackZoneId, status: "allocated" } });
+  expect(await (await getQueue("pending")).json()).toMatchObject({ pending: 0, requests: [] });
+  expect(await sql`select id from audit_logs where venue_id = ${venueId} and action = 'booking.allocated'`).toHaveLength(2);
+  await sql`update venue_settings set allocation_mode = 'auto' where venue_id = ${venueId}`;
+  await sql`update zones set status = 'closed' where id = ${fallbackZoneId}`;
 });
 
 async function getStatus(requestId: string, cookie = alice.cookie) {
