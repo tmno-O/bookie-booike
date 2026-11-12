@@ -5,14 +5,14 @@ import { z } from "zod";
 import { id } from "@/contracts/common";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
-import { sqs } from "@/lib/sqs";
+import { sqs, sqsQueueUrl } from "@/lib/sqs";
 
 const visibilityTimeout = 60;
 const messageBody = z.strictObject({ requestId: id });
 
 export async function receiveBookingMessage(signal?: AbortSignal) {
   const response = await sqs().send(new ReceiveMessageCommand({
-    QueueUrl: env().SQS_QUEUE_URL,
+    QueueUrl: sqsQueueUrl(),
     MaxNumberOfMessages: 1,
     WaitTimeSeconds: 20,
     VisibilityTimeout: visibilityTimeout,
@@ -24,7 +24,7 @@ export async function receiveBookingMessage(signal?: AbortSignal) {
 export async function consumeBookingMessage(message: Message) {
   const { ReceiptHandle, Body } = message;
   if (!ReceiptHandle) throw new Error("SQS message has no receipt handle");
-  const queueUrl = env().SQS_QUEUE_URL;
+  const queueUrl = sqsQueueUrl();
   const acknowledge = () => sqs().send(new DeleteMessageCommand({
     QueueUrl: queueUrl, ReceiptHandle,
   }), { abortSignal: AbortSignal.timeout(8_000) });

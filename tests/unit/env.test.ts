@@ -15,6 +15,22 @@ describe("server configuration", () => {
   it("blocks mock LINE in production", () => {
     expect(() => parseEnv({ ...local, NODE_ENV: "production" })).toThrow("LINE_VERIFY_MODE");
   });
+  it("defaults to a direct database connection", () => {
+    expect(parseEnv(local)).toMatchObject({ DATABASE_POOL_MAX: 10, DATABASE_PREPARE: true });
+  });
+  it("configures the transaction pooler", () => {
+    expect(parseEnv({ ...local, DATABASE_POOL_MAX: "2", DATABASE_PREPARE: "false" }))
+      .toMatchObject({ DATABASE_POOL_MAX: 2, DATABASE_PREPARE: false });
+  });
+  it("rejects an invalid pool size", () => {
+    expect(() => parseEnv({ ...local, DATABASE_POOL_MAX: "0" })).toThrow("DATABASE_POOL_MAX");
+  });
+  it("needs no SQS settings for the database queue", () => {
+    expect(parseEnv({ ...local, SQS_QUEUE_URL: undefined, QUEUE_DRIVER: "db" }).QUEUE_DRIVER).toBe("db");
+  });
+  it("requires an SQS queue for the SQS driver", () => {
+    expect(() => parseEnv({ ...local, SQS_QUEUE_URL: undefined })).toThrow("SQS_QUEUE_URL");
+  });
   it("requires FIFO", () => {
     expect(() => parseEnv({ ...local, SQS_QUEUE_URL: "http://localhost/standard" })).toThrow("SQS_QUEUE_URL");
   });
