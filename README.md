@@ -106,3 +106,4 @@ docker exec supabase_db_Hackathon-Final psql -U postgres -d postgres -c "select 
 - ถ้าใช้ `QUEUE_DRIVER=sqs` บน cloud ให้ตั้ง `SQS_QUEUE_URL` ไปที่ FIFO queue นำ `SQS_ENDPOINT` ออก และรัน `npm run worker` บน host ที่รันค้างได้. ให้ AWS credentials ของ workload มีสิทธิ์ส่ง รับ ลบ ต่อ visibility และอ่าน queue attributes.
 - เปิด LINE push โดยตั้ง access token ของ Messaging API channel ที่ใช้ provider เดียวกับ LINE Login แล้วตั้ง `LINE_NOTIFICATIONS_ENABLED=true` และรัน `npm run worker:notifications`. เก็บ `LINE_SECRET_KEY` ใน secret store ของ environment.
 - การทดสอบ local ใช้ LINE mock กับ ElasticMQ. งานนอกขอบเขตเดโมคือการชำระเงิน มัดจำ คืนเงิน, rich menu publish, LINE webhook, ส่งอีเมลคำเชิญ และคืนโต๊ะเมื่อ no-show.
+.
