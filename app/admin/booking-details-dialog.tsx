@@ -73,7 +73,7 @@ export default function BookingDetailsDialog({ bookingId, onClose }: { bookingId
           </div>
         )}
         {error && <p role="alert" className={styles.dError}>{error}</p>}
-        {booking && !checked && !booking.canCheckIn && booking.status !== "checked_in" && (
+        {booking && !checked && !booking.canCheckIn && booking.status === "confirmed" && (
           <p className={styles.dError} style={{ color: "#77716c" }}>เช็กอินได้เฉพาะในคืนที่จองเท่านั้น</p>
         )}
 
@@ -82,7 +82,7 @@ export default function BookingDetailsDialog({ bookingId, onClose }: { bookingId
             onClick={checked ? () => setView("details") : onClose}>กลับ</button>
           {checked
             ? <button type="button" className={`${styles.btn} ${styles.btnPrimary}`} onClick={onClose}>กลับไปยังรายการ</button>
-            : booking && booking.status !== "checked_in" &&
+            : booking && booking.status === "confirmed" &&
               <button type="button" className={`${styles.btn} ${styles.btnPrimary}`} disabled={busy || !booking.canCheckIn} onClick={checkIn}>
                 {busy ? "กำลังบันทึก…" : "เช็กอิน"}
               </button>}

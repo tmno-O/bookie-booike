@@ -59,9 +59,9 @@ export default function DashboardScreen({ addBooking = false, bookingId }: { add
   }, [date, router]);
 
   const rows = useMemo(() => {
-    const q = query.trim().toLowerCase().replace(/\s/g, "");
+    const q = query.trim().toLowerCase();
     return (data?.bookings ?? []).filter((b) => (filter === "all" || b.status === filter)
-      && (!q || b.name.toLowerCase().includes(q) || b.phone.includes(q)));
+      && (!q || b.name.toLowerCase().includes(q) || b.phone.includes(q.replace(/\s/g, "")) || b.reference.toLowerCase().includes(q)));
   }, [data, filter, query]);
 
   const m = data?.metrics;

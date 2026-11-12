@@ -1,3 +1,4 @@
+import type { ISql } from "postgres";
 import type { z } from "zod";
 import { tablePatch, zonePatch } from "@/contracts/venue";
 import { db } from "@/lib/db";
@@ -15,6 +16,17 @@ export async function inventory(venueId: string, relation: Inventory, id?: strin
     select * from ${sql(relation)} where venue_id = ${venueId} ${filter} order by name, id
   `;
   return id ? rows[0] ?? notFound(relation === "zones" ? "Zone" : "Table") : rows;
+}
+
+export function zoneUsage(sql: ISql, venueId: string, serviceDate: string) {
+  return sql<{ id: string; name: string; status: "active" | "closed"; seats: number; booked: number; tablesUsed: number }[]>`
+    select z.id, z.name, z.status, z.capacity as seats, coalesce(sum(b.party_size), 0)::int as booked,
+      count(b.id)::int as tables_used
+    from zones z left join bookings b on b.venue_id = z.venue_id and b.zone_id = z.id
+      and b.service_date = ${serviceDate} and b.status in ('confirmed', 'checked_in')
+    where z.venue_id = ${venueId}
+    group by z.id order by z.name, z.id
+  `;
 }
 
 export async function changeInventory(

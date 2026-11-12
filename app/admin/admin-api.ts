@@ -9,7 +9,7 @@ export function adminApi<T>(path: string, init?: ApiInit): Promise<T> {
 }
 
 export const PARTY_LABEL: Record<string, string> = { "1-4": "1–4 คน", "5-8": "5–8 คน", "9-12": "9–12 คน", "12+": "12+ คน" };
-export const STATUS_LABEL = { pending: "รอจัดสรร", confirmed: "ยืนยันแล้ว", checked_in: "เช็กอินแล้ว" } as const;
+export const STATUS_LABEL = { pending: "รอจัดสรร", confirmed: "ยืนยันแล้ว", checked_in: "เช็กอินแล้ว", cancelled: "ยกเลิกแล้ว" } as const;
 export const CHANNEL_LABEL = { line: "LINE", staff: "จองโดยร้าน" } as const;
 
 export const formatPhone = (p: string) => p.length === 10 ? `${p.slice(0, 3)} ${p.slice(3, 6)} ${p.slice(6)}` : p;

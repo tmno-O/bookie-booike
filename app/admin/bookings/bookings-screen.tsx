@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { AdminShell } from "../admin-shell";
 import BookingDetailsDialog from "../booking-details-dialog";
 import {
-  adminApi, asFailure, CHANNEL_LABEL, formatPhone, PARTY_LABEL, queueDate, STATUS_LABEL, type Staff,
+  adminApi, asFailure, CHANNEL_LABEL, formatPhone, PARTY_LABEL, queueDate, realApiMode, STATUS_LABEL, type Staff,
 } from "../admin-api";
 import styles from "../admin.module.css";
 
@@ -16,6 +16,7 @@ type Row = {
   zoneName: string; channel: keyof typeof CHANNEL_LABEL; status: Status;
 };
 type Zone = { id: string; name: string };
+const PAGE_SIZE = 50;
 
 const addDays = (date: string, days: number) => {
   const d = new Date(`${date}T00:00:00Z`);
@@ -33,6 +34,8 @@ export default function BookingsListScreen({ initialDate, bookingId }: { initial
   const [query, setQuery] = useState("");
   const [zones, setZones] = useState<Zone[]>([]);
   const [rows, setRows] = useState<Row[]>();
+  const [offset, setOffset] = useState(0);
+  const [nextOffset, setNextOffset] = useState<number | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -50,9 +53,13 @@ export default function BookingsListScreen({ initialDate, bookingId }: { initial
     if (status) params.set("status", status);
     if (zone) params.set("zone", zone);
     if (query.trim()) params.set("q", query.trim());
-    const load = () => adminApi<{ serviceDate: string; bookings: Row[] }>(`/admin/bookings?${params}`).then((r) => {
+    if (realApiMode) {
+      params.set("limit", String(PAGE_SIZE));
+      params.set("offset", String(offset));
+    }
+    const load = () => adminApi<{ serviceDate: string; bookings: Row[]; nextOffset?: number | null }>(`/admin/bookings?${params}`).then((r) => {
       if (!active) return;
-      setRows(r.bookings); setError(""); setDate((d) => d || r.serviceDate);
+      setRows(r.bookings); setNextOffset(r.nextOffset ?? null); setError(""); setDate((d) => d || r.serviceDate);
     }).catch((e) => {
       if (!active) return;
       if (asFailure(e).status === 401) router.replace("/admin/login"); else setError(asFailure(e).message);
@@ -60,7 +67,12 @@ export default function BookingsListScreen({ initialDate, bookingId }: { initial
     const first = setTimeout(() => void load(), query ? 250 : 0); // small debounce while typing
     const timer = setInterval(() => void load(), 5000);
     return () => { active = false; clearTimeout(first); clearInterval(timer); };
-  }, [date, status, zone, query, router]);
+  }, [date, status, zone, query, offset, router]);
+
+  function selectDate(next: string) {
+    setDate(next);
+    setOffset(0);
+  }
 
   const detailsHref = (id: string) => `/admin/bookings/${id}?from=list&date=${date}`;
 
@@ -81,25 +93,25 @@ export default function BookingsListScreen({ initialDate, bookingId }: { initial
       <div className={styles.filters}>
         <div className={styles.filterGroup}>
           <div className={styles.stepper}>
-            <button type="button" className={styles.stepBtn} aria-label="คืนก่อนหน้า" disabled={!date} onClick={() => setDate(addDays(date, -1))}>‹</button>
+            <button type="button" className={styles.stepBtn} aria-label="คืนก่อนหน้า" disabled={!date} onClick={() => selectDate(addDays(date, -1))}>‹</button>
             <label className={styles.stepDate}>
               <span>{date ? queueDate(date) : "…"}</span>
               <input type="date" aria-label="เลือกคืนที่จอง" className={styles.dateInput} value={date}
-                onChange={(e) => e.target.value && setDate(e.target.value)} />
+                onChange={(e) => e.target.value && selectDate(e.target.value)} />
             </label>
-            <button type="button" className={styles.stepBtn} aria-label="คืนถัดไป" disabled={!date} onClick={() => setDate(addDays(date, 1))}>›</button>
+            <button type="button" className={styles.stepBtn} aria-label="คืนถัดไป" disabled={!date} onClick={() => selectDate(addDays(date, 1))}>›</button>
           </div>
-          <select className={styles.select} aria-label="กรองตามสถานะ" value={status} onChange={(e) => setStatus(e.target.value)}>
+          <select className={styles.select} aria-label="กรองตามสถานะ" value={status} onChange={(e) => { setStatus(e.target.value); setOffset(0); }}>
             <option value="">ทุกสถานะ</option>
-            {(Object.keys(STATUS_LABEL) as Status[]).map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+            {(Object.keys(STATUS_LABEL) as Status[]).filter((s) => realApiMode || s !== "cancelled").map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
           </select>
-          <select className={styles.select} aria-label="กรองตามโซน" value={zone} onChange={(e) => setZone(e.target.value)}>
+          <select className={styles.select} aria-label="กรองตามโซน" value={zone} onChange={(e) => { setZone(e.target.value); setOffset(0); }}>
             <option value="">ทุกโซน</option>
             {zones.map((z) => <option key={z.id} value={z.id}>{z.name}</option>)}
           </select>
         </div>
         <input type="search" className={styles.searchWide} placeholder="ค้นหาชื่อ เบอร์ หรือเลขจอง" aria-label="ค้นหาชื่อ เบอร์ หรือเลขจอง"
-          value={query} onChange={(e) => setQuery(e.target.value)} />
+          value={query} maxLength={80} onChange={(e) => { setQuery(e.target.value); setOffset(0); }} />
       </div>
 
       <h2 className={styles.h2} style={{ fontSize: 16, margin: "28px 0 16px" }} aria-live="polite">การจอง {rows ? rows.length : "–"} รายการ</h2>
@@ -122,6 +134,14 @@ export default function BookingsListScreen({ initialDate, bookingId }: { initial
         </table>
         {rows?.length === 0 && <p className={styles.empty}>ไม่พบการจองที่ตรงกับตัวกรอง</p>}
       </div>
+      {(offset > 0 || nextOffset !== null) && (
+        <nav className={styles.actions} aria-label="หน้ารายการจอง" style={{ justifyContent: "flex-end", marginTop: 16 }}>
+          <button type="button" className={`${styles.btn} ${styles.btnOutline}`} disabled={!offset}
+            onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>หน้าก่อนหน้า</button>
+          <button type="button" className={`${styles.btn} ${styles.btnOutline}`} disabled={nextOffset === null}
+            onClick={() => nextOffset !== null && setOffset(nextOffset)}>หน้าถัดไป</button>
+        </nav>
+      )}
       {bookingId && <BookingDetailsDialog bookingId={bookingId} onClose={() => router.push(`/admin/bookings${date ? `?date=${date}` : ""}`)} />}
     </AdminShell>
   );

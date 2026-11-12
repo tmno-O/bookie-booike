@@ -23,6 +23,10 @@ import { POST as staffSignIn } from "../../app/api/staff/session/route";
 import { POST as staffSignOut } from "../../app/api/staff/session/logout/route";
 import { GET as staffMe } from "../../app/api/staff/me/route";
 import { staffProfile } from "@/contracts/staff";
+import { GET as staffDashboard } from "../../app/api/staff/venues/[venueId]/dashboard/route";
+import { GET as staffBookings } from "../../app/api/staff/venues/[venueId]/bookings/route";
+import { GET as staffBookingDetails } from "../../app/api/staff/venues/[venueId]/bookings/[bookingId]/route";
+import { dashboardData } from "@/contracts/staff";
 import { GET as staffVenue } from "../../app/api/staff/venues/[venueId]/route";
 import { PATCH as patchSettings } from "../../app/api/staff/venues/[venueId]/settings/route";
 import { PATCH as patchRules } from "../../app/api/staff/venues/[venueId]/rules/route";
@@ -244,6 +248,30 @@ it("authenticates staff cookies, scopes them to one venue and revokes on logout"
   expect(signOut.status).toBe(204);
   expect(signOut.headers.get("set-cookie")).toContain("Max-Age=0");
   expect((await staffMe(request("GET", { cookie }), context({}))).status).toBe(401);
+});
+
+it("reads staff booking details, filters by contact and reference, and counts seats per service night", async () => {
+  const date = day(12);
+  const response = await book(date);
+  expect(response.status, await response.clone().text()).toBe(202);
+  await consumeBookingMessage(await nextMessage());
+  const { bookingId } = await getStatus((await response.json()).requestId);
+  const detail = await staffBookingDetails(request("GET", { token: staffToken }), context({ venueId, bookingId }));
+  const booking = bookingContract.parse(await detail.clone().json());
+  expect(await detail.json()).toMatchObject({ id: bookingId, canCheckIn: false });
+
+  for (const q of [booking.name, "081 234 5678", booking.reference]) {
+    const path = `/?${new URLSearchParams({ date, status: "confirmed", zone: zoneId, q })}`;
+    const list = await staffBookings(request("GET", { token: staffToken, path }), context({ venueId }));
+    expect(await list.json()).toMatchObject({ serviceDate: date, bookings: [{ id: bookingId }], nextOffset: null });
+  }
+  const filtered = await staffBookings(request("GET", { token: staffToken, path: `/?date=${date}&status=checked_in` }), context({ venueId }));
+  expect(await filtered.json()).toMatchObject({ bookings: [] });
+  const dashboard = await staffDashboard(request("GET", { token: staffToken, path: `/?date=${date}` }), context({ venueId }));
+  expect(dashboardData.parse(await dashboard.json())).toMatchObject({
+    serviceDate: date, metrics: { bookings: 1, guests: 4, pendingRequests: 0, checkedIn: 0 },
+    zones: [{ id: zoneId, seats: 12, booked: 4 }],
+  });
 });
 
 async function getStatus(requestId: string, cookie = alice.cookie) {
