@@ -1,0 +1,284 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: /burst.js
+ web dashboard: http://127.0.0.1:5665
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 1 max VUs, 10m30s max duration (incl. graceful stop):
+              * burst: 1 iterations shared among 1 VUs (maxDuration: 10m0s, gracefulStop: 30s)
+
+
+Run     [ 100% ] setup()
+burst   [   0% ]
+
+Run     [ 100% ] setup()
+burst   [   0% ]
+
+Run     [ 100% ] setup()
+burst   [   0% ]
+
+Run     [ 100% ] setup()
+burst   [   0% ]
+
+Run     [ 100% ] setup()
+burst   [   0% ]
+
+running (00m05.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m00.7s/10m0s  0/1 shared iters
+
+running (00m06.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m01.7s/10m0s  0/1 shared iters
+
+running (00m07.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m02.7s/10m0s  0/1 shared iters
+
+running (00m08.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m03.7s/10m0s  0/1 shared iters
+
+running (00m09.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m04.7s/10m0s  0/1 shared iters
+
+running (00m10.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m05.7s/10m0s  0/1 shared iters
+
+running (00m11.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m06.7s/10m0s  0/1 shared iters
+
+running (00m12.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m07.7s/10m0s  0/1 shared iters
+
+running (00m13.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m08.7s/10m0s  0/1 shared iters
+
+running (00m14.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m09.7s/10m0s  0/1 shared iters
+
+running (00m15.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m10.7s/10m0s  0/1 shared iters
+
+running (00m16.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m11.7s/10m0s  0/1 shared iters
+
+running (00m17.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m12.7s/10m0s  0/1 shared iters
+
+running (00m18.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m13.7s/10m0s  0/1 shared iters
+
+running (00m19.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m14.7s/10m0s  0/1 shared iters
+
+running (00m20.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m15.7s/10m0s  0/1 shared iters
+
+running (00m21.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m16.7s/10m0s  0/1 shared iters
+
+running (00m22.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m17.7s/10m0s  0/1 shared iters
+
+running (00m23.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m18.7s/10m0s  0/1 shared iters
+
+running (00m24.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m19.7s/10m0s  0/1 shared iters
+
+running (00m25.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m20.7s/10m0s  0/1 shared iters
+
+running (00m26.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m21.7s/10m0s  0/1 shared iters
+
+running (00m27.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m22.7s/10m0s  0/1 shared iters
+
+running (00m28.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m23.7s/10m0s  0/1 shared iters
+
+running (00m29.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m24.7s/10m0s  0/1 shared iters
+
+running (00m30.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m25.7s/10m0s  0/1 shared iters
+
+running (00m31.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m26.7s/10m0s  0/1 shared iters
+
+running (00m32.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m27.7s/10m0s  0/1 shared iters
+
+running (00m33.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m28.7s/10m0s  0/1 shared iters
+
+running (00m34.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m29.7s/10m0s  0/1 shared iters
+
+running (00m35.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m30.7s/10m0s  0/1 shared iters
+
+running (00m36.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m31.7s/10m0s  0/1 shared iters
+
+running (00m37.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m32.7s/10m0s  0/1 shared iters
+
+running (00m38.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m33.7s/10m0s  0/1 shared iters
+
+running (00m39.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m34.7s/10m0s  0/1 shared iters
+
+running (00m40.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m35.7s/10m0s  0/1 shared iters
+
+running (00m41.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m36.7s/10m0s  0/1 shared iters
+
+running (00m42.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m37.7s/10m0s  0/1 shared iters
+
+running (00m43.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m38.7s/10m0s  0/1 shared iters
+
+running (00m44.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m39.7s/10m0s  0/1 shared iters
+
+running (00m45.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m40.7s/10m0s  0/1 shared iters
+
+running (00m46.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m41.7s/10m0s  0/1 shared iters
+
+running (00m47.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m42.7s/10m0s  0/1 shared iters
+
+running (00m48.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m43.7s/10m0s  0/1 shared iters
+
+running (00m49.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m44.7s/10m0s  0/1 shared iters
+
+running (00m50.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m45.7s/10m0s  0/1 shared iters
+
+running (00m51.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m46.7s/10m0s  0/1 shared iters
+
+running (00m52.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m47.7s/10m0s  0/1 shared iters
+
+running (00m53.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m48.7s/10m0s  0/1 shared iters
+
+running (00m54.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m49.7s/10m0s  0/1 shared iters
+
+running (00m55.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m50.7s/10m0s  0/1 shared iters
+
+running (00m56.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m51.7s/10m0s  0/1 shared iters
+
+running (00m57.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m52.7s/10m0s  0/1 shared iters
+
+running (00m58.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m53.7s/10m0s  0/1 shared iters
+
+running (00m59.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m54.7s/10m0s  0/1 shared iters
+
+running (01m00.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m55.7s/10m0s  0/1 shared iters
+
+running (01m01.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m56.7s/10m0s  0/1 shared iters
+
+running (01m02.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m57.7s/10m0s  0/1 shared iters
+
+running (01m03.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m58.7s/10m0s  0/1 shared iters
+
+running (01m04.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  00m59.7s/10m0s  0/1 shared iters
+
+running (01m05.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m00.7s/10m0s  0/1 shared iters
+
+running (01m06.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m01.7s/10m0s  0/1 shared iters
+
+running (01m07.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m02.7s/10m0s  0/1 shared iters
+
+running (01m08.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m03.7s/10m0s  0/1 shared iters
+
+running (01m09.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m04.7s/10m0s  0/1 shared iters
+
+running (01m10.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m05.7s/10m0s  0/1 shared iters
+
+running (01m11.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m06.7s/10m0s  0/1 shared iters
+
+running (01m12.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m07.7s/10m0s  0/1 shared iters
+
+running (01m13.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m08.7s/10m0s  0/1 shared iters
+
+running (01m14.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m09.7s/10m0s  0/1 shared iters
+
+running (01m15.9s), 1/1 VUs, 0 complete and 0 interrupted iterations
+burst   [   0% ] 1 VUs  01m10.7s/10m0s  0/1 shared iters
+time="2026-11-12T15:45:20Z" level=info msg="{\"runId\":\"db20261112224402\",\"venueId\":\"10000000-0000-4000-8000-000000000001\",\"serviceDate\":\"2026-11-30\",\"maxInFlight\":250,\"byStatus\":{\"202\":5000}}" source=console
+
+
+  █ THRESHOLDS 
+
+    booking_accepted
+    ✓ 'count==5000' count=5000
+
+    booking_posts
+    ✓ 'count==5000' count=5000
+
+
+  █ TOTAL RESULTS 
+
+    CUSTOM
+    booking_accepted...............: 5000   65.818691/s
+    booking_posts..................: 5000   65.818691/s
+
+    HTTP
+    http_req_duration..............: avg=3.34s min=58.79ms med=3.42s max=6.41s p(90)=3.9s  p(95)=4.23s
+      { expected_response:true }...: avg=3.34s min=58.79ms med=3.42s max=6.41s p(90)=3.9s  p(95)=4.23s
+      { phase:booking }............: avg=3.47s min=1.62s   med=3.44s max=6.41s p(90)=3.92s p(95)=4.4s 
+    http_req_failed................: 0.00%  0 out of 5202
+    http_reqs......................: 5202   68.477767/s
+
+    EXECUTION
+    iteration_duration.............: avg=1m10s min=1m10s   med=1m10s max=1m10s p(90)=1m10s p(95)=1m10s
+    iterations.....................: 1      0.013164/s
+    vus............................: 1      min=0         max=1
+    vus_max........................: 1      min=1         max=1
+
+    NETWORK
+    data_received..................: 1.9 MB 25 kB/s
+    data_sent......................: 2.1 MB 28 kB/s
+
+
+
+
+running (01m16.0s), 0/1 VUs, 1 complete and 0 interrupted iterations
+burst ✓ [ 100% ] 1 VUs  01m10.7s/10m0s  1/1 shared iters
