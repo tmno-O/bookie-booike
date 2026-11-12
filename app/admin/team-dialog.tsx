@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { adminApi, asFailure } from "./admin-api";
+import { adminApi, asFailure, realApiMode } from "./admin-api";
 import styles from "./admin.module.css";
 
 type Member = { email: string; displayName: string; role: "owner" | "staff" };
@@ -75,10 +75,10 @@ export default function TeamDialog({ onClose, onInvited }: { onClose: () => void
                 <span className={styles.memberMeta}>{ROLE_LABEL[m.role]}</span>
               </div>
             ))}
-            {team && team.invites.length > 0 && <p className={styles.miniHead}>คำเชิญที่รอการตอบรับ</p>}
+            {team && team.invites.length > 0 && <p className={styles.miniHead}>{realApiMode ? "คำเชิญที่บันทึกไว้" : "คำเชิญที่รอการตอบรับ"}</p>}
             {team?.invites.map((i) => (
               <div key={i.id} className={styles.memberRow}>
-                <span>{i.email}<br /><span className={styles.memberMeta}>{ROLE_LABEL[i.role]} · รอการตอบรับ</span></span>
+                <span>{i.email}<br /><span className={styles.memberMeta}>{ROLE_LABEL[i.role]} · {realApiMode ? "รอเพิ่มเข้าทีม" : "รอการตอบรับ"}</span></span>
                 {team.canEdit && <button type="button" className={styles.linkBtn} onClick={() => cancelInvite(i.id)} aria-label={`ยกเลิกคำเชิญ ${i.email}`}>ยกเลิก</button>}
               </div>
             ))}

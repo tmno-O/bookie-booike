@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { adminApi, asFailure, CHANNEL_LABEL, PARTY_LABEL, shortThaiDate, STATUS_LABEL } from "./admin-api";
+import { adminApi, asFailure, CHANNEL_LABEL, PARTY_LABEL, realApiMode, shortThaiDate, STATUS_LABEL } from "./admin-api";
 import styles from "./admin.module.css";
 
 type Zone = { id: string; name: string; available: boolean; closed?: boolean };
@@ -28,6 +28,9 @@ export default function AddBookingDialog({ today, maxAdvanceDays = 6, onClose }:
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const first = useRef<HTMLInputElement>(null);
+  const attempt = useRef<{ payload: string; key: string } | null>(null);
+  const [refresh, setRefresh] = useState(0);
+  const availabilityPath = `/availability?date=${date}${realApiMode ? `&partyBucket=${encodeURIComponent(party)}` : ""}`;
 
   useEffect(() => { first.current?.focus(); }, [step]);
   useEffect(() => {
@@ -37,13 +40,13 @@ export default function AddBookingDialog({ today, maxAdvanceDays = 6, onClose }:
   }, [busy, onClose]);
   useEffect(() => {
     let active = true;
-    adminApi<{ zones: Zone[] }>(`/availability?date=${date}`).then((r) => {
+    adminApi<{ zones: Zone[] }>(availabilityPath).then((r) => {
       if (!active) return;
       setZones(r.zones);
       setZoneId((current) => (r.zones.find((z) => z.id === current)?.available ? current : r.zones.find((z) => z.available)?.id ?? ""));
     }).catch((e) => active && setError(asFailure(e).message));
     return () => { active = false; };
-  }, [date]);
+  }, [availabilityPath, refresh]);
 
   const zoneName = zones.find((z) => z.id === zoneId)?.name ?? "";
 
@@ -51,26 +54,34 @@ export default function AddBookingDialog({ today, maxAdvanceDays = 6, onClose }:
     event.preventDefault();
     if (!name.trim()) return setError("กรุณากรอกชื่อลูกค้า");
     if (!/^0\d{8,9}$/.test(phone.trim())) return setError("เบอร์โทรต้องเป็นตัวเลข 9–10 หลัก ขึ้นต้นด้วย 0");
-    if (!zoneId) return setError("ไม่มีโซนว่างในคืนนี้ กรุณาเลือกคืนอื่น");
+    if (!zones.some((zone) => zone.id === zoneId && zone.available)) return setError("ไม่มีโซนว่างในคืนนี้ กรุณาเลือกคืนอื่น");
     setError(""); setStep("review");
   }
 
   async function confirm() {
     setBusy(true); setError("");
+    const body = { name: name.trim(), phone: phone.trim(), serviceDate: date, party, zoneId };
+    const payload = JSON.stringify(body);
+    if (realApiMode && attempt.current?.payload !== payload) {
+      attempt.current = { payload, key: crypto.randomUUID() };
+    }
     try {
       const r = await adminApi<{ booking: Created }>("/admin/bookings", {
-        method: "POST", body: { name: name.trim(), phone: phone.trim(), serviceDate: date, party, zoneId },
+        method: "POST", body, idempotencyKey: attempt.current?.key,
       });
       setCreated(r.booking); setStep("done");
     } catch (e) {
       const f = asFailure(e);
+      if (f.requestFinal) attempt.current = null;
+      if (f.code === "ZONE_FULL" || f.code === "ZONE_CLOSED") setRefresh((value) => value + 1);
       setError(f.code === "ZONE_FULL" ? "โซนนี้เต็มแล้ว กรุณากลับไปเลือกโซนอื่น" : f.message);
     } finally { setBusy(false); }
   }
 
   function another() {
+    attempt.current = null;
     setName(""); setPhone(""); setCreated(undefined); setError(""); setStep("form");
-    void adminApi<{ zones: Zone[] }>(`/availability?date=${date}`).then((r) => setZones(r.zones)).catch(() => undefined);
+    setZones([]); setZoneId(""); setRefresh((value) => value + 1);
   }
 
   const title = step === "form" ? "เพิ่มการจอง" : step === "review" ? "ตรวจสอบการจอง" : "สร้างการจองแล้ว";
@@ -94,9 +105,14 @@ export default function AddBookingDialog({ today, maxAdvanceDays = 6, onClose }:
                 <input className={styles.input} value={phone} type="tel" inputMode="tel" autoComplete="off" onChange={(e) => setPhone(e.target.value)} /></label>
               <label className={styles.field}><span className={styles.fieldLabel}>คืนที่จอง</span>
                 <input className={styles.input} type="date" value={date} min={today} max={addDays(today, maxAdvanceDays)}
-                  onChange={(e) => e.target.value && setDate(e.target.value)} /></label>
+                  onChange={(e) => {
+                    if (e.target.value) { setDate(e.target.value); setZones([]); setZoneId(""); }
+                  }} /></label>
               <label className={styles.field}><span className={styles.fieldLabel}>จำนวน</span>
-                <select className={styles.input} value={party} onChange={(e) => setParty(e.target.value)}>
+                <select className={styles.input} value={party} onChange={(e) => {
+                  setParty(e.target.value);
+                  if (realApiMode) { setZones([]); setZoneId(""); }
+                }}>
                   {Object.entries(PARTY_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                 </select></label>
               <label className={styles.field}><span className={styles.fieldLabel}>โซน</span>

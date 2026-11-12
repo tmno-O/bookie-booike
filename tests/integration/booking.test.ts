@@ -5,13 +5,50 @@ import { createClient } from "@supabase/supabase-js";
 import { ChangeMessageVisibilityCommand, CreateQueueCommand, DeleteQueueCommand } from "@aws-sdk/client-sqs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { POST as signIn } from "../../app/api/session/line/route";
+import { GET as customerProfile } from "../../app/api/me/route";
+import { POST as joinQueue } from "../../app/api/venues/[venueId]/queue-tickets/route";
+import { GET as readTicket } from "../../app/api/me/queue-tickets/[id]/route";
+import { queueTicket } from "@/contracts/queue";
+import { GET as availability } from "../../app/api/venues/[venueId]/availability/route";
+import { GET as publicVenue } from "../../app/api/venues/by-slug/[slug]/route";
+import { venueBookingProfile } from "@/contracts/venue";
 import { POST as logout } from "../../app/api/session/logout/route";
 import { POST as requestBooking } from "../../app/api/booking-requests/route";
 import { GET as readRequest } from "../../app/api/me/booking-requests/[requestId]/route";
+import { GET as readBookings } from "../../app/api/me/bookings/route";
+import { booking as bookingContract } from "@/contracts/booking";
 import { GET as readBooking } from "../../app/api/me/bookings/[bookingId]/route";
 import { POST as cancel } from "../../app/api/me/bookings/[bookingId]/cancel/route";
+import { POST as staffSignIn } from "../../app/api/staff/session/route";
+import { POST as staffSignOut } from "../../app/api/staff/session/logout/route";
+import { GET as staffMe } from "../../app/api/staff/me/route";
+import { staffProfile } from "@/contracts/staff";
+import { GET as staffDashboard } from "../../app/api/staff/venues/[venueId]/dashboard/route";
+import { GET as staffBookings } from "../../app/api/staff/venues/[venueId]/bookings/route";
+import { POST as checkIn } from "../../app/api/staff/venues/[venueId]/bookings/[bookingId]/check-in/route";
+import { GET as staffAvailability } from "../../app/api/staff/venues/[venueId]/availability/route";
+import { GET as staffRequestStatus } from "../../app/api/staff/venues/[venueId]/booking-requests/[requestId]/route";
+import { GET as staffQueue } from "../../app/api/staff/venues/[venueId]/queue/route";
+import { GET as staffQueueItem } from "../../app/api/staff/venues/[venueId]/queue/[bookingId]/route";
+import { POST as staffAllocate } from "../../app/api/staff/venues/[venueId]/queue/[bookingId]/allocate/route";
+import { staffQueueRow } from "@/contracts/queue";
+import { POST as createZone, GET as listZones } from "../../app/api/staff/venues/[venueId]/zones/route";
+import { PATCH as patchZone } from "../../app/api/staff/venues/[venueId]/zones/[zoneId]/route";
+import { POST as createTable } from "../../app/api/staff/venues/[venueId]/tables/route";
+import { zoneView } from "@/contracts/venue";
+import { GET as hours } from "../../app/api/staff/venues/[venueId]/hours/route";
+import { PUT as putHours } from "../../app/api/staff/venues/[venueId]/hours/standard/route";
+import { POST as addSpecial } from "../../app/api/staff/venues/[venueId]/hours/special/route";
+import { DELETE as deleteSpecial } from "../../app/api/staff/venues/[venueId]/hours/special/[id]/route";
+import { hoursData } from "@/contracts/hours";
+import { GET as team } from "../../app/api/staff/venues/[venueId]/team/route";
+import { POST as invite } from "../../app/api/staff/venues/[venueId]/team/invites/route";
+import { DELETE as revokeInvite } from "../../app/api/staff/venues/[venueId]/team/invites/[id]/route";
+import { teamData } from "@/contracts/staff";
+import { GET as staffBookingDetails } from "../../app/api/staff/venues/[venueId]/bookings/[bookingId]/route";
+import { dashboardData } from "@/contracts/staff";
 import { GET as staffVenue } from "../../app/api/staff/venues/[venueId]/route";
-import { PATCH as patchSettings } from "../../app/api/staff/venues/[venueId]/settings/route";
+import { GET as settings, PATCH as patchSettings, PUT as putSettings } from "../../app/api/staff/venues/[venueId]/settings/route";
 import { PATCH as patchRules } from "../../app/api/staff/venues/[venueId]/rules/route";
 import { PATCH as patchLine } from "../../app/api/staff/venues/[venueId]/line-integration/route";
 import { DELETE as closeTable } from "../../app/api/staff/venues/[venueId]/tables/[tableId]/route";
@@ -67,6 +104,8 @@ async function login(slug: string, subject: string, name: string) {
   const cookie = response.headers.get("set-cookie")!;
   expect(cookie).toContain("HttpOnly");
   const { customerId } = await response.json();
+  const profile = await customerProfile(request("GET", { cookie: cookie.split(";")[0] }), context({}));
+  expect(await profile.json()).toEqual({ user: { userId: customerId, displayName: name } });
   return { cookie: cookie.split(";")[0], customerId };
 }
 
@@ -75,6 +114,419 @@ function book(date: string, cookie = alice.cookie, key = randomUUID().toString()
     cookie, key, data: { venueId, serviceDate: date, tableId, partySize, contactPhone: "0812345678" },
   }), context({}));
 }
+
+it("exposes the Bangkok booking schedule and honors a special release", async () => {
+  const response = await publicVenue(request("GET"), context({ slug: venueSlug }));
+  const venue = venueBookingProfile.parse(await response.json());
+  expect(venue).toMatchObject({ id: venueId, today: day(0), open: true, secondsUntilOpen: 0 });
+  const date = day(3);
+  const instant = `${day(2)}T13:00:00.000Z`;
+  await db()`insert into booking_releases (venue_id, service_date, opens_at) values (${venueId}, ${date}, ${instant})`;
+  try {
+    const [row] = await db()< { opensAt: Date }[] >`select opens_at_for(${venueId}, ${date}) as opens_at`;
+    expect(row.opensAt.toISOString()).toBe(instant);
+  } finally {
+    await db()`delete from booking_releases where venue_id = ${venueId} and service_date = ${date}`;
+  }
+});
+
+it("issues one ticket per active customer and admits concurrent tickets in sequence", async () => {
+  const contact = { name: "Guest", phone: "0812345678" };
+  const join = (cookie: string) =>
+    joinQueue(request("POST", { cookie, data: contact }), context({ venueId }));
+  const [one, two, three] = await Promise.all([join(alice.cookie), join(alice.cookie), join(bob.cookie)]);
+  expect([one.status, two.status].sort()).toEqual([200, 201]);
+  expect(three.status).toBe(201);
+  const aliceTicket = queueTicket.parse(await one.json());
+  expect(queueTicket.parse(await two.json()).requestId).toBe(aliceTicket.requestId);
+  const bobTicket = queueTicket.parse(await three.json());
+  expect([aliceTicket.position, bobTicket.position].sort()).toEqual([1, 2]);
+  const first = aliceTicket.ready ? aliceTicket : bobTicket;
+  const second = aliceTicket.ready ? bobTicket : aliceTicket;
+  const firstCookie = aliceTicket.ready ? alice.cookie : bob.cookie;
+  const secondCookie = aliceTicket.ready ? bob.cookie : alice.cookie;
+  const read = (cookie: string, id: string) => readTicket(request("GET", { cookie }), context({ id }));
+  expect((await read(other.cookie, first.requestId)).status).toBe(404);
+  expect((await read(secondCookie, first.requestId)).status).toBe(404);
+  await db()`update queue_tickets set ready_at = now() - interval '3 minutes' where id = ${first.requestId}`;
+  await reconcilePending(venueId);
+  expect(await (await read(firstCookie, first.requestId)).json()).toMatchObject({ status: "expired", position: 0 });
+  expect(await (await read(secondCookie, second.requestId)).json()).toMatchObject({ status: "ready", position: 1 });
+  await db()`delete from queue_tickets where venue_id = ${venueId}`;
+});
+
+it("keeps the queue closed until a night opens in Bangkok", async () => {
+  await db()`insert into booking_releases (venue_id, service_date, opens_at)
+    select ${otherVenueId}, ${day(0)}::date + i, now() + interval '1 day' from generate_series(0, 30) as i`;
+  try {
+    const response = await joinQueue(request("POST", { cookie: other.cookie, data: { name: "Guest", phone: "0812345678" } }),
+      context({ venueId: otherVenueId }));
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ error: { code: "NOT_OPEN" } });
+  } finally {
+    await db()`delete from booking_releases where venue_id = ${otherVenueId}`;
+  }
+});
+
+it("consumes ready tickets once and resolves the last zone table through FIFO", async () => {
+  const sql = db();
+  await sql`insert into venue_settings (venue_id, admit_window) values (${venueId}, 2)`;
+  const contact = { name: "Booker", phone: "0819998888" };
+  const join = async (cookie: string) => queueTicket.parse(await (await joinQueue(
+    request("POST", { cookie, data: contact }), context({ venueId }),
+  )).json());
+  const tickets = await Promise.all([join(alice.cookie), join(bob.cookie)]);
+  expect(tickets.every((ticket) => ticket.ready)).toBe(true);
+
+  const date = day(10);
+  const availabilityResponse = await availability(request("GET", { path: `/?date=${date}&partyBucket=1-4` }), context({ venueId }));
+  expect(await availabilityResponse.json()).toMatchObject({
+    nightOpen: true, zones: [{ id: zoneId, available: true, tablesLeft: 1 }],
+  });
+
+  const submit = (ticketId: string, cookie: string, serviceDate = date, key = ticketId) =>
+    requestBooking(request("POST", {
+      cookie, key, data: { venueId, ticketId, serviceDate, zoneId, partyBucket: "1-4" },
+    }), context({}));
+  const invalid = await submit(tickets[0].requestId, bob.cookie, date, randomUUID());
+  expect(invalid.status).toBe(404);
+  await sql`insert into booking_releases (venue_id, service_date, opens_at) values (${venueId}, ${date}, now() + interval '1 day')`;
+  const early = await submit(tickets[0].requestId, alice.cookie);
+  expect(await early.json()).toMatchObject({ error: { code: "NIGHT_NOT_OPEN" } });
+  await sql`delete from booking_releases where venue_id = ${venueId} and service_date = ${date}`;
+
+  const responses = await Promise.all([submit(tickets[0].requestId, alice.cookie), submit(tickets[1].requestId, bob.cookie)]);
+  const accepted = await Promise.all(responses.map(async (response) => {
+    expect(response.status, await response.clone().text()).toBe(202);
+    return response.json();
+  }));
+  expect(await (await submit(tickets[0].requestId, alice.cookie)).json()).toEqual(accepted[0]);
+  const replay = await submit(tickets[0].requestId, alice.cookie, date, randomUUID());
+  expect(await replay.json()).toMatchObject({ error: { code: "TICKET_NOT_READY" } });
+
+  const first = await nextMessage();
+  await consumeBookingMessage(first);
+  await consumeBookingMessage(await nextMessage());
+  const results = await Promise.all([
+    getStatus(accepted[0].requestId, alice.cookie), getStatus(accepted[1].requestId, bob.cookie),
+  ]);
+  const winner = results.findIndex((result) => result.status === "confirmed");
+  expect(winner).toBeGreaterThanOrEqual(0);
+  expect(results[winner].requestId).toBe(JSON.parse(first.Body!).requestId);
+  expect(results[1 - winner]).toMatchObject({ status: "rejected", resultCode: "ZONE_FULL" });
+  const { bookingId } = results[winner];
+  const owner = winner === 0 ? alice : bob;
+  const booking = await readBooking(request("GET", { cookie: owner.cookie }), context({ bookingId }));
+  expect(await booking.json()).toMatchObject({
+    tableId, name: contact.name, phone: contact.phone, reference: expect.stringMatching(/^BL-\d{4}-\d{4,}$/),
+  });
+  expect(await (await readTicket(request("GET", { cookie: owner.cookie }), context({ id: tickets[winner].requestId }))).json())
+    .toMatchObject({ status: "used", bookingId });
+
+  const setting = await patchSettings(request("PATCH", { token: ownerToken, data: { allocationMode: "manual" } }), context({ venueId }));
+  expect(setting.status).toBe(200);
+  const manualTicket = await join(alice.cookie);
+  const manual = await submit(manualTicket.requestId, alice.cookie, day(11));
+  expect(manual.status, await manual.clone().text()).toBe(202);
+  await consumeBookingMessage(await nextMessage());
+  const status = await getStatus((await manual.json()).requestId);
+  const [pending] = await sql`select status, table_id from bookings where id = ${status.bookingId}`;
+  expect(pending).toMatchObject({ status: "pending_allocation", tableId: null });
+  const list = await readBookings(request("GET", { cookie: alice.cookie, path: `/?date=${day(11)}&limit=1` }), context({}));
+  const { bookings, nextOffset } = await list.json();
+  expect(nextOffset).toBeNull();
+  expect(bookings.map((entry: unknown) => bookingContract.parse(entry))).toMatchObject([{
+    id: status.bookingId, status: "pending_allocation", zoneName: "Zone", party: "1-4",
+    name: contact.name, phone: contact.phone, source: "liff",
+  }]);
+  const denied = await readBookings(request("GET", { cookie: bob.cookie, path: `/?date=${day(11)}` }), context({}));
+  expect(await denied.json()).toEqual({ bookings: [], nextOffset: null });
+  expect(await sql`select booking_id from booking_allocations where booking_id = ${status.bookingId}`).toHaveLength(0);
+  await sql`update venue_settings set allocation_mode = 'auto' where venue_id = ${venueId}`;
+});
+
+it("authenticates staff cookies, scopes them to one venue and revokes on logout", async () => {
+  const data = { email: "owner@bookie.test", password: "BookieDemo123!", venueSlug };
+  const cross = request("POST", { data });
+  cross.headers.set("Origin", "https://other.test");
+  expect((await staffSignIn(cross, context({}))).status).toBe(403);
+
+  const signIn = await staffSignIn(request("POST", { data }), context({}));
+  expect(signIn.status, await signIn.clone().text()).toBe(200);
+  expect(staffProfile.parse(await signIn.json())).toMatchObject({ staff: { email: data.email, role: "owner" }, venue: { id: venueId } });
+  const header = signIn.headers.get("set-cookie")!;
+  expect(header).toContain("HttpOnly");
+  expect(header).toContain("SameSite=lax");
+  const cookie = header.split(";")[0];
+  expect((await staffMe(request("GET", { cookie }), context({}))).status).toBe(200);
+  expect((await staffVenue(request("GET", { cookie }), context({ venueId: otherVenueId }))).status).toBe(404);
+  const crossMutation = request("PATCH", { cookie, data: { allocationMode: "manual" } });
+  crossMutation.headers.set("Origin", "https://other.test");
+  expect((await patchSettings(crossMutation, context({ venueId }))).status).toBe(403);
+
+  const signOut = await staffSignOut(request("POST", { cookie }), context({}));
+  expect(signOut.status).toBe(204);
+  expect(signOut.headers.get("set-cookie")).toContain("Max-Age=0");
+  expect((await staffMe(request("GET", { cookie }), context({}))).status).toBe(401);
+});
+
+it("reads staff booking details, filters by contact and reference, and counts seats per service night", async () => {
+  const date = day(12);
+  const response = await book(date);
+  expect(response.status, await response.clone().text()).toBe(202);
+  await consumeBookingMessage(await nextMessage());
+  const { bookingId } = await getStatus((await response.json()).requestId);
+  const detail = await staffBookingDetails(request("GET", { token: staffToken }), context({ venueId, bookingId }));
+  const booking = bookingContract.parse(await detail.clone().json());
+  expect(await detail.json()).toMatchObject({ id: bookingId, canCheckIn: false });
+
+  for (const q of [booking.name, "081 234 5678", booking.reference]) {
+    const path = `/?${new URLSearchParams({ date, status: "confirmed", zone: zoneId, q })}`;
+    const list = await staffBookings(request("GET", { token: staffToken, path }), context({ venueId }));
+    expect(await list.json()).toMatchObject({ serviceDate: date, bookings: [{ id: bookingId }], nextOffset: null });
+  }
+  const filtered = await staffBookings(request("GET", { token: staffToken, path: `/?date=${date}&status=checked_in` }), context({ venueId }));
+  expect(await filtered.json()).toMatchObject({ bookings: [] });
+  const dashboard = await staffDashboard(request("GET", { token: staffToken, path: `/?date=${date}` }), context({ venueId }));
+  expect(dashboardData.parse(await dashboard.json())).toMatchObject({
+    serviceDate: date, metrics: { bookings: 1, guests: 4, pendingRequests: 0, checkedIn: 0 },
+    zones: [{ id: zoneId, seats: 12, booked: 4 }],
+  });
+});
+
+it("checks guests in once on the Bangkok service night without releasing their seats", async () => {
+  async function reserve(date: string) {
+    const response = await book(date);
+    expect(response.status, await response.clone().text()).toBe(202);
+    await consumeBookingMessage(await nextMessage());
+    return (await getStatus((await response.json()).requestId)).bookingId as string;
+  }
+  const tomorrow = await reserve(day(1));
+  const act = (bookingId: string) => checkIn(request("POST", { token: staffToken }), context({ venueId, bookingId }));
+  const early = await act(tomorrow);
+  expect(early.status).toBe(409);
+  expect(await early.json()).toMatchObject({ error: { code: "NOT_SERVICE_DATE" } });
+
+  const bookingId = await reserve(day(0));
+  const attempts = await Promise.all([act(bookingId), act(bookingId)]);
+  expect(attempts.map((attempt) => attempt.status).sort()).toEqual([200, 409]);
+  expect(await attempts.find((attempt) => attempt.ok)!.json()).toMatchObject({
+    status: "checked_in", checkedInAt: expect.any(String), canCheckIn: false,
+  });
+  expect(await attempts.find((attempt) => !attempt.ok)!.json()).toMatchObject({ error: { code: "ALREADY_CHECKED_IN" } });
+  const log = await db()`select id from audit_logs where entity_id = ${bookingId} and action = 'booking.checked_in'`;
+  expect(log).toHaveLength(1);
+  const result = await cancel(request("POST", { cookie: alice.cookie }), context({ bookingId }));
+  expect(await result.json()).toMatchObject({ error: { code: "ALREADY_CHECKED_IN" } });
+  const availabilityResponse = await availability(request("GET", { path: `/?date=${day(0)}&partyBucket=1-4` }), context({ venueId }));
+  expect(await availabilityResponse.json()).toMatchObject({ zones: [{ id: zoneId, tablesLeft: 0 }] });
+});
+
+it("upserts one staff contact by full phone and allocates the last zone table through FIFO", async () => {
+  const date = day(13);
+  const sql = db();
+  await sql`insert into booking_releases (venue_id, service_date, opens_at) values (${venueId}, ${date}, now() + interval '1 day')`;
+  const path = `/?date=${date}&partyBucket=1-4`;
+  const publicView = await availability(request("GET", { path }), context({ venueId }));
+  expect(await publicView.json()).toMatchObject({ nightOpen: false, zones: [{ available: false }] });
+  const staffView = await staffAvailability(request("GET", { token: staffToken, path }), context({ venueId }));
+  expect(await staffView.json()).toMatchObject({ zones: [{ id: zoneId, available: true, tablesLeft: 1 }] });
+
+  const data = { name: "Assisted Guest", phone: "0817776655", serviceDate: date, party: "1-4", zoneId };
+  const submit = (token: string, key: string) => staffBooking(request("POST", { token, key, data }), context({ venueId }));
+  const key = randomUUID();
+  const submitted = await Promise.all([submit(staffToken, key), submit(ownerToken, randomUUID())]);
+  const accepted = await Promise.all(submitted.map(async (response) => {
+    expect(response.status, await response.clone().text()).toBe(202);
+    return response.json();
+  }));
+  expect(await (await submit(staffToken, key)).json()).toEqual(accepted[0]);
+  await consumeBookingMessage(await nextMessage());
+  await consumeBookingMessage(await nextMessage());
+  const statuses = await Promise.all(accepted.map(async ({ requestId }) =>
+    (await staffRequestStatus(request("GET", { token: staffToken }), context({ venueId, requestId }))).json()));
+  expect(statuses.map((status) => status.status).sort()).toEqual(["confirmed", "rejected"]);
+  expect(statuses.find((status) => status.status === "rejected").resultCode).toBe("ZONE_FULL");
+  const bookingId = statuses.find((status) => status.status === "confirmed").bookingId;
+  const booking = await staffBookingDetails(request("GET", { token: staffToken }), context({ venueId, bookingId }));
+  expect(await booking.json()).toMatchObject({ name: data.name, phone: data.phone, source: "staff_assisted", tableId });
+  expect(await sql`select customer_id from venue_customers where venue_id = ${venueId} and staff_contact_phone = ${data.phone}`).toHaveLength(1);
+  expect(await sql`select distinct customer_id from booking_requests where venue_id = ${venueId} and service_date = ${date}`).toHaveLength(1);
+});
+
+it("allocates competing pending requests atomically and can move the other to a free zone", async () => {
+  const date = day(15);
+  const fallbackZoneId = randomUUID();
+  const sql = db();
+  await sql`insert into zones (id, venue_id, name, capacity) values (${fallbackZoneId}, ${venueId}, 'Fallback', 4)`;
+  await sql`insert into venue_tables (venue_id, zone_id, name, capacity) values (${venueId}, ${fallbackZoneId}, 'Fallback table', 4)`;
+  await sql`insert into venue_settings (venue_id, allocation_mode) values (${venueId}, 'manual')
+    on conflict (venue_id) do update set allocation_mode = 'manual'`;
+
+  const submit = (token: string, phone: string) => staffBooking(request("POST", {
+    token, key: randomUUID(), data: { name: "Manual Guest", phone, serviceDate: date, party: "1-4", zoneId },
+  }), context({ venueId }));
+  const submissions = await Promise.all([submit(staffToken, "0819221111"), submit(ownerToken, "0819222222")]);
+  expect(submissions.map((response) => response.status)).toEqual([202, 202]);
+  await consumeBookingMessage(await nextMessage());
+  await consumeBookingMessage(await nextMessage());
+  const getQueue = (status: string) => staffQueue(request("GET", {
+    token: staffToken, path: `/?date=${date}&status=${status}`,
+  }), context({ venueId }));
+  const before = await (await getQueue("pending")).json();
+  expect(before.pending).toBe(2);
+  const items = before.requests.map((value: unknown) => staffQueueRow.parse(value));
+  expect(items.map((row: { queueNo: number }) => row.queueNo)).toEqual([1, 2]);
+
+  const allocate = (bookingId: string, zone?: string) => staffAllocate(request("POST", {
+    token: staffToken, data: zone ? { zoneId: zone } : undefined,
+  }), context({ venueId, bookingId }));
+  const outcomes = await Promise.all(items.map((row: { id: string }) => allocate(row.id)));
+  expect(outcomes.map((result) => result.status).sort()).toEqual([200, 409]);
+  const winner = outcomes.findIndex((result) => result.ok);
+  const [winning, remaining] = [items[winner], items[1 - winner]];
+  expect(await outcomes[1 - winner].json()).toMatchObject({ error: { code: "ZONE_FULL" } });
+  expect(await (await allocate(winning.id)).json()).toMatchObject({ error: { code: "ALREADY_ALLOCATED" } });
+
+  const detail = await staffQueueItem(request("GET", { token: staffToken }), context({ venueId, bookingId: remaining.id }));
+  expect(await detail.json()).toMatchObject({
+    request: { status: "pending", zoneId }, zones: expect.arrayContaining([
+      { id: zoneId, name: "Zone", available: false, tablesLeft: 0, closed: false },
+      { id: fallbackZoneId, name: "Fallback", available: true, tablesLeft: 1, closed: false },
+    ]),
+  });
+  const moved = await allocate(remaining.id, fallbackZoneId);
+  expect(await moved.json()).toMatchObject({ request: { id: remaining.id, zoneId: fallbackZoneId, status: "allocated" } });
+  expect(await (await getQueue("pending")).json()).toMatchObject({ pending: 0, requests: [] });
+  expect(await sql`select id from audit_logs where venue_id = ${venueId} and action = 'booking.allocated'`).toHaveLength(2);
+  await sql`update venue_settings set allocation_mode = 'auto' where venue_id = ${venueId}`;
+  await sql`update zones set status = 'closed' where id = ${fallbackZoneId}`;
+});
+
+it("syncs twelve-seat tables while protecting upcoming reservations and closed zones", async () => {
+  const sql = db();
+  const create = (name: string) => createZone(request("POST", {
+    token: staffToken, data: { name, seats: 25, status: "open" },
+  }), context({ venueId }));
+  const created = await create("Managed zone");
+  expect(created.status, await created.clone().text()).toBe(201);
+  const zone = zoneView.parse(await created.json());
+  expect(zone).toMatchObject({ seats: 25, tables: 3, status: "active" });
+  expect(await (await create("MANAGED ZONE")).json()).toMatchObject({ error: { code: "ZONE_NAME_TAKEN" } });
+  const table = await createTable(request("POST", {
+    token: staffToken, data: { zoneId: zone.id, name: "Extra", capacity: 12 },
+  }), context({ venueId }));
+  expect(await table.json()).toMatchObject({ error: { code: "ZONE_SEATS_MANAGED" } });
+
+  const date = day(16);
+  const submit = await staffBooking(request("POST", {
+    token: staffToken, key: randomUUID(),
+    data: { name: "Seat Guest", phone: "0819988776", serviceDate: date, party: "1-4", zoneId: zone.id },
+  }), context({ venueId }));
+  expect(submit.status, await submit.clone().text()).toBe(202);
+  await consumeBookingMessage(await nextMessage());
+  const status = await staffRequestStatus(request("GET", { token: staffToken }), context({ venueId, requestId: (await submit.json()).requestId }));
+  const { bookingId } = await status.json();
+  const [booked] = await sql<{ tableId: string }[]>`select table_id from bookings where id = ${bookingId}`;
+  const change = (data: object) => patchZone(request("PATCH", { token: staffToken, data }), context({ venueId, zoneId: zone.id }));
+  expect(await (await change({ seats: 3 })).json()).toMatchObject({ error: { code: "CAPACITY_BELOW_BOOKED" } });
+  expect(await (await change({ seats: 12 })).json()).toMatchObject({ seats: 12, tables: 1 });
+  const tables = await sql`select id, status, capacity from venue_tables where venue_id = ${venueId} and zone_id = ${zone.id}`;
+  expect(tables.filter((row) => row.status === "active")).toEqual([{ id: booked.tableId, status: "active", capacity: 12 }]);
+  expect(tables.filter((row) => row.status === "closed")).toHaveLength(2);
+  expect(await (await change({ status: "closed" })).json()).toMatchObject({ status: "closed", tables: 1 });
+
+  const list = await listZones(request("GET", { token: staffToken, path: `/?date=${date}` }), context({ venueId }));
+  expect(await list.json()).toMatchObject({ zones: expect.arrayContaining([
+    expect.objectContaining({ id: zone.id, bookedSeats: 4, tablesUsed: 1 }),
+  ]) });
+  const publicView = await availability(request("GET", { path: `/?date=${date}&partyBucket=1-4` }), context({ venueId }));
+  expect(await publicView.json()).toMatchObject({ zones: expect.arrayContaining([
+    expect.objectContaining({ id: zone.id, available: false, closed: true }),
+  ]) });
+});
+
+it("lets only owners edit hours and applies Bangkok special releases to customers", async () => {
+  const date = day(24);
+  const params = context({ venueId });
+  const specialParams = context({ venueId, id: date });
+  const owner = { token: ownerToken };
+  const denied = { token: staffToken };
+  const initial = hoursData.parse(await (await hours(request("GET", owner), params)).json());
+  const standard = { daysBefore: 1, time: "19:30" };
+  const special = { serviceDate: date, opensOn: day(0), time: "00:00" };
+  const visibility = () => availability(request("GET", { path: `/?date=${date}&partyBucket=1-4` }), params);
+  for (const response of [
+    await hours(request("GET", denied), params),
+    await putHours(request("PUT", { ...denied, data: standard }), params),
+    await addSpecial(request("POST", { ...denied, data: special }), params),
+    await deleteSpecial(request("DELETE", denied), specialParams),
+  ]) {
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ error: { code: "FORBIDDEN" } });
+  }
+
+  try {
+    expect(await (await putHours(request("PUT", { ...owner, data: standard }), params)).json()).toEqual({ standard });
+    expect(await (await visibility()).json()).toMatchObject({ nightOpen: false });
+    const added = await addSpecial(request("POST", { ...owner, data: special }), params);
+    expect(added.status, await added.clone().text()).toBe(201);
+    const opensAt = new Date(`${day(0)}T00:00:00+07:00`).toISOString();
+    expect(await added.json()).toMatchObject({ special: { id: date, opensAt } });
+    expect(await (await visibility()).json()).toMatchObject({ nightOpen: true, opensAt });
+    const snapshot = hoursData.parse(await (await hours(request("GET", owner), params)).json());
+    expect(snapshot.specials).toContainEqual({ id: date, opensAt, ...special });
+    expect(await (await addSpecial(request("POST", { ...owner, data: special }), params)).json())
+      .toMatchObject({ error: { code: "SPECIAL_DAY_EXISTS" } });
+    expect((await deleteSpecial(request("DELETE", owner), specialParams)).status).toBe(200);
+    expect(await (await visibility()).json()).toMatchObject({ nightOpen: false });
+  } finally {
+    await putHours(request("PUT", { ...owner, data: initial.standard }), params);
+    await db()`delete from booking_releases where venue_id = ${venueId} and service_date = ${date}`;
+  }
+});
+
+it("publishes owner shop edits and scopes staff invitations to the venue", async () => {
+  const params = context({ venueId });
+  const owner = { token: ownerToken };
+  const staff = { token: staffToken };
+  const original = (await (await settings(request("GET", owner), params)).json()).profile;
+  const shop = { name: "Updated Venue", phone: "+66 81 234 5678", address: "Bangkok", entryPolicy: "Bring your booking reference" };
+  const sendInvite = (email: string, options = owner) =>
+    invite(request("POST", { ...options, data: { email, role: "staff" } }), params);
+
+  try {
+    for (const denied of [
+      await settings(request("GET", staff), params),
+      await putSettings(request("PUT", { ...staff, data: shop }), params),
+      await sendInvite("pending@example.com", staff),
+    ]) {
+      expect(denied.status).toBe(403);
+      expect(await denied.json()).toMatchObject({ error: { code: "FORBIDDEN" } });
+    }
+    const saved = await putSettings(request("PUT", { ...owner, data: shop }), params);
+    expect(await saved.json()).toEqual({ profile: shop });
+    const publicProfile = await publicVenue(request("GET"), context({ slug: venueSlug }));
+    expect(await publicProfile.json()).toMatchObject({ shop });
+    expect(await (await sendInvite("STAFF@BOOKIE.TEST")).json()).toMatchObject({ error: { code: "ALREADY_MEMBER" } });
+
+    const responses = await Promise.all([sendInvite(" pending@example.com "), sendInvite("PENDING@EXAMPLE.COM")]);
+    expect(responses.map((response) => response.status).sort()).toEqual([201, 409]);
+    expect(await responses.find((response) => !response.ok)!.json()).toMatchObject({ error: { code: "INVITE_EXISTS" } });
+    const { invite: savedInvite } = await responses.find((response) => response.ok)!.json();
+    const ownerTeam = teamData.parse(await (await team(request("GET", owner), params)).json());
+    expect(ownerTeam).toMatchObject({ canEdit: true, invites: [{ id: savedInvite.id, email: "pending@example.com" }] });
+    expect(ownerTeam.members.map(({ role }) => role)).toEqual(["owner", "staff"]);
+    expect(await (await team(request("GET", staff), params)).json()).toMatchObject({ canEdit: false, invites: [] });
+
+    expect((await revokeInvite(request("DELETE", staff), context({ venueId, id: savedInvite.id }))).status).toBe(403);
+    expect((await revokeInvite(request("DELETE", owner), context({ venueId: otherVenueId, id: savedInvite.id }))).status).toBe(404);
+    expect(await (await revokeInvite(request("DELETE", owner), context({ venueId, id: savedInvite.id }))).json()).toEqual({ ok: true });
+    expect(await (await team(request("GET", owner), params)).json()).toMatchObject({ invites: [] });
+  } finally {
+    await putSettings(request("PUT", { ...owner, data: original }), params);
+  }
+});
 
 async function getStatus(requestId: string, cookie = alice.cookie) {
   const response = await readRequest(request("GET", { cookie }), context({ requestId }));
@@ -177,7 +629,11 @@ afterAll(async () => {
       await tx`delete from booking_releases where venue_id in ${tx(venues)}`;
       await tx`delete from venue_tables where venue_id in ${tx(venues)}`;
       await tx`delete from zones where venue_id in ${tx(venues)}`;
+      const staffContacts = await tx<{ customerId: string }[]>`
+        delete from venue_customers where venue_id in ${tx(venues)} and staff_contact_phone is not null returning customer_id
+      `;
       await tx`delete from venue_customers where venue_id in ${tx(venues)}`;
+      for (const { customerId } of staffContacts) await tx`delete from customers where id = ${customerId}`;
       const identities = await tx<{ customerId: string }[]>`
         delete from customer_identities where provider_id = ${venueSlug} returning customer_id
       `;

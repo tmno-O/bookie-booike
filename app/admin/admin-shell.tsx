@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { IBM_Plex_Sans_Thai } from "next/font/google";
-import { adminApi, type Staff } from "./admin-api";
+import { adminApi, realApiMode, type Staff } from "./admin-api";
 import styles from "./admin.module.css";
 
 const plex = IBM_Plex_Sans_Thai({ subsets: ["thai", "latin"], weight: ["400", "500", "600", "700"] });
@@ -24,7 +24,12 @@ export function AdminShell({ active, staff, children }: { active: string; staff?
   const [shopName, setShopName] = useState("ร้านตัวอย่าง");
   useEffect(() => {
     let active = true;
-    const load = () => adminApi<{ profile: { name: string } }>("/admin/settings").then((r) => active && setShopName(r.profile.name)).catch(() => undefined);
+    const load = () => {
+      const name = realApiMode
+        ? adminApi<{ venue: { name: string } }>("/admin/me").then((r) => r.venue.name)
+        : adminApi<{ profile: { name: string } }>("/admin/settings").then((r) => r.profile.name);
+      return name.then((value) => active && setShopName(value)).catch(() => undefined);
+    };
     const first = setTimeout(load, 0);
     window.addEventListener("shop-profile-changed", load);
     return () => { active = false; clearTimeout(first); window.removeEventListener("shop-profile-changed", load); };

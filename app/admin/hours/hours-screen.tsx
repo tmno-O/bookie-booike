@@ -23,7 +23,11 @@ export default function HoursScreen() {
   const [error, setError] = useState("");
 
   const load = useCallback(() => adminApi<Hours>("/admin/hours").then((r) => { setHours(r); setError(""); })
-    .catch((e) => { if (asFailure(e).status === 401) router.replace("/admin/login"); else setError(asFailure(e).message); }), [router]);
+    .catch((e) => {
+      const failure = asFailure(e);
+      if (failure.status === 401) router.replace("/admin/login");
+      else setError(failure.code === "FORBIDDEN" ? "เฉพาะเจ้าของร้านที่จัดการเวลาเปิดจองได้" : failure.message);
+    }), [router]);
 
   useEffect(() => {
     let active = true;
@@ -63,7 +67,7 @@ export default function HoursScreen() {
           </div>
           {hours?.canEdit && <button type="button" className={styles.editLink} onClick={() => setDialog("standard")}>แก้ไขค่าเริ่มต้น</button>}
         </div>
-        <p className={styles.ruleText}>{std ? `ทุกคืน · ${std.daysBefore === 0 ? "เปิดจองในคืนที่จอง" : `เปิดจองล่วงหน้า ${std.daysBefore} วัน`} · เวลา ${thaiTime(std.time)}` : "กำลังโหลด…"}</p>
+        <p className={styles.ruleText}>{std ? `ทุกคืน · ${std.daysBefore === 0 ? "เปิดจองในคืนที่จอง" : `เปิดจองล่วงหน้า ${std.daysBefore} วัน`} · เวลา ${thaiTime(std.time)}` : error ? "–" : "กำลังโหลด…"}</p>
         <p className={styles.cardSub}>กำหนดเวลาเปิดรับจองล่วงหน้าก่อนคืนที่ลูกค้าต้องการ</p>
       </section>
 

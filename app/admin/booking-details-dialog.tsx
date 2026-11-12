@@ -37,7 +37,12 @@ export default function BookingDetailsDialog({ bookingId, onClose }: { bookingId
       const r = await adminApi<{ booking: Detail }>(`/admin/bookings/${bookingId}/check-in`, { method: "POST" });
       setBooking(r.booking); setView("checked");
     } catch (e) {
-      setError(asFailure(e).message);
+      const failure = asFailure(e);
+      setError(failure.message);
+      if (failure.code === "ALREADY_CHECKED_IN" || failure.code === "NOT_SERVICE_DATE") {
+        const result = await adminApi<{ booking: Detail }>(`/admin/bookings/${bookingId}`).catch(() => undefined);
+        if (result) setBooking(result.booking);
+      }
     } finally { setBusy(false); }
   }
 
@@ -73,7 +78,7 @@ export default function BookingDetailsDialog({ bookingId, onClose }: { bookingId
           </div>
         )}
         {error && <p role="alert" className={styles.dError}>{error}</p>}
-        {booking && !checked && !booking.canCheckIn && booking.status !== "checked_in" && (
+        {booking && !checked && !booking.canCheckIn && booking.status === "confirmed" && (
           <p className={styles.dError} style={{ color: "#77716c" }}>เช็กอินได้เฉพาะในคืนที่จองเท่านั้น</p>
         )}
 
@@ -82,7 +87,7 @@ export default function BookingDetailsDialog({ bookingId, onClose }: { bookingId
             onClick={checked ? () => setView("details") : onClose}>กลับ</button>
           {checked
             ? <button type="button" className={`${styles.btn} ${styles.btnPrimary}`} onClick={onClose}>กลับไปยังรายการ</button>
-            : booking && booking.status !== "checked_in" &&
+            : booking && booking.status === "confirmed" &&
               <button type="button" className={`${styles.btn} ${styles.btnPrimary}`} disabled={busy || !booking.canCheckIn} onClick={checkIn}>
                 {busy ? "กำลังบันทึก…" : "เช็กอิน"}
               </button>}

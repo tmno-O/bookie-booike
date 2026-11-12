@@ -16,6 +16,7 @@ type Row = { id: string; reference: string; name: string; phone: string; party: 
 type Dashboard = {
   serviceDate: string;
   today: string;
+  maxAdvanceDays?: number;
   metrics: { bookings: number; guests: number; pendingRequests: number; checkedIn: number };
   bookings: Row[];
   zones: { id: string; name: string; seats: number; booked: number; status: "open" | "closed" }[];
@@ -59,9 +60,9 @@ export default function DashboardScreen({ addBooking = false, bookingId }: { add
   }, [date, router]);
 
   const rows = useMemo(() => {
-    const q = query.trim().toLowerCase().replace(/\s/g, "");
+    const q = query.trim().toLowerCase();
     return (data?.bookings ?? []).filter((b) => (filter === "all" || b.status === filter)
-      && (!q || b.name.toLowerCase().includes(q) || b.phone.includes(q)));
+      && (!q || b.name.toLowerCase().includes(q) || b.phone.includes(q.replace(/\s/g, "")) || b.reference.toLowerCase().includes(q)));
   }, [data, filter, query]);
 
   const m = data?.metrics;
@@ -151,7 +152,7 @@ export default function DashboardScreen({ addBooking = false, bookingId }: { add
         ))}
       </div>
       {bookingId && <BookingDetailsDialog bookingId={bookingId} onClose={() => router.push("/admin")} />}
-      {addBooking && date && <AddBookingDialog today={data?.today ?? date} onClose={() => router.push("/admin")} />}
+      {addBooking && date && <AddBookingDialog today={data?.today ?? date} maxAdvanceDays={data?.maxAdvanceDays} onClose={() => router.push("/admin")} />}
     </AdminShell>
   );
 }

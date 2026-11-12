@@ -11,4 +11,10 @@
 .account:focus-visible { outline: 2px solid #b94e29; outline-offset: 2px; }
 .account:disabled { opacity: 0.5; cursor: not-allowed; }
 .email { font-size: 11px; color: #77716c; }
+.form { display: grid; gap: 16px; margin-top: 24px; }
+.form label { display: grid; gap: 6px; font-size: 14px; }
+.form input { box-sizing: border-box; width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid #e8e5e1; border-radius: 8px; background: #fff; color: inherit; font: inherit; }
+.form input:focus-visible, .submit:focus-visible { outline: 2px solid #b94e29; outline-offset: 2px; }
+.submit { min-height: 44px; border: 0; border-radius: 8px; background: #b94e29; color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+.submit:disabled { opacity: 0.55; cursor: not-allowed; }
 .error { margin: 16px 0 0; font-size: 14px; color: #b3261e; }

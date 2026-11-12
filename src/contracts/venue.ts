@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { partyBucket } from "./party";
 import { clockTime, id, instant, label, selectionMode, serviceDate, slug, status } from "./common";
 
 function ianaZone(value: string) {
@@ -20,13 +21,28 @@ export const profilePatch = z.strictObject({
   imageUrl: httpsUrl.nullable(),
   timezone: z.string().refine(ianaZone),
 }).partial();
+export const shopProfileInput = z.strictObject({
+  name: label,
+  phone: z.string().trim().regex(/^(?:[0-9 +()-]{6,20})?$/),
+  address: z.string().trim().max(200),
+  entryPolicy: z.string().trim().max(300),
+});
 export const settingsPatch = z.strictObject({
   tableSelectionMode: selectionMode.optional(),
+  allocationMode: z.enum(["auto", "manual"]).optional(),
   cancelCutoffMinutes: z.number().int().min(0).max(525600).optional(),
 });
-const zoneFields = z.strictObject({ name: label, capacity, status });
-export const zoneInput = zoneFields.extend({ status: status.default("active") });
-export const zonePatch = zoneFields.partial();
+const zoneStatus = z.enum(["active", "open", "closed"]);
+const legacyZone = z.strictObject({ name: label, capacity, status: status.default("active") });
+const seatsZone = z.strictObject({ name: label, seats: capacity, status: zoneStatus.default("active") });
+export const zoneInput = z.union([seatsZone, legacyZone]);
+export const zonePatch = z.strictObject({ name: label, capacity, seats: capacity, status: zoneStatus }).partial()
+  .refine((zone) => zone.capacity === undefined || zone.seats === undefined, "Use either seats or capacity");
+export const zonesQuery = z.object({ date: serviceDate.optional() });
+export const zoneView = z.object({
+  id, name: label, status, seats: capacity, tables: z.number().int().nonnegative(),
+  tablesUsed: z.number().int().nonnegative(), bookedSeats: z.number().int().nonnegative(),
+});
 const tableFields = z.strictObject({
   zoneId: id, name: label, capacity,
   priceSatang: z.number().int().min(0).max(2147483647).nullable(),
@@ -60,9 +76,21 @@ export const venuePublic = z.object({
   mapUrl: z.string().nullable(), imageUrl: z.string().nullable(), timezone: z.string(),
   tableSelectionMode: selectionMode, cancelCutoffMinutes: z.number().int(),
   liffId: z.string().nullable(),
+  allocationMode: z.enum(["auto", "manual"]).optional(),
 });
+export const venueBookingProfile = venuePublic.extend({
+  opensAt: instant, open: z.boolean(), secondsUntilOpen: z.number().int().nonnegative(),
+  today: serviceDate, maxAdvanceDays: z.number().int().nonnegative(),
+  shop: z.object({ name: label, phone: z.string(), address: z.string(), entryPolicy: z.string() }),
+});
+export const availabilityQuery = z.object({ date: serviceDate, partyBucket: partyBucket.optional() });
 export const availability = z.object({
   venueId: id, serviceDate,
+  nightOpen: z.boolean().optional(),
+  opensAt: instant.optional(),
+  zones: z.array(z.object({
+    id, name: label, tablesLeft: z.number().int().nonnegative(), available: z.boolean(), closed: z.boolean(),
+  })).optional(),
   tables: z.array(z.object({
     id, zoneId: id, zoneName: label, name: label, capacity, priceSatang: z.number().int().nullable(),
     available: z.boolean(), resultCode: z.string().nullable(), startsAt: instant, endsAt: instant,

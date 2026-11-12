@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { adminApi, asFailure } from "./admin-api";
+import { adminApi, asFailure, realApiMode } from "./admin-api";
 import styles from "./admin.module.css";
 
 export type ZoneRow = {
@@ -38,7 +38,15 @@ export default function ZoneDialog({ zone, onClose, onSaved }: {
     if (!Number.isInteger(capacity) || capacity < 1 || capacity > 1000) return setError("ความจุต้องเป็นจำนวนเต็ม 1–1000 คน");
     setBusy(true); setError("");
     try {
-      const body = { name: name.trim(), seats: capacity, status };
+      const fields = { name: name.trim(), seats: capacity, status };
+      const body = zone && realApiMode
+        ? {
+          ...(fields.name !== zone.name && { name: fields.name }),
+          ...(capacity !== zone.seats && { seats: capacity }),
+          ...(status !== zone.status && { status }),
+        }
+        : fields;
+      if (!Object.keys(body).length) { onClose(); return; }
       const r = zone
         ? await adminApi<{ zone: ZoneRow }>(`/admin/zones/${zone.id}`, { method: "PATCH", body })
         : await adminApi<{ zone: ZoneRow }>("/admin/zones", { method: "POST", body });

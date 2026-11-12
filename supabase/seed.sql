@@ -17,6 +17,23 @@ values
   ('30000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001', 'A3', 6, 35000)
 on conflict (id) do nothing;
 
+-- Demo map and party buckets. VIP uses a custom table for the 15-seat bucket.
+insert into public.zones (id, venue_id, name, capacity, seat_managed)
+values
+  ('20000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000001', 'VIP', 15, false),
+  ('20000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000001', 'Indoor', 24, true),
+  ('20000000-0000-4000-8000-000000000004', '10000000-0000-4000-8000-000000000001', 'Outdoor', 24, true)
+on conflict (id) do nothing;
+
+insert into public.venue_tables (id, venue_id, zone_id, name, capacity)
+values
+  ('30000000-0000-4000-8000-000000000004', '10000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000002', 'VIP 1', 15),
+  ('30000000-0000-4000-8000-000000000005', '10000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000003', 'Indoor 1', 12),
+  ('30000000-0000-4000-8000-000000000006', '10000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000003', 'Indoor 2', 12),
+  ('30000000-0000-4000-8000-000000000007', '10000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000004', 'Outdoor 1', 12),
+  ('30000000-0000-4000-8000-000000000008', '10000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000004', 'Outdoor 2', 12)
+on conflict (id) do nothing;
+
 -- Local Supabase Auth fixtures. Never apply this seed to a deployed environment.
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -25,11 +42,11 @@ insert into auth.users (
 )
 select '00000000-0000-0000-0000-000000000000', fixture.id, 'authenticated', 'authenticated',
   fixture.email, extensions.crypt('BookieDemo123!', extensions.gen_salt('bf')), now(),
-  '', '', '', '', '{"provider":"email","providers":["email"]}', '{}', now(), now()
+  '', '', '', '', '{"provider":"email","providers":["email"]}', jsonb_build_object('display_name', fixture.display_name), now(), now()
 from (values
-  ('90000000-0000-4000-8000-000000000001'::uuid, 'owner@bookie.test'),
-  ('90000000-0000-4000-8000-000000000002'::uuid, 'staff@bookie.test')
-) fixture(id, email)
+  ('90000000-0000-4000-8000-000000000001'::uuid, 'owner@bookie.test', 'เจ้าของร้าน'),
+  ('90000000-0000-4000-8000-000000000002'::uuid, 'staff@bookie.test', 'พนักงาน')
+) fixture(id, email, display_name)
 on conflict (id) do nothing;
 
 insert into auth.identities (id, provider_id, user_id, identity_data, provider, created_at, updated_at)
