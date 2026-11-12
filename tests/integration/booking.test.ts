@@ -6,6 +6,9 @@ import { ChangeMessageVisibilityCommand, CreateQueueCommand, DeleteQueueCommand 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { POST as signIn } from "../../app/api/session/line/route";
 import { GET as customerProfile } from "../../app/api/me/route";
+import { POST as joinQueue } from "../../app/api/venues/[venueId]/queue-tickets/route";
+import { GET as readTicket } from "../../app/api/me/queue-tickets/[id]/route";
+import { queueTicket } from "@/contracts/queue";
 import { GET as publicVenue } from "../../app/api/venues/by-slug/[slug]/route";
 import { venueBookingProfile } from "@/contracts/venue";
 import { POST as logout } from "../../app/api/session/logout/route";
@@ -93,6 +96,44 @@ it("exposes the Bangkok booking schedule and honors a special release", async ()
     expect(row.opensAt.toISOString()).toBe(instant);
   } finally {
     await db()`delete from booking_releases where venue_id = ${venueId} and service_date = ${date}`;
+  }
+});
+
+it("issues one ticket per active customer and admits concurrent tickets in sequence", async () => {
+  const contact = { name: "Guest", phone: "0812345678" };
+  const join = (cookie: string) =>
+    joinQueue(request("POST", { cookie, data: contact }), context({ venueId }));
+  const [one, two, three] = await Promise.all([join(alice.cookie), join(alice.cookie), join(bob.cookie)]);
+  expect([one.status, two.status].sort()).toEqual([200, 201]);
+  expect(three.status).toBe(201);
+  const aliceTicket = queueTicket.parse(await one.json());
+  expect(queueTicket.parse(await two.json()).requestId).toBe(aliceTicket.requestId);
+  const bobTicket = queueTicket.parse(await three.json());
+  expect([aliceTicket.position, bobTicket.position].sort()).toEqual([1, 2]);
+  const first = aliceTicket.ready ? aliceTicket : bobTicket;
+  const second = aliceTicket.ready ? bobTicket : aliceTicket;
+  const firstCookie = aliceTicket.ready ? alice.cookie : bob.cookie;
+  const secondCookie = aliceTicket.ready ? bob.cookie : alice.cookie;
+  const read = (cookie: string, id: string) => readTicket(request("GET", { cookie }), context({ id }));
+  expect((await read(other.cookie, first.requestId)).status).toBe(404);
+  expect((await read(secondCookie, first.requestId)).status).toBe(404);
+  await db()`update queue_tickets set ready_at = now() - interval '3 minutes' where id = ${first.requestId}`;
+  await reconcilePending(venueId);
+  expect(await (await read(firstCookie, first.requestId)).json()).toMatchObject({ status: "expired", position: 0 });
+  expect(await (await read(secondCookie, second.requestId)).json()).toMatchObject({ status: "ready", position: 1 });
+  await db()`delete from queue_tickets where venue_id = ${venueId}`;
+});
+
+it("keeps the queue closed until a night opens in Bangkok", async () => {
+  await db()`insert into booking_releases (venue_id, service_date, opens_at)
+    select ${otherVenueId}, ${day(0)}::date + i, now() + interval '1 day' from generate_series(0, 30) as i`;
+  try {
+    const response = await joinQueue(request("POST", { cookie: other.cookie, data: { name: "Guest", phone: "0812345678" } }),
+      context({ venueId: otherVenueId }));
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ error: { code: "NOT_OPEN" } });
+  } finally {
+    await db()`delete from booking_releases where venue_id = ${otherVenueId}`;
   }
 });
 

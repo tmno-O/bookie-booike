@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { Shell, shellStyles as s } from "../shell";
 import { api, asFailure } from "../flow";
 
-type Status = { status: "waiting" | "ready" | "booked"; position: number; bookingId: string | null };
+type Status = { status: "waiting" | "ready" | "booked" | "used" | "expired"; position: number; bookingId: string | null };
 
 export default function QueueScreen({ slug }: { slug: string }) {
   const router = useRouter();
@@ -16,7 +16,11 @@ export default function QueueScreen({ slug }: { slug: string }) {
   useEffect(() => {
     if (!requestId) { router.replace(`/book/${slug}/waiting`); return; }
     let active = true;
-    const load = () => api<Status>(`/queue/${requestId}`).then((v) => active && setState(v)).catch((e) => {
+    const load = () => api<Status>(`/queue/${requestId}`).then((v) => {
+      if (!active) return;
+      if (v.status === "expired") router.replace(`/book/${slug}/waiting`);
+      else setState(v);
+    }).catch((e) => {
       if (!active) return;
       if (asFailure(e).status === 404) router.replace(`/book/${slug}/waiting`);
       else setError(asFailure(e).message);
