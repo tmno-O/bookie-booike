@@ -61,6 +61,11 @@ export const venuePublic = z.object({
   tableSelectionMode: selectionMode, cancelCutoffMinutes: z.number().int(),
   liffId: z.string().nullable(),
 });
+export const venueBookingProfile = venuePublic.extend({
+  opensAt: instant, open: z.boolean(), secondsUntilOpen: z.number().int().nonnegative(),
+  today: serviceDate, maxAdvanceDays: z.number().int().nonnegative(),
+  shop: z.object({ name: label, phone: z.string(), address: z.string(), entryPolicy: z.string() }),
+});
 export const availability = z.object({
   venueId: id, serviceDate,
   tables: z.array(z.object({

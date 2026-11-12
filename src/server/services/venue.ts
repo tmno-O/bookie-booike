@@ -8,6 +8,7 @@ import { ApiError, notFound } from "@/lib/errors";
 import { encryptSecret } from "@/lib/crypto";
 import type { Staff } from "@/lib/auth/staff-auth";
 import { staffAudit } from "./audit";
+import { queueOpening } from "./schedule";
 
 export function staffChange<T>(
   staff: Staff,
@@ -26,13 +27,25 @@ export function columns(value: Record<string, string | number | boolean | null>)
 export async function getVenue(lookup: { venueId: string } | { slug: string }) {
   const sql = db();
   const predicate = "venueId" in lookup ? sql`v.id = ${lookup.venueId}` : sql`v.slug = ${lookup.slug}`;
-  const [venue] = await sql`
+  const [venue] = await sql<{
+    id: string; slug: string; name: string; description: string | null; contact: string | null;
+    mapUrl: string | null; imageUrl: string | null; timezone: string; phone: string; address: string;
+    entryPolicy: string; tableSelectionMode: "customer_picks" | "auto_assign";
+    cancelCutoffMinutes: number; liffId: string | null;
+  }[]>`
     select v.id, v.slug, v.name, v.description, v.contact, v.map_url, v.image_url, v.timezone,
+           v.phone, v.address, v.entry_policy,
            v.table_selection_mode, v.cancel_cutoff_minutes, l.liff_id
     from venues v left join venue_line_integrations l on l.venue_id = v.id
     where ${predicate}
   `;
   return venue ?? notFound("Venue");
+}
+
+export async function getPublicVenue(slug: string) {
+  const venue = await getVenue({ slug });
+  const { name, phone, address, entryPolicy } = venue;
+  return { ...venue, ...await queueOpening(venue.id), shop: { name, phone, address, entryPolicy } };
 }
 
 export async function changeVenue(staff: Staff, patch: z.infer<typeof profilePatch> | z.infer<typeof settingsPatch>, action: string) {

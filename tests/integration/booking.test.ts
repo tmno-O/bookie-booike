@@ -6,6 +6,8 @@ import { ChangeMessageVisibilityCommand, CreateQueueCommand, DeleteQueueCommand 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { POST as signIn } from "../../app/api/session/line/route";
 import { GET as customerProfile } from "../../app/api/me/route";
+import { GET as publicVenue } from "../../app/api/venues/by-slug/[slug]/route";
+import { venueBookingProfile } from "@/contracts/venue";
 import { POST as logout } from "../../app/api/session/logout/route";
 import { POST as requestBooking } from "../../app/api/booking-requests/route";
 import { GET as readRequest } from "../../app/api/me/booking-requests/[requestId]/route";
@@ -78,6 +80,21 @@ function book(date: string, cookie = alice.cookie, key = randomUUID().toString()
     cookie, key, data: { venueId, serviceDate: date, tableId, partySize, contactPhone: "0812345678" },
   }), context({}));
 }
+
+it("exposes the Bangkok booking schedule and honors a special release", async () => {
+  const response = await publicVenue(request("GET"), context({ slug: venueSlug }));
+  const venue = venueBookingProfile.parse(await response.json());
+  expect(venue).toMatchObject({ id: venueId, today: day(0), open: true, secondsUntilOpen: 0 });
+  const date = day(3);
+  const instant = `${day(2)}T13:00:00.000Z`;
+  await db()`insert into booking_releases (venue_id, service_date, opens_at) values (${venueId}, ${date}, ${instant})`;
+  try {
+    const [row] = await db()< { opensAt: Date }[] >`select opens_at_for(${venueId}, ${date}) as opens_at`;
+    expect(row.opensAt.toISOString()).toBe(instant);
+  } finally {
+    await db()`delete from booking_releases where venue_id = ${venueId} and service_date = ${date}`;
+  }
+});
 
 async function getStatus(requestId: string, cookie = alice.cookie) {
   const response = await readRequest(request("GET", { cookie }), context({ requestId }));

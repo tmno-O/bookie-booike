@@ -7,6 +7,8 @@ export function customerVenueSlug() {
 
 export function customerApi<T>(path: string, init?: ApiInit): Promise<T> {
   switch (path) {
+    case "/venue":
+      return apiRequest(`/api/venues/by-slug/${encodeURIComponent(customerVenueSlug())}`, init);
     case "/line/accounts":
       return Promise.resolve({ accounts: MOCK_LINE_ACCOUNTS } as T);
     case "/line/login":
