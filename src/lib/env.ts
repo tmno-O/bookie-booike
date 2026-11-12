@@ -10,12 +10,16 @@ const schema = z.object({
   SUPABASE_PUBLISHABLE_KEY: z.string().min(1),
   SQS_REGION: z.string().min(1).default("us-east-1"),
   SQS_ENDPOINT: httpUrl.optional(),
-  SQS_QUEUE_URL: httpUrl.refine((url) => new URL(url).pathname.endsWith(".fifo")),
+  QUEUE_DRIVER: z.enum(["sqs", "db"]).default("sqs"),
+  SQS_QUEUE_URL: httpUrl.refine((url) => new URL(url).pathname.endsWith(".fifo")).optional(),
   LINE_VERIFY_MODE: z.enum(["real", "mock"]).default("real"),
   LINE_SECRET_KEY: z.string().regex(/^[0-9a-f]{64}$/i),
   LINE_NOTIFICATIONS_ENABLED: z.enum(["true", "false"]).default("false").transform((value) => value === "true"),
   BOOKING_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(30),
   BOOKING_MAX_RECEIVES: z.coerce.number().int().min(1).max(100).default(5),
+}).refine((env) => env.QUEUE_DRIVER !== "sqs" || env.SQS_QUEUE_URL, {
+  path: ["SQS_QUEUE_URL"],
+  message: "SQS_QUEUE_URL is required when QUEUE_DRIVER=sqs",
 }).refine((env) => env.NODE_ENV !== "production" || env.LINE_VERIFY_MODE !== "mock", {
   path: ["LINE_VERIFY_MODE"],
   message: "Mock LINE verification is forbidden in production",

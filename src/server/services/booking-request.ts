@@ -5,7 +5,8 @@ import { sha256 } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { ApiError, notFound } from "@/lib/errors";
-import { sqs } from "@/lib/sqs";
+import { sqs, sqsQueueUrl } from "@/lib/sqs";
+import { scheduleBookingDrain } from "./booking-queue";
 import { upsertStaffContact } from "./staff";
 
 type Actor = { type: "customer"; id: string; tokenHash: string } | { type: "staff"; id: string };
@@ -20,7 +21,10 @@ export async function createBookingRequest(booking: BookingSubmission, customerI
   // Keep hashes for existing table-based clients stable.
   if (partyBucket) payload.push(ticketId, partyBucket, booking.contactName);
   const payloadHash = sha256(JSON.stringify(payload));
-  const result = await db().begin(async (tx) => {
+  // With the database queue the request is queued as it is recorded; there is no broker to publish to.
+  const queued = env().QUEUE_DRIVER === "db";
+  const sql = db();
+  const result = await sql.begin(async (tx) => {
     const scope = `${venueId}:${actor.type}:${actor.id}`;
     await tx`select pg_advisory_xact_lock(hashtextextended(${`${scope}:${key}`}, 4))`;
     const [existing] = await tx<QueueRequest[]>`
@@ -114,11 +118,12 @@ export async function createBookingRequest(booking: BookingSubmission, customerI
       insert into booking_requests
         (venue_id, customer_id, actor_type, actor_id, source, service_date, service_at, party_size,
           table_id, zone_id, phone_last_four, idempotency_key, payload_hash, ticket_id, party_bucket,
-          contact_name, contact_phone)
+          contact_name, contact_phone, status, published_at)
       values (${venueId}, ${resolvedCustomerId}, ${actor.type}, ${actor.id},
         ${actor.type === "customer" ? "liff" : "staff_assisted"}, ${serviceDate}, ${startsAt}, ${partySize},
         ${tableId ?? null}, ${zoneId ?? null}, ${phoneLastFour}, ${key}, ${payloadHash}, ${ticketId ?? null},
-        ${partyBucket ?? null}, ${contactName ?? null}, ${contactPhone ?? null})
+        ${partyBucket ?? null}, ${contactName ?? null}, ${contactPhone ?? null},
+        ${queued ? "queued" : "pending_publish"}, ${queued ? sql`clock_timestamp()` : null})
       returning id, payload_hash
     `;
     if (ticketId) {
@@ -128,7 +133,8 @@ export async function createBookingRequest(booking: BookingSubmission, customerI
     return created;
   });
   if (result instanceof ApiError) throw result;
-  await publishBookingRequest(result.id);
+  if (queued) scheduleBookingDrain();
+  else await publishBookingRequest(result.id);
   return { requestId: result.id };
 }
 
@@ -142,7 +148,7 @@ export async function publishBookingRequest(requestId: string) {
 
     try {
       await sqs().send(new SendMessageCommand({
-        QueueUrl: env().SQS_QUEUE_URL,
+        QueueUrl: sqsQueueUrl(),
         MessageBody: JSON.stringify({ requestId }),
         MessageGroupId: `${request.venueId}:${request.serviceDate}`,
         MessageDeduplicationId: requestId,
