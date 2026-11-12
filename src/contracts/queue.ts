@@ -12,4 +12,5 @@ export const queueTicket = z.object({
   position: z.number().int().nonnegative(),
   ready: z.boolean(),
   bookingId: id.nullable(),
+  bookingRequestId: id.nullable(),
 });

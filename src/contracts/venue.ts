@@ -22,6 +22,7 @@ export const profilePatch = z.strictObject({
 }).partial();
 export const settingsPatch = z.strictObject({
   tableSelectionMode: selectionMode.optional(),
+  allocationMode: z.enum(["auto", "manual"]).optional(),
   cancelCutoffMinutes: z.number().int().min(0).max(525600).optional(),
 });
 const zoneFields = z.strictObject({ name: label, capacity, status });
@@ -60,6 +61,7 @@ export const venuePublic = z.object({
   mapUrl: z.string().nullable(), imageUrl: z.string().nullable(), timezone: z.string(),
   tableSelectionMode: selectionMode, cancelCutoffMinutes: z.number().int(),
   liffId: z.string().nullable(),
+  allocationMode: z.enum(["auto", "manual"]).optional(),
 });
 export const venueBookingProfile = venuePublic.extend({
   opensAt: instant, open: z.boolean(), secondsUntilOpen: z.number().int().nonnegative(),
@@ -68,6 +70,11 @@ export const venueBookingProfile = venuePublic.extend({
 });
 export const availability = z.object({
   venueId: id, serviceDate,
+  nightOpen: z.boolean().optional(),
+  opensAt: instant.optional(),
+  zones: z.array(z.object({
+    id, name: label, tablesLeft: z.number().int().nonnegative(), available: z.boolean(), closed: z.boolean(),
+  })).optional(),
   tables: z.array(z.object({
     id, zoneId: id, zoneName: label, name: label, capacity, priceSatang: z.number().int().nullable(),
     available: z.boolean(), resultCode: z.string().nullable(), startsAt: instant, endsAt: instant,

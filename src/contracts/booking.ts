@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { id, instant, serviceDate, slug } from "./common";
+import { partyBucket } from "./party";
 
 export const lineSessionInput = z.strictObject({ venueSlug: slug, idToken: z.string().min(1).max(8192) });
 export const idempotencyKey = z.string().regex(/^[A-Za-z0-9._:-]{1,128}$/);
@@ -17,10 +18,13 @@ function validateTarget(value: { tableId?: string; zoneId?: string }) {
   return Boolean(value.tableId) !== Boolean(value.zoneId);
 }
 
-export const customerBookingInput = z.strictObject({
+const legacyBookingInput = z.strictObject({
   venueId: id,
   ...bookingFields,
 }).refine(validateTarget, "Specify either tableId or zoneId");
+
+export const ticketBookingInput = z.strictObject({ venueId: id, ticketId: id, zoneId: id, serviceDate, partyBucket });
+export const customerBookingInput = z.union([ticketBookingInput, legacyBookingInput]);
 
 export const staffBookingInput = z.strictObject({
   customerId: id,
@@ -35,10 +39,10 @@ export const requestStatus = z.object({
   bookingId: id.nullable(),
 });
 export const booking = z.object({
-  id, venueId: id, customerId: id, tableId: id, zoneId: id,
+  id, venueId: id, customerId: id, tableId: id.nullable(), zoneId: id,
   serviceDate, serviceAt: instant, partySize: z.number().int().positive(),
-  status: z.enum(["confirmed", "cancelled"]),
+  status: z.enum(["confirmed", "pending_allocation", "checked_in", "cancelled"]),
   createdAt: instant, cancelledAt: instant.nullable(),
 });
 export const cancellationInput = z.strictObject({ status: z.literal("cancelled") });
-export type BookingInput = z.infer<typeof customerBookingInput>;
+export type BookingInput = z.infer<typeof legacyBookingInput>;

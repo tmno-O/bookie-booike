@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { bucketForPartySize } from "@/contracts/party";
 import { serviceDate } from "@/contracts/common";
 import { db } from "@/lib/db";
 import { notFound } from "@/lib/errors";
@@ -28,11 +29,14 @@ export async function listBookings(access: Access, request: Request) {
 
 export async function getBooking(access: Access, id: string) {
   const sql = db();
-  const ownership = access.customerId ? sql`and customer_id = ${access.customerId}` : sql``;
+  const ownership = access.customerId ? sql`and b.customer_id = ${access.customerId}` : sql``;
   const [booking] = await sql`
-    select id, venue_id, customer_id, table_id, zone_id, to_char(service_date, 'YYYY-MM-DD') as service_date, service_at, party_size,
-      status, created_at, cancelled_at
-    from bookings where venue_id = ${access.venueId} and id = ${id} ${ownership}
+    select b.id, b.venue_id, b.customer_id, b.table_id, b.zone_id, to_char(b.service_date, 'YYYY-MM-DD') as service_date,
+      b.service_at, b.party_size, b.status, b.created_at, b.cancelled_at,
+      b.reference, b.contact_name as name, coalesce(b.contact_phone, '') as phone, z.name as zone_name
+    from bookings b join zones z on z.venue_id = b.venue_id and z.id = b.zone_id
+    where b.venue_id = ${access.venueId} and b.id = ${id} ${ownership}
   `;
-  return booking ?? notFound("Booking");
+  if (!booking) notFound("Booking");
+  return { ...booking, party: bucketForPartySize(booking.partySize) };
 }

@@ -31,12 +31,13 @@ export async function getVenue(lookup: { venueId: string } | { slug: string }) {
     id: string; slug: string; name: string; description: string | null; contact: string | null;
     mapUrl: string | null; imageUrl: string | null; timezone: string; phone: string; address: string;
     entryPolicy: string; tableSelectionMode: "customer_picks" | "auto_assign";
-    cancelCutoffMinutes: number; liffId: string | null;
+    cancelCutoffMinutes: number; liffId: string | null; allocationMode: "auto" | "manual";
   }[]>`
     select v.id, v.slug, v.name, v.description, v.contact, v.map_url, v.image_url, v.timezone,
            v.phone, v.address, v.entry_policy,
-           v.table_selection_mode, v.cancel_cutoff_minutes, l.liff_id
+           v.table_selection_mode, v.cancel_cutoff_minutes, l.liff_id, coalesce(s.allocation_mode, 'auto') as allocation_mode
     from venues v left join venue_line_integrations l on l.venue_id = v.id
+    left join venue_settings s on s.venue_id = v.id
     where ${predicate}
   `;
   return venue ?? notFound("Venue");
@@ -51,7 +52,12 @@ export async function getPublicVenue(slug: string) {
 export async function changeVenue(staff: Staff, patch: z.infer<typeof profilePatch> | z.infer<typeof settingsPatch>, action: string) {
   if (!Object.keys(patch).length) throw new ApiError(400, "EMPTY_PATCH", "Provide a field to update");
   await staffChange(staff, async (tx) => {
-    await tx`update venues set ${tx(columns(patch))} where id = ${staff.venueId}`;
+    const { allocationMode, ...fields } = patch as typeof patch & { allocationMode?: "auto" | "manual" };
+    if (Object.keys(fields).length) await tx`update venues set ${tx(columns(fields))} where id = ${staff.venueId}`;
+    if (allocationMode) {
+      await tx`insert into venue_settings (venue_id, allocation_mode) values (${staff.venueId}, ${allocationMode})
+        on conflict (venue_id) do update set allocation_mode = excluded.allocation_mode`;
+    }
     await staffAudit(tx, staff, action, staff.venueId);
   });
   return getVenue(staff);

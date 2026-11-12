@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
+import { waitForBooking } from "@/client/booking-result";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
-import { api, asFailure, thaiDate } from "../flow";
+import { api, asFailure, realApiMode, thaiDate } from "../flow";
 import styles from "./select.module.css";
 
 const PARTIES = [{ label: "1–4", value: "1-4" }, { label: "5–8", value: "5-8" }, { label: "9–12", value: "9-12" }, { label: "12+", value: "12+" }];
@@ -31,35 +33,48 @@ export default function SelectForm({ slug }: { slug: string }) {
   const [zoneId, setZoneId] = useState<string>();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [returnTo, setReturnTo] = useState<"waiting" | "queue">();
+  const availabilityPath = `/availability?date=${date}${realApiMode ? `&partyBucket=${encodeURIComponent(PARTIES[party].value)}` : ""}`;
 
   // Only customers whose queue turn has arrived may pick a night.
   useEffect(() => {
     if (!requestId) { router.replace(`/book/${slug}/waiting`); return; }
-    let active = true;
+    const controller = new AbortController();
     Promise.all([
-      api<{ status: string }>(`/queue/${requestId}`),
-      api<Venue>("/venue"),
-    ]).then(([queue, v]) => {
-      if (!active) return;
-      if (queue.status === "waiting") router.replace(`/book/${slug}/queue?r=${requestId}`);
-      else { setVenue(v); setDate(v.today); }
+      api<{ status: string; bookingId?: string; bookingRequestId?: string }>(`/queue/${requestId}`, { signal: controller.signal }),
+      api<Venue>("/venue", { signal: controller.signal }),
+    ]).then(async ([queue, v]) => {
+      if (controller.signal.aborted) return;
+      if (queue.bookingId) router.replace(`/book/${slug}/confirmed?b=${queue.bookingId}`);
+      else if (queue.status === "waiting") router.replace(`/book/${slug}/queue?r=${requestId}`);
+      else if (queue.status === "expired") router.replace(`/book/${slug}/waiting`);
+      else if (queue.status === "used" && queue.bookingRequestId) {
+        setBusy(true);
+        const { booking } = await waitForBooking(queue.bookingRequestId, controller.signal);
+        if (!controller.signal.aborted) router.replace(`/book/${slug}/confirmed?b=${booking.id}`);
+      } else { setVenue(v); setDate(v.today); }
     }).catch((e) => {
-      if (!active) return;
-      if (asFailure(e).status === 404) router.replace(`/book/${slug}/waiting`);
-      else setError(asFailure(e).message);
+      if (controller.signal.aborted) return;
+      const failure = asFailure(e);
+      if (failure.status === 404) router.replace(`/book/${slug}/waiting`);
+      else {
+        setError(failure.code === "ZONE_FULL" ? "โซนนี้เต็มแล้ว กรุณารับคิวใหม่" : failure.message);
+        setBusy(false);
+        if (failure.ticketUsed) setReturnTo(failure.code === "BOOKING_PROCESSING" ? "queue" : "waiting");
+      }
     });
-    return () => { active = false; };
+    return () => { controller.abort(); };
   }, [requestId, router, slug]);
 
-  const loadZones = (day: string) => api<NightInfo>(`/availability?date=${day}`)
+  const loadZones = () => api<NightInfo>(availabilityPath)
     .then((r) => { setZones(r.zones); setNight({ open: r.open, opensAt: r.opensAt }); return r.zones; });
   useEffect(() => {
     if (!date) return;
     let active = true;
-    api<NightInfo>(`/availability?date=${date}`)
+    api<NightInfo>(availabilityPath)
       .then((r) => { if (active) { setZones(r.zones); setNight({ open: r.open, opensAt: r.opensAt }); } }).catch((e) => active && setError(asFailure(e).message));
     return () => { active = false; };
-  }, [date]);
+  }, [availabilityPath, date]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -74,7 +89,13 @@ export default function SelectForm({ slug }: { slug: string }) {
       const failure = asFailure(e);
       setError(failure.code === "ZONE_FULL" ? "โซนนี้เต็มแล้ว กรุณาเลือกโซนอื่น" : failure.code === "NIGHT_NOT_OPEN" ? "คืนนี้ยังไม่เปิดรับจอง" : failure.message);
       setBusy(false);
-      if (failure.code === "ZONE_FULL") { setZoneId(undefined); void loadZones(date); }
+      if (failure.ticketUsed || failure.code === "TICKET_NOT_READY") {
+        setZoneId(undefined);
+        setReturnTo(failure.code === "BOOKING_PROCESSING" ? "queue" : "waiting");
+      } else if (failure.code === "ZONE_FULL" || failure.code === "ZONE_CLOSED") {
+        setZoneId(undefined);
+        void loadZones().catch((error) => setError(asFailure(error).message));
+      }
     }
   }
 
@@ -83,7 +104,7 @@ export default function SelectForm({ slug }: { slug: string }) {
     const full = zone ? !zone.available : false;
     const selected = !!zone && zoneId === zone.id;
     return (
-      <button type="button" key={name} aria-pressed={selected} disabled={!zone || full || !night.open}
+      <button type="button" key={name} aria-pressed={selected} disabled={!zone || full || !night.open || busy || !!returnTo}
         className={`${styles.zone} ${className} ${selected ? styles.zoneOn : ""} ${full ? styles.zoneFull : ""}`}
         onClick={() => zone && setZoneId(zone.id)}>
         {name}{full && <span className={styles.full}>{zone?.closed ? "ปิด" : "เต็ม"}</span>}
@@ -103,14 +124,16 @@ export default function SelectForm({ slug }: { slug: string }) {
           <span>{date ? thaiDate(date) : "กำลังโหลด…"}</span><span className={styles.chev} aria-hidden>⌄</span>
           {venue && <input id="date" type="date" className={styles.dateInput} value={date}
             min={venue.today} max={addDays(venue.today, venue.maxAdvanceDays)}
-            onChange={(e) => { if (e.target.value) { setDate(e.target.value); setZoneId(undefined); } }} />}
+            disabled={busy || !!returnTo}
+            onChange={(e) => { if (e.target.value) { setDate(e.target.value); setZoneId(undefined); setZones([]); } }} />}
         </div>
 
         <span className={styles.label} id="party-label">จำนวนผู้เข้าร่วม</span>
         <div className={styles.party} role="group" aria-labelledby="party-label">
           {PARTIES.map((p, i) => (
             <button type="button" key={p.value} aria-pressed={party === i}
-              className={`${styles.pill} ${party === i ? styles.pillOn : ""}`} onClick={() => setParty(i)}>{p.label}</button>
+              className={`${styles.pill} ${party === i ? styles.pillOn : ""}`} disabled={busy || !!returnTo}
+              onClick={() => { if (party !== i) { setParty(i); setZoneId(undefined); if (realApiMode) setZones([]); } }}>{p.label}</button>
           ))}
         </div>
 
@@ -132,9 +155,15 @@ export default function SelectForm({ slug }: { slug: string }) {
         {error && <p role="alert" className={styles.error}>{error}</p>}
       </div>
       <div className={styles.footer}>
-        <button type="submit" className={styles.cta} disabled={!zoneId || busy}>
-          {busy ? "กำลังจอง…" : zoneId ? "ยืนยันการจอง" : "เลือกโซนเพื่อดำเนินการต่อ"}
-        </button>
+        {returnTo ? (
+          <Link className={styles.cta} href={returnTo === "queue" ? `/book/${slug}/queue?r=${requestId}` : `/book/${slug}/waiting`}>
+            {returnTo === "queue" ? "ดูสถานะคำขอ" : "กลับไปรับคิวใหม่"}
+          </Link>
+        ) : (
+          <button type="submit" className={styles.cta} disabled={!zoneId || busy}>
+            {busy ? "กำลังจอง…" : zoneId ? "ยืนยันการจอง" : "เลือกโซนเพื่อดำเนินการต่อ"}
+          </button>
+        )}
       </div>
     </form>
   );

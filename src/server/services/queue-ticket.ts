@@ -10,12 +10,13 @@ type Ticket = z.infer<typeof queueTicket>;
 
 async function ticketStatus(tx: TransactionSql, customer: Customer, id: string) {
   const [ticket] = await tx<Ticket[]>`
-    select t.id as request_id, t.status, t.status = 'ready' as ready, null::uuid as booking_id,
+    select t.id as request_id, t.status, t.status = 'ready' as ready, r.booking_id, r.id as booking_request_id,
       case when t.status in ('waiting', 'ready') then 1 + (
         select count(*)::int from queue_tickets a where a.venue_id = t.venue_id
           and a.status in ('waiting', 'ready') and a.seq < t.seq
       ) else 0 end as position
     from queue_tickets t
+    left join booking_requests r on r.venue_id = t.venue_id and r.ticket_id = t.id
     where t.venue_id = ${customer.venueId} and t.customer_id = ${customer.customerId} and t.id = ${id}
   `;
   return ticket ?? notFound("Queue ticket");

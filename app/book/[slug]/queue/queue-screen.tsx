@@ -31,12 +31,13 @@ export default function QueueScreen({ slug }: { slug: string }) {
   }, [requestId, router, slug]);
 
   const ready = state?.status === "ready";
+  const processing = state?.status === "used";
   const booked = state?.status === "booked" && state.bookingId;
   return (
     <Shell slug={slug} back={`/book/${slug}/waiting`}
       cta={booked
         ? { label: "ดูการจองของฉัน", href: `/book/${slug}/confirmed?b=${state.bookingId}` }
-        : { label: ready ? "ถึงคิวแล้ว · เลือกข้อมูลการจอง" : "รอถึงคิวของคุณ", href: `/book/${slug}/select?r=${requestId}`, disabled: !ready }}>
+        : { label: processing ? "ดูสถานะคำขอ" : ready ? "ถึงคิวแล้ว · เลือกข้อมูลการจอง" : "รอถึงคิวของคุณ", href: `/book/${slug}/select?r=${requestId}`, disabled: !ready && !processing }}>
       <p className={s.eyebrow}>สถานะคำขอ</p>
       <h1 className={s.title}>{ready ? "ถึงคิวของคุณแล้ว" : "คำขออยู่ในคิว"}</h1>
       <p className={s.subtitle}>เมื่อถึงคิว จึงเลือกคืน จำนวนคน และโซน</p>

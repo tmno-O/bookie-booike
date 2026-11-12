@@ -1,5 +1,6 @@
 import { SendMessageCommand } from "@aws-sdk/client-sqs";
 import type { BookingInput } from "@/contracts/booking";
+import type { PartyBucket } from "@/contracts/party";
 import { sha256 } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
@@ -9,10 +10,15 @@ import { sqs } from "@/lib/sqs";
 type Actor = { type: "customer"; id: string; tokenHash: string } | { type: "staff"; id: string };
 type QueueRequest = { id: string; payloadHash: string };
 
-export async function createBookingRequest(booking: BookingInput, customerId: string, actor: Actor, key: string) {
-  const { venueId, serviceDate, serviceAt, partySize, tableId, zoneId, contactPhone } = booking;
+type BookingSubmission = BookingInput & { ticketId?: string; partyBucket?: PartyBucket; contactName?: string };
+
+export async function createBookingRequest(booking: BookingSubmission, customerId: string, actor: Actor, key: string) {
+  const { venueId, serviceDate, serviceAt, partySize, tableId, zoneId, ticketId, partyBucket } = booking;
   const startsAt = serviceAt ? new Date(serviceAt).toISOString() : null;
-  const payloadHash = sha256(JSON.stringify([customerId, serviceDate, startsAt, partySize, tableId, zoneId, contactPhone]));
+  const payload = [customerId, serviceDate, startsAt, partySize, tableId, zoneId, booking.contactPhone];
+  // Keep hashes for existing table-based clients stable.
+  if (partyBucket) payload.push(ticketId, partyBucket, booking.contactName);
+  const payloadHash = sha256(JSON.stringify(payload));
   const result = await db().begin(async (tx) => {
     const scope = `${venueId}:${actor.type}:${actor.id}`;
     await tx`select pg_advisory_xact_lock(hashtextextended(${`${scope}:${key}`}, 4))`;
@@ -42,7 +48,7 @@ export async function createBookingRequest(booking: BookingInput, customerId: st
       select table_selection_mode from venues where id = ${venueId}
     `;
     if (!venue) return new ApiError(404, "NOT_FOUND", "Venue not found");
-    if ((venue.tableSelectionMode === "customer_picks") !== Boolean(tableId)) {
+    if (!partyBucket && (venue.tableSelectionMode === "customer_picks") !== Boolean(tableId)) {
       return new ApiError(400, "INVALID_BOOKING_TARGET", "Booking target does not match the venue selection mode");
     }
 
@@ -51,13 +57,40 @@ export async function createBookingRequest(booking: BookingInput, customerId: st
     `;
     if (!customer) return new ApiError(404, "NOT_FOUND", "Customer not found");
 
+    let { contactName, contactPhone } = booking;
+    if (ticketId) {
+      await tx`select advance_queue(${venueId})`;
+      const [ticket] = await tx<{ status: string; contactName: string; contactPhone: string }[]>`
+        select status, contact_name, contact_phone from queue_tickets
+        where venue_id = ${venueId} and customer_id = ${customerId} and id = ${ticketId}
+      `;
+      if (!ticket) return new ApiError(404, "NOT_FOUND", "Queue ticket not found");
+      if (ticket.status !== "ready") return new ApiError(409, "TICKET_NOT_READY", "คิวหมดอายุหรือยังไม่ถึงคิว");
+      ({ contactName, contactPhone } = ticket);
+      const [schedule] = await tx<{ open: boolean; inRange: boolean }[]>`
+        select opens_at_for(${venueId}, ${serviceDate}) <= clock_timestamp() as open,
+          ${serviceDate}::date between w.today and w.today + w.max_advance_days as in_range
+        from queue_opening(${venueId}) w
+      `;
+      if (!schedule.inRange) return new ApiError(422, "DATE_OUT_OF_RANGE", "วันที่อยู่นอกช่วงเปิดจอง");
+      if (!schedule.open) return new ApiError(409, "NIGHT_NOT_OPEN", "คืนนี้ยังไม่เปิดรับจอง");
+    }
+
+    if (partyBucket) {
+      const [zone] = await tx<{ status: string }[]>`select status from zones where venue_id = ${venueId} and id = ${zoneId!}`;
+      if (!zone) return new ApiError(422, "ZONE_NOT_FOUND", "ไม่พบโซน");
+      if (zone.status === "closed") return new ApiError(409, "ZONE_CLOSED", "โซนนี้ปิดรับจอง");
+    }
+
     const candidates = await tx<{ resultCode: string | null }[]>`
       select result_code from booking_candidates(
         ${venueId}, ${serviceDate}, ${tableId ?? null}, ${zoneId ?? null}, ${partySize}, ${startsAt}, clock_timestamp()
       ) order by capacity, id
     `;
     if (!candidates.some((candidate) => candidate.resultCode === null)) {
-      return new ApiError(409, candidates[0]?.resultCode ?? "TABLE_UNAVAILABLE", "No eligible table for this request");
+      const code = candidates[0]?.resultCode ?? "TABLE_UNAVAILABLE";
+      return new ApiError(409, partyBucket && code === "TABLE_UNAVAILABLE" ? "ZONE_FULL" : code,
+        partyBucket ? "ไม่มีโต๊ะที่รองรับคำขอนี้" : "No eligible table for this request");
     }
 
     const phoneLastFour = contactPhone?.slice(-4) ?? null;
@@ -68,12 +101,18 @@ export async function createBookingRequest(booking: BookingInput, customerId: st
     const [created] = await tx<QueueRequest[]>`
       insert into booking_requests
         (venue_id, customer_id, actor_type, actor_id, source, service_date, service_at, party_size,
-          table_id, zone_id, phone_last_four, idempotency_key, payload_hash)
+          table_id, zone_id, phone_last_four, idempotency_key, payload_hash, ticket_id, party_bucket,
+          contact_name, contact_phone)
       values (${venueId}, ${customerId}, ${actor.type}, ${actor.id},
         ${actor.type === "customer" ? "liff" : "staff_assisted"}, ${serviceDate}, ${startsAt}, ${partySize},
-        ${tableId ?? null}, ${zoneId ?? null}, ${phoneLastFour}, ${key}, ${payloadHash})
+        ${tableId ?? null}, ${zoneId ?? null}, ${phoneLastFour}, ${key}, ${payloadHash}, ${ticketId ?? null},
+        ${partyBucket ?? null}, ${contactName ?? null}, ${contactPhone ?? null})
       returning id, payload_hash
     `;
+    if (ticketId) {
+      await tx`update queue_tickets set status = 'used' where id = ${ticketId}`;
+      await tx`select advance_queue(${venueId})`;
+    }
     return created;
   });
   if (result instanceof ApiError) throw result;

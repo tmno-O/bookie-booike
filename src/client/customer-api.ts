@@ -1,3 +1,5 @@
+import { queueTicket } from "@/contracts/queue";
+import { waitForBooking } from "./booking-result";
 import { MOCK_LINE_ACCOUNTS } from "@/mock/line";
 import { apiRequest, type ApiInit } from "./transport";
 
@@ -16,6 +18,9 @@ export async function customerApi<T>(path: string, init?: ApiInit): Promise<T> {
       return apiRequest(`/api/venues/by-slug/${encodeURIComponent(customerVenueSlug())}`, init);
     case "/queue":
       return apiRequest(`/api/venues/${await venueId()}/queue-tickets`, init);
+    case "/bookings":
+      if (init?.method !== "POST") return apiRequest(`/api/me${path}`, init);
+      return bookZone(init) as Promise<T>;
     case "/line/accounts":
       return { accounts: MOCK_LINE_ACCOUNTS } as T;
     case "/line/login":
@@ -25,7 +30,28 @@ export async function customerApi<T>(path: string, init?: ApiInit): Promise<T> {
     case "/line/logout":
       return apiRequest("/api/session/logout", init);
     default:
-      if (path.startsWith("/queue/")) return apiRequest(`/api/me/queue-tickets/${path.slice(7)}`, init);
+      if (path.startsWith("/queue/")) {
+        const ticket = queueTicket.parse(await apiRequest(`/api/me/queue-tickets/${path.slice(7)}`, init));
+        return { ...ticket, status: ticket.bookingId ? "booked" : ticket.status } as T;
+      }
+      if (path.startsWith("/availability?")) {
+        const result = await apiRequest<{ nightOpen: boolean }>(`/api/venues/${await venueId()}${path}`, init);
+        return { ...result, open: result.nightOpen } as T;
+      }
+      if (path.startsWith("/bookings/")) {
+        return { booking: await apiRequest(`/api/me${path}`, init) } as T;
+      }
       return apiRequest(`/api${path}`, init);
   }
+}
+
+async function bookZone(init: ApiInit) {
+  const { requestId: ticketId, serviceDate, party, zoneId } = init.body as {
+    requestId: string; serviceDate: string; party: string; zoneId: string;
+  };
+  const { requestId } = await apiRequest<{ requestId: string }>("/api/booking-requests", {
+    method: "POST", signal: init.signal, idempotencyKey: ticketId,
+    body: { venueId: await venueId(), ticketId, serviceDate, partyBucket: party, zoneId },
+  });
+  return waitForBooking(requestId, init.signal);
 }
