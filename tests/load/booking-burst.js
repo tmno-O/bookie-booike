@@ -54,7 +54,8 @@ export function setup() {
       method: "POST",
       url: `${base}/api/session/line`,
       body: JSON.stringify({ venueSlug: slug, idToken: `mock:burst-${runId}-${offset + index}:Burst test` }),
-      params: { headers: contentType, tags: { phase: "setup" } },
+      // Login revokes the previous session cookie. Give each account its own jar.
+      params: { headers: contentType, jar: new http.CookieJar(), tags: { phase: "setup" } },
     }));
     for (const response of http.batch(logins)) {
       const session = response.cookies.bookie_session?.[0]?.value;

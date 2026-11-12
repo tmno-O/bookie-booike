@@ -1,15 +1,29 @@
 # Mock booking flow (local testing)
 
-The six customer screens run against mock APIs under `/api/mock/*`, backed by a JSON file
+With `NEXT_PUBLIC_API_MODE=mock` (the default), the customer and admin screens use mock APIs under `/api/mock/*`, backed by a JSON file
 (`.mock/db.json`, git-ignored, created on first use). No Docker, Supabase, SQS or LINE needed.
 The mock APIs return 404 when `NODE_ENV=production` unless `MOCK_API=1`.
 
 ```bash
 npm ci
-npm run dev -- --port 3100
+NEXT_PUBLIC_API_MODE=mock npm run dev -- --port 3100
 ```
 
 Open <http://localhost:3100/book/bookie-demo/login> in a phone-sized window. Every screen redirects to the login if you are not logged in.
+
+## Real mode with local services
+
+Follow the [local setup](../README.md#รันในเครื่อง) and start Next.js with `NEXT_PUBLIC_API_MODE=real`.
+Keep `LINE_VERIFY_MODE=mock` for the local LINE account picker. This mode writes to Supabase and runs the booking worker through ElasticMQ.
+
+1. Open [/book/bookie-demo](http://localhost:3100/book/bookie-demo) in two browser profiles, or in one regular and one private window. Sign in with different accounts and enter a name and phone in each.
+2. Join the queue in both windows. With the default admission window of 1, the first ticket is ready and the second waits at position 2. Submit the first booking to advance the second ticket.
+3. Choose a night, party bucket and zone. Check the reference, contact information and status in the confirmation and My Bookings screens.
+4. Sign in at [/admin/login](http://localhost:3100/admin/login) with a seeded owner or staff account. Search a booking by reference and check in a confirmed booking for the current Bangkok service date. Try adding a booking by name and phone.
+5. Set `allocationMode` to `manual` through the [staff settings API](API_CONTRACT.md#พนักงาน). Make a booking, open its request in the admin queue and allocate it. A full zone brings up the alternate-zone picker. Restore `auto` for the next test.
+6. Try creating, resizing and closing a zone. As owner, edit standard hours, add and remove a special day, save the shop profile, and create and cancel a team invitation. Sign in as staff to verify the owner-only permissions.
+
+The real customer queue advances when a ready ticket is used or expires. The default ready window lasts 120 seconds. The `/api/mock/reset` helper resets the JSON mock data. Real-mode demo data lives in local Supabase.
 
 ## Mock LINE login
 
