@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { adminApi, asFailure } from "./admin-api";
+import { adminApi, asFailure, realApiMode } from "./admin-api";
 import styles from "./admin.module.css";
 
 export type Standard = { daysBefore: number; time: string };
@@ -46,15 +46,20 @@ export function StandardDialog({ current, onClose, onSaved }: { current: Standar
   const [time, setTime] = useState(current.time);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const first = useRef<HTMLSelectElement>(null);
-  useEffect(() => { first.current?.focus(); }, []);
+  const first = useRef<HTMLInputElement>(null);
+  const dropdown = useRef<HTMLSelectElement>(null);
+  useEffect(() => { (first.current ?? dropdown.current)?.focus(); }, []);
 
   async function save(e: FormEvent) {
     e.preventDefault();
     if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) return setError("กรุณาเลือกเวลาเปิดรับจอง");
+    const days = Number(daysBefore);
+    if (!daysBefore.trim() || !Number.isInteger(days) || days < 0 || days > (realApiMode ? 365 : 7)) {
+      return setError("กรุณาระบุจำนวนวันล่วงหน้าให้ถูกต้อง");
+    }
     setBusy(true); setError("");
     try {
-      await adminApi("/admin/hours/standard", { method: "PUT", body: { daysBefore: Number(daysBefore), time } });
+      await adminApi("/admin/hours/standard", { method: "PUT", body: { daysBefore: days, time } });
       onSaved();
     } catch (err) {
       const f = asFailure(err); setError(ERRORS[f.code] ?? f.message); setBusy(false);
@@ -63,9 +68,13 @@ export function StandardDialog({ current, onClose, onSaved }: { current: Standar
   return (
     <Frame title="แก้ไขเวลามาตรฐาน" sub="กำหนดเวลาเปิดรับจองสำหรับทุกคืน" busy={busy} onClose={onClose} onSubmit={save} error={error}>
       <label className={styles.field} style={{ gridTemplateColumns: "1fr" }}><span className={styles.fieldLabel} style={{ color: "#25211f", fontWeight: 600 }}>เปิดรับจองล่วงหน้า</span>
-        <select ref={first} className={styles.input} value={daysBefore} onChange={(e) => setDaysBefore(e.target.value)}>
-          {Array.from({ length: 8 }, (_, n) => <option key={n} value={n}>{daysLabel(n)}</option>)}
-        </select></label>
+        {realApiMode
+          ? <input ref={first} className={styles.input} type="number" min={0} max={365} value={daysBefore}
+              onChange={(e) => setDaysBefore(e.target.value)} />
+          : <select ref={dropdown} className={styles.input} value={daysBefore} onChange={(e) => setDaysBefore(e.target.value)}>
+              {Array.from({ length: 8 }, (_, n) => <option key={n} value={n}>{daysLabel(n)}</option>)}
+            </select>}
+      </label>
       <label className={styles.field} style={{ gridTemplateColumns: "1fr" }}><span className={styles.fieldLabel} style={{ color: "#25211f", fontWeight: 600 }}>เวลาเปิดรับจอง</span>
         <input className={styles.input} type="time" value={time} onChange={(e) => setTime(e.target.value)} /></label>
       <p className={styles.hintLine}>ใช้กับทุกคืนที่ไม่ได้กำหนดเวลาเฉพาะ</p>

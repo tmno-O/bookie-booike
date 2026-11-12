@@ -1,8 +1,8 @@
 import { ApiError } from "../errors";
 import type { Staff } from "./staff-auth";
 
-export function requireOwner(staff: Staff) {
-  if (staff.role !== "owner") throw new ApiError(403, "OWNER_REQUIRED", "Venue owner permission required");
+export function requireOwner(staff: Staff, code: "OWNER_REQUIRED" | "FORBIDDEN" = "OWNER_REQUIRED") {
+  if (staff.role !== "owner") throw new ApiError(403, code, "Venue owner permission required");
 }
 
 export function requireSameOrigin(request: Request) {

@@ -36,6 +36,11 @@ import { POST as createZone, GET as listZones } from "../../app/api/staff/venues
 import { PATCH as patchZone } from "../../app/api/staff/venues/[venueId]/zones/[zoneId]/route";
 import { POST as createTable } from "../../app/api/staff/venues/[venueId]/tables/route";
 import { zoneView } from "@/contracts/venue";
+import { GET as hours } from "../../app/api/staff/venues/[venueId]/hours/route";
+import { PUT as putHours } from "../../app/api/staff/venues/[venueId]/hours/standard/route";
+import { POST as addSpecial } from "../../app/api/staff/venues/[venueId]/hours/special/route";
+import { DELETE as deleteSpecial } from "../../app/api/staff/venues/[venueId]/hours/special/[id]/route";
+import { hoursData } from "@/contracts/hours";
 import { GET as staffBookingDetails } from "../../app/api/staff/venues/[venueId]/bookings/[bookingId]/route";
 import { dashboardData } from "@/contracts/staff";
 import { GET as staffVenue } from "../../app/api/staff/venues/[venueId]/route";
@@ -435,6 +440,46 @@ it("syncs twelve-seat tables while protecting upcoming reservations and closed z
   expect(await publicView.json()).toMatchObject({ zones: expect.arrayContaining([
     expect.objectContaining({ id: zone.id, available: false, closed: true }),
   ]) });
+});
+
+it("lets only owners edit hours and applies Bangkok special releases to customers", async () => {
+  const date = day(24);
+  const params = context({ venueId });
+  const specialParams = context({ venueId, id: date });
+  const owner = { token: ownerToken };
+  const denied = { token: staffToken };
+  const initial = hoursData.parse(await (await hours(request("GET", owner), params)).json());
+  const standard = { daysBefore: 1, time: "19:30" };
+  const special = { serviceDate: date, opensOn: day(0), time: "00:00" };
+  const visibility = () => availability(request("GET", { path: `/?date=${date}&partyBucket=1-4` }), params);
+  for (const response of [
+    await hours(request("GET", denied), params),
+    await putHours(request("PUT", { ...denied, data: standard }), params),
+    await addSpecial(request("POST", { ...denied, data: special }), params),
+    await deleteSpecial(request("DELETE", denied), specialParams),
+  ]) {
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ error: { code: "FORBIDDEN" } });
+  }
+
+  try {
+    expect(await (await putHours(request("PUT", { ...owner, data: standard }), params)).json()).toEqual({ standard });
+    expect(await (await visibility()).json()).toMatchObject({ nightOpen: false });
+    const added = await addSpecial(request("POST", { ...owner, data: special }), params);
+    expect(added.status, await added.clone().text()).toBe(201);
+    const opensAt = new Date(`${day(0)}T00:00:00+07:00`).toISOString();
+    expect(await added.json()).toMatchObject({ special: { id: date, opensAt } });
+    expect(await (await visibility()).json()).toMatchObject({ nightOpen: true, opensAt });
+    const snapshot = hoursData.parse(await (await hours(request("GET", owner), params)).json());
+    expect(snapshot.specials).toContainEqual({ id: date, opensAt, ...special });
+    expect(await (await addSpecial(request("POST", { ...owner, data: special }), params)).json())
+      .toMatchObject({ error: { code: "SPECIAL_DAY_EXISTS" } });
+    expect((await deleteSpecial(request("DELETE", owner), specialParams)).status).toBe(200);
+    expect(await (await visibility()).json()).toMatchObject({ nightOpen: false });
+  } finally {
+    await putHours(request("PUT", { ...owner, data: initial.standard }), params);
+    await db()`delete from booking_releases where venue_id = ${venueId} and service_date = ${date}`;
+  }
 });
 
 async function getStatus(requestId: string, cookie = alice.cookie) {
