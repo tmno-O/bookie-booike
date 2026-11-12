@@ -4,6 +4,8 @@ const httpUrl = z.url({ protocol: /^https?$/ });
 const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
+  DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(50).default(10),
+  DATABASE_PREPARE: z.enum(["true", "false"]).default("true").transform((value) => value === "true"),
   SUPABASE_URL: httpUrl,
   SUPABASE_PUBLISHABLE_KEY: z.string().min(1),
   SQS_REGION: z.string().min(1).default("us-east-1"),
