@@ -20,7 +20,9 @@ export function zoneUsage(sql: ISql, venueId: string, serviceDate: string, zoneI
     seats: number; booked: number; tablesUsed: number; tables: number;
   }[]>`
     select z.id, z.venue_id, z.name, z.status, z.seat_managed, z.capacity as seats,
-      coalesce(sum(b.party_size), 0)::int as booked, count(b.id)::int as tables_used,
+      coalesce(sum(b.party_size), 0)::int as booked,
+      (select count(*)::int from booking_allocations a join venue_tables t on t.venue_id = a.venue_id and t.id = a.table_id
+        where a.venue_id = z.venue_id and t.zone_id = z.id and a.service_date = ${serviceDate} and a.active) as tables_used,
       (select count(*)::int from venue_tables t where t.venue_id = z.venue_id and t.zone_id = z.id
         and t.status = 'active') as tables
     from zones z left join bookings b on b.venue_id = z.venue_id and b.zone_id = z.id

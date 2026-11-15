@@ -12,6 +12,5 @@ export const POST = staffRoute(async (request, staff) =>
   json(await addClosure(staff, await body(request, closureInput)), { status: 201 }), "FORBIDDEN");
 export const PUT = staffRoute(async (request, staff) => {
   const { openWeekdays } = await body(request, weekdaysInput);
-  await saveOpenWeekdays(staff, openWeekdays);
-  return json({ openWeekdays });
+  return json(await saveOpenWeekdays(staff, openWeekdays));
 }, "FORBIDDEN");

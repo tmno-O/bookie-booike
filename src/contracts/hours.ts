@@ -6,8 +6,10 @@ export const weekdaysInput = z.strictObject({
   openWeekdays: z.array(z.number().int().min(0).max(6)).max(7)
     .refine((days) => new Set(days).size === days.length),
 });
-export const closureInput = z.strictObject({ serviceDate, reason: z.string().trim().max(300).default("") });
-export const closureView = closureInput.extend({ affectedBookings: z.number().int().nonnegative() });
+const closureFields = { serviceDate, reason: z.string().trim().max(300).default("") };
+/** `bookings` is required when the night already has bookings: keep them, or cancel and notify each guest. */
+export const closureInput = z.strictObject({ ...closureFields, bookings: z.enum(["keep", "cancel"]).optional() });
+export const closureView = z.object({ ...closureFields, affectedBookings: z.number().int().nonnegative() });
 export const specialHours = z.strictObject({ serviceDate, opensOn: serviceDate, time: clockTime,
   title: z.string().trim().max(120).default(""), announce: z.boolean().default(false) })
   .refine((value) => value.opensOn <= value.serviceDate, "วันเปิดรับจองต้องไม่เกินคืนที่จอง")

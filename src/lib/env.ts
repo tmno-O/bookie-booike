@@ -16,6 +16,8 @@ const schema = z.object({
   LINE_SECRET_KEY: z.string().regex(/^[0-9a-f]{64}$/i),
   LINE_NOTIFICATIONS_ENABLED: z.enum(["true", "false"]).default("false").transform((value) => value === "true"),
   CRON_SECRET: z.preprocess((value) => value === "" ? undefined : value, z.string().min(32).optional()),
+  // Base64 PKCS#8 DER Ed25519 private key, kept outside the database so signed audit checkpoints cannot be forged there.
+  AUDIT_SIGNING_KEY: z.preprocess((value) => value === "" ? undefined : value, z.string().regex(/^[A-Za-z0-9+/]+={0,2}$/).optional()),
   BOOKING_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(30),
   BOOKING_MAX_RECEIVES: z.coerce.number().int().min(1).max(100).default(5),
 }).refine((env) => env.QUEUE_DRIVER !== "sqs" || env.SQS_QUEUE_URL, {

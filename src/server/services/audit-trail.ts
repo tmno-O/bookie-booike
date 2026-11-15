@@ -3,6 +3,7 @@ import type { AuditEntry, auditQuery, verifyQuery } from "@/contracts/audit";
 import { csvRows } from "@/lib/csv";
 import { db } from "@/lib/db";
 import { bangkokDate } from "@/lib/service-date";
+import { verifyCheckpoints } from "./audit-checkpoints";
 import { getBooking } from "./bookings";
 
 async function timelineRows(venueId: string, options: { date?: string; bookingId?: string; q?: string; limit?: number; offset?: number }) {
@@ -52,7 +53,8 @@ export async function bookingTimeline(venueId: string, bookingId: string) {
 }
 export async function verifyChain(venueId: string, range: z.infer<typeof verifyQuery>) {
   const [result] = await db()`select * from verify_audit_chain(${venueId}, ${range.from ?? null}::bigint, ${range.to ?? null}::bigint)`;
-  return { ...result, valid: result.firstBadSeq === null };
+  const checkpoints = await verifyCheckpoints(venueId);
+  return { ...result, checkpoints, valid: result.firstBadSeq === null && checkpoints.firstInvalidSeq === null };
 }
 export async function exportAudit(venueId: string, query: z.infer<typeof auditQuery>) {
   const rows = await timelineRows(venueId, { date: query.date ?? bangkokDate(), q: query.q });

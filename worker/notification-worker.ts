@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { deliverNextNotification } from "./notifications";
 import { deliverNextAnnouncement } from "./announcements";
+import { fanoutPendingAnnouncements } from "@/server/services/announcements";
 
 const shutdown = new AbortController();
 process.once("SIGINT", () => shutdown.abort());
@@ -16,6 +17,7 @@ async function run() {
   try {
     while (!shutdown.signal.aborted) {
       try {
+        await fanoutPendingAnnouncements();
         const booked = await deliverNextNotification();
         const announced = await deliverNextAnnouncement();
         if (booked || announced) continue;

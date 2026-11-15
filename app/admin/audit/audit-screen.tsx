@@ -11,7 +11,8 @@ import { AuditTable } from "./audit-table";
 import styles from "../admin.module.css";
 
 type Page = { entries: AuditEntry[]; nextOffset: number | null; simulated?: boolean };
-type Verification = { valid: boolean; checked: number; firstBadSeq: string | null; headHash: string | null; lastSeq: string | null; simulated?: boolean };
+type Verification = { valid: boolean; checked: number; firstBadSeq: string | null; headHash: string | null; lastSeq: string | null; simulated?: boolean;
+  checkpoints?: { configured: boolean; checked: number; firstInvalidSeq: string | null; latestSeq: string | null } };
 
 export default function AuditScreen() {
   const router = useRouter();
@@ -42,6 +43,16 @@ export default function AuditScreen() {
     try { setVerification(await adminApi<Verification>("/admin/audit/verify")); } catch (e) { failure(e); }
     finally { setBusy(false); }
   }
+  async function downloadCheckpoint() {
+    setBusy(true); setError("");
+    try {
+      const checkpoint = await adminApi<{ seq: string }>("/admin/audit/checkpoint");
+      const url = URL.createObjectURL(new Blob([JSON.stringify(checkpoint, null, 2)], { type: "application/json" }));
+      const anchor = document.createElement("a");
+      anchor.href = url; anchor.download = `audit-checkpoint-${checkpoint.seq}.json`; anchor.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (e) { setError(asFailure(e).message); } finally { setBusy(false); }
+  }
   async function download() {
     setBusy(true); setError("");
     try {
@@ -62,12 +73,18 @@ export default function AuditScreen() {
       <button className={`${styles.btn} ${styles.btnOutline}`} type="submit">ค้นหา</button>
       <button className={`${styles.btn} ${styles.btnPrimary}`} type="button" disabled={busy} onClick={verify}>ตรวจความถูกต้องทั้งร้าน</button>
       {staff?.role === "owner" && <button className={`${styles.btn} ${styles.btnOutline}`} type="button" disabled={busy || !date} onClick={download}>ส่งออก CSV</button>}
+      {staff?.role === "owner" && <button className={`${styles.btn} ${styles.btnOutline}`} type="button" disabled={busy} onClick={downloadCheckpoint}>ดาวน์โหลดจุดตรวจที่ลงนาม</button>}
     </form>
     {error && <p role="alert" className={styles.error}>{error}</p>}
     {verification && <div role="status" className={verification.valid ? styles.notice : styles.error}>
       {verification.simulated ? "ผลจำลอง" : verification.valid ? "Hash chain ตรงกัน" : `พบหลักฐานเปลี่ยนแปลงที่ seq ${verification.firstBadSeq}`} · ตรวจ {verification.checked} แถว
       {verification.headHash && <details><summary>จุดตรวจสอบล่าสุด seq {verification.lastSeq}</summary><code style={{ overflowWrap: "anywhere" }}>{verification.headHash}</code></details>}
-      <p>ผลตรวจอ้างอิง chain ที่เก็บอยู่ ผู้ดูแล DB ที่เขียน chain ใหม่ทั้งชุดต้องตรวจเทียบสำเนาภายนอก</p>
+      {verification.checkpoints && (verification.checkpoints.configured
+        ? <p>{verification.checkpoints.firstInvalidSeq
+            ? `จุดตรวจที่ลงนามไม่ตรงที่ seq ${verification.checkpoints.firstInvalidSeq} ประวัติถูกเขียนใหม่หลังลงนาม`
+            : `จุดตรวจที่ลงนามตรงกันทั้ง ${verification.checkpoints.checked} จุด${verification.checkpoints.latestSeq ? ` (ล่าสุด seq ${verification.checkpoints.latestSeq})` : ""}`}</p>
+        : <p>ยังไม่ได้ตั้งค่ากุญแจลงนาม ผลนี้ยืนยันได้เฉพาะความต่อเนื่องของ chain ที่เก็บอยู่</p>)}
+      <p>จุดตรวจลงนามด้วยกุญแจที่อยู่นอกฐานข้อมูล เก็บไฟล์จุดตรวจที่ดาวน์โหลดไว้เพื่อเทียบภายหลัง</p>
     </div>}
     {page ? <AuditTable entries={page.entries} /> : <p role="status">กำลังโหลดหลักฐาน…</p>}
     <div className={styles.actions} style={{ marginTop: 24 }}>

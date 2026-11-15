@@ -32,6 +32,7 @@ export const settingsPatch = z.strictObject({
   allocationMode: z.enum(["auto", "manual"]).optional(),
   cancelCutoffMinutes: z.number().int().min(0).max(525600).optional(),
   customerCancelEnabled: z.boolean().optional(),
+  largePartyMode: z.enum(["staff_review", "disabled"]).optional(),
 });
 const zoneStatus = z.enum(["active", "open", "closed"]);
 const legacyZone = z.strictObject({ name: label, capacity, status: status.default("active") });
@@ -77,6 +78,7 @@ export const venuePublic = z.object({
   mapUrl: z.string().nullable(), imageUrl: z.string().nullable(), timezone: z.string(),
   tableSelectionMode: selectionMode, cancelCutoffMinutes: z.number().int(),
   customerCancelEnabled: z.boolean().optional(),
+  largePartyMode: z.enum(["staff_review", "disabled"]).optional(),
   liffId: z.string().nullable(),
   allocationMode: z.enum(["auto", "manual"]).optional(),
 });

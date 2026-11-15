@@ -108,7 +108,7 @@ export default function BookingDetailsDialog({ bookingId, onClose }: { bookingId
         </details>}
         {confirmCancel && <p role="status" className={styles.dError}>ยืนยันยกเลิก {booking?.reference}? โต๊ะจะเปิดให้ผู้อื่นจอง</p>}
         {booking && !checked && !booking.canCheckIn && booking.status === "confirmed" && (
-          <p className={styles.dError} style={{ color: "#77716c" }}>เช็กอินได้เฉพาะในคืนที่จองเท่านั้น</p>
+          <p className={styles.dError} style={{ color: "#77716c" }}>เช็กอินได้ตั้งแต่วันที่จองจนจบคืนบริการนั้น (รวมหลังเที่ยงคืน)</p>
         )}
 
         <div className={styles.dActions}>

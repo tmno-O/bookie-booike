@@ -129,6 +129,7 @@ export function ClosureDialog({ today, onClose, onSaved }: { today: string; onCl
   const [date, setDate] = useState("");
   const [reason, setReason] = useState("");
   const [impact, setImpact] = useState<number>();
+  const [choice, setChoice] = useState<"keep" | "cancel" | "">("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const first = useRef<HTMLInputElement>(null);
@@ -144,14 +145,27 @@ export function ClosureDialog({ today, onClose, onSaved }: { today: string; onCl
   async function save(e: FormEvent) {
     e.preventDefault();
     if (!date || impact === undefined) return setError("กรุณาเลือกวันที่และรอตรวจสอบรายการจอง");
+    if (impact > 0 && !choice) return setError("เลือกว่าจะคงการจองเดิมไว้หรือยกเลิกพร้อมแจ้งลูกค้า");
     setBusy(true); setError("");
-    try { await adminApi("/admin/hours/closures", { method: "POST", body: { serviceDate: date, reason } }); onSaved(); }
-    catch (e) { setError(asFailure(e).message); setBusy(false); }
+    try {
+      await adminApi("/admin/hours/closures", { method: "POST", body: { serviceDate: date, reason, ...(impact > 0 && { bookings: choice }) } });
+      onSaved();
+    } catch (e) { setError(asFailure(e).message); setBusy(false); }
   }
-  return <Frame title="เพิ่มวันปิดพิเศษ" sub="หยุดรับจองคืนนี้ รายการจองเดิมยังคงอยู่" busy={busy} onClose={onClose} onSubmit={save} error={error}>
+  return <Frame title="เพิ่มวันปิดพิเศษ" sub="หยุดรับจองคืนนี้" busy={busy} onClose={onClose} onSubmit={save} error={error}>
     <label className={styles.field}><span>วันที่ปิด</span><input ref={first} type="date" className={styles.input} min={today} value={date}
-      onChange={(e) => { setDate(e.target.value); setImpact(undefined); setError(""); }} /></label>
+      onChange={(e) => { setDate(e.target.value); setImpact(undefined); setChoice(""); setError(""); }} /></label>
     <label className={styles.field}><span>เหตุผล</span><input className={styles.input} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} /></label>
-    {date && <p role="status" className={styles.hintLine}>{impact === undefined ? "กำลังตรวจสอบรายการจอง…" : `มีรายการจอง ${impact} รายการ ระบบไม่ยกเลิกให้อัตโนมัติ กรุณาติดต่อผู้จองหากต้องการยกเลิก`}</p>}
+    {date && <p role="status" className={styles.hintLine}>{impact === undefined ? "กำลังตรวจสอบรายการจอง…" : impact === 0 ? "คืนนี้ยังไม่มีรายการจอง" : `คืนนี้มีรายการจอง ${impact} รายการ`}</p>}
+    {!!impact && <fieldset style={{ border: 0, padding: 0, margin: 0, display: "grid", gap: 8 }}>
+      <legend className={styles.fieldLabel}>รายการจองเดิม</legend>
+      <label style={{ display: "flex", alignItems: "center", gap: 12, minHeight: 44 }}>
+        <input type="radio" name="closure-bookings" checked={choice === "cancel"} onChange={() => setChoice("cancel")} />
+        ยกเลิกทั้งหมดและแจ้งลูกค้าผ่าน LINE พร้อมเหตุผล</label>
+      <label style={{ display: "flex", alignItems: "center", gap: 12, minHeight: 44 }}>
+        <input type="radio" name="closure-bookings" checked={choice === "keep"} onChange={() => setChoice("keep")} />
+        คงไว้ ร้านยังรับลูกค้าที่จองแล้ว แต่ปิดรับจองใหม่</label>
+      <p className={styles.hintLine}>รายการที่เช็กอินแล้วจะไม่ถูกยกเลิก</p>
+    </fieldset>}
   </Frame>;
 }

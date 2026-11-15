@@ -55,7 +55,13 @@ export default function HoursScreen() {
   const std = hours?.standard;
   async function saveWeekdays() {
     setBusy(true); setError("");
-    try { await adminApi("/admin/hours/closures", { method: "PUT", body: { openWeekdays: weekdays } }); setNotice("บันทึกวันเปิดร้านแล้ว"); await load(); }
+    try {
+      const saved = await adminApi<{ affectedBookings?: number }>("/admin/hours/closures", { method: "PUT", body: { openWeekdays: weekdays } });
+      setNotice(saved.affectedBookings
+        ? `บันทึกวันเปิดร้านแล้ว มีการจอง ${saved.affectedBookings} รายการในวันที่ปิดใหม่ ใช้ "วันปิดพิเศษ" เพื่อยกเลิกและแจ้งลูกค้า หรือติดต่อผู้จอง`
+        : "บันทึกวันเปิดร้านแล้ว");
+      await load();
+    }
     catch (e) { setError(asFailure(e).message); } finally { setBusy(false); }
   }
   async function removeClosure(date: string) {

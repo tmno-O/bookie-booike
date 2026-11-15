@@ -881,8 +881,15 @@ it("keeps in-app announcements after LINE retry and stops delivery after opt-out
   expect((await list()).announcements).toContainEqual(expect.objectContaining({ title: "Festival" }));
   expect((await (await announcements(request("GET", { cookie: other.cookie }), context({}))).json()).announcements).toEqual([]);
   await sql`update venue_line_integrations set access_token_ciphertext = ${encryptSecret("token", `${venueId}:access-token`)} where venue_id = ${venueId}`;
-  const retry: typeof fetch = async () => new Response(null, { status: 503 });
+  let firstKey = "";
+  const retry: typeof fetch = async (url, init) => {
+    expect(String(url)).toBe("https://api.line.me/v2/bot/message/multicast");
+    firstKey = new Headers(init?.headers).get("X-Line-Retry-Key")!;
+    return new Response(null, { status: 503 });
+  };
   expect(await deliverNextAnnouncement(retry, venueId)).toBe(true);
+  const [leased] = await sql`select count(*)::int as sending from announcement_outbox where venue_id = ${venueId} and status = 'sending'`;
+  expect(leased.sending).toBe(0);
   expect((await list()).announcements).toHaveLength(1);
   await sql`update announcement_outbox set next_attempt_at = now() where venue_id = ${venueId} and status = 'pending'`;
   const calls: string[] = [];
@@ -890,6 +897,12 @@ it("keeps in-app announcements after LINE retry and stops delivery after opt-out
   while (await deliverNextAnnouncement(send, venueId)) { /* drain this test audience */ }
   expect(calls.length).toBeGreaterThan(0);
   expect(new Set(calls).size).toBe(calls.length);
+  // The failed batch is retried with the same members and the same LINE retry key.
+  expect(calls[0]).toBe(firstKey);
+  const [delivered] = await sql`select count(*) filter (where status = 'sent')::int as sent,
+    count(*) filter (where status in ('pending', 'sending'))::int as open from announcement_outbox where venue_id = ${venueId}`;
+  expect(delivered).toMatchObject({ open: 0 });
+  expect(delivered.sent).toBeGreaterThan(0);
   expect((await optOut(request("POST", { cookie: alice.cookie, data: { optOut: true } }), context({}))).status).toBe(200);
   expect(await list()).toEqual({ announcements: [], optedOut: true });
 });

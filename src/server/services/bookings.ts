@@ -79,7 +79,11 @@ export async function getBooking(access: Access, id: string) {
 
 export async function getStaffBooking(venueId: string, id: string) {
   const booking = await getBooking({ venueId }, id);
-  return { ...booking, canCheckIn: booking.status === "confirmed" && booking.serviceDate === bangkokDate() };
+  // Same window as check_in_booking(): the service date through the end of that night, past midnight.
+  const [window] = await db()<{ open: boolean }[]>`
+    select check_in_open(${booking.tableId}, ${booking.serviceDate}, clock_timestamp()) as open
+  `;
+  return { ...booking, canCheckIn: booking.status === "confirmed" && window.open };
 }
 
 export async function staffDashboard(venueId: string, serviceDate: string) {

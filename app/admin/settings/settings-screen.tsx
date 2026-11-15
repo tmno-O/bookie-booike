@@ -23,9 +23,12 @@ export default function SettingsScreen() {
   const [cutoff, setCutoff] = useState("2");
   const [unit, setUnit] = useState("60");
   const [policyBusy, setPolicyBusy] = useState(false);
+  const [largeMode, setLargeMode] = useState<"staff_review" | "disabled">("staff_review");
 
-  const load = useCallback(() => adminApi<{ profile: Profile; canEdit: boolean; customerCancelEnabled: boolean; cancelCutoffMinutes: number }>("/admin/settings")
+  const load = useCallback(() => adminApi<{ profile: Profile; canEdit: boolean; customerCancelEnabled: boolean; cancelCutoffMinutes: number;
+    largePartyMode?: "staff_review" | "disabled" }>("/admin/settings")
     .then((r) => { setProfile(r.profile); setCanEdit(r.canEdit); setCancelEnabled(r.customerCancelEnabled);
+      setLargeMode(r.largePartyMode ?? "staff_review");
       const divisor = r.cancelCutoffMinutes > 0 && r.cancelCutoffMinutes % 1440 === 0 ? 1440 : 60;
       setUnit(String(divisor)); setCutoff(String(r.cancelCutoffMinutes / divisor)); })
     .catch((e) => {
@@ -80,6 +83,13 @@ export default function SettingsScreen() {
       setNotice("บันทึกนโยบายยกเลิกแล้ว");
     } catch (e) { setError(asFailure(e).message); } finally { setPolicyBusy(false); }
   }
+  async function saveLargeParty(mode: "staff_review" | "disabled") {
+    setPolicyBusy(true); setError("");
+    try {
+      await adminApi("/admin/settings", { method: "PATCH", body: { largePartyMode: mode } });
+      setLargeMode(mode); setNotice("บันทึกการรับกลุ่มใหญ่แล้ว");
+    } catch (e) { setError(asFailure(e).message); } finally { setPolicyBusy(false); }
+  }
 
   return (
     <AdminShell active="/admin/settings" staff={staff}>
@@ -127,6 +137,16 @@ export default function SettingsScreen() {
             )}
           </section>
         </div>
+        <section className={styles.card} aria-labelledby="large-party-title">
+          <h2 id="large-party-title" className={styles.cardTitle} style={{ fontSize: 17 }}>กลุ่มใหญ่ (12+ คน)</h2>
+          <p className={styles.cardSub} style={{ fontSize: 13 }}>กลุ่มเกิน 12 คนอาจต้องใช้หลายโต๊ะในโซนเดียวกัน</p>
+          <label style={{ display: "flex", gap: 12, alignItems: "center", minHeight: 44 }}>
+            <input type="radio" name="large-party" checked={largeMode === "staff_review"} disabled={!canEdit || policyBusy}
+              onChange={() => void saveLargeParty("staff_review")} />รับจอง ร้านเป็นผู้ยืนยันและจัดโต๊ะเอง</label>
+          <label style={{ display: "flex", gap: 12, alignItems: "center", minHeight: 44 }}>
+            <input type="radio" name="large-party" checked={largeMode === "disabled"} disabled={!canEdit || policyBusy}
+              onChange={() => void saveLargeParty("disabled")} />ไม่รับจองออนไลน์ ให้ลูกค้าติดต่อร้าน</label>
+        </section>
         <section className={styles.card} aria-labelledby="team-card-title">
           <h2 id="team-card-title" className={styles.cardTitle} style={{ fontSize: 17 }}>ทีมและสิทธิ์</h2>
           <p className={styles.cardSub} style={{ fontSize: 13 }}>เจ้าของร้านจัดการสิทธิ์พนักงานได้</p>
