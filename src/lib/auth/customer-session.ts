@@ -4,7 +4,7 @@ import { db } from "../db";
 import { sha256 } from "../crypto";
 import { env } from "../env";
 import { ApiError, notFound } from "../errors";
-import { verifyLineToken } from "./line-verify";
+import { liffChannel, verifyLineToken } from "./line-verify";
 
 const cookieName = "bookie_session";
 const sessionSeconds = 7 * 24 * 60 * 60;
@@ -38,14 +38,20 @@ export async function customerSession(request: Request, venueId?: string): Promi
 
 export async function startCustomerSession(request: Request, venueSlug: string, idToken: string) {
   const [venue] = await db()<{
-    id: string; providerId: string | null; channelId: string | null;
+    id: string; providerId: string | null; channelId: string | null; liffId: string | null;
   }[]>`
-    select v.id, l.provider_id, l.channel_id from venues v
+    select v.id, l.provider_id, l.channel_id, l.liff_id from venues v
     left join venue_line_integrations l on l.venue_id = v.id where v.slug = ${venueSlug}
   `;
   if (!venue) notFound("Venue");
   const { providerId, channelId } = venue;
   if (!providerId || !channelId) throw new ApiError(409, "LINE_NOT_CONFIGURED", "LINE is not configured");
+  // A LIFF ID starts with the ID of the LINE Login channel that issues its tokens; any other channel always fails.
+  const liffOwner = venue.liffId ? liffChannel(venue.liffId) : null;
+  if (liffOwner && liffOwner !== channelId) {
+    console.error("LINE channel mismatch", venueSlug, `channel_id ${channelId}`, `LIFF channel ${liffOwner}`);
+    throw new ApiError(409, "LINE_CHANNEL_MISMATCH", "ร้านตั้งค่า LINE channel ไม่ตรงกับ LIFF app กรุณาแจ้งร้าน");
+  }
   const profile = await verifyLineToken(idToken, channelId);
   const token = randomBytes(32).toString("base64url");
   const previousHash = tokenHash(request);
