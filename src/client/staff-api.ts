@@ -4,7 +4,7 @@ import { bangkokDate } from "@/lib/service-date";
 import type { zoneView } from "@/contracts/venue";
 import type { dashboardData, staffProfile } from "@/contracts/staff";
 import { waitForBooking } from "./booking-result";
-import { apiRequest, type ApiInit } from "./transport";
+import { apiRequest, realApiMode, type ApiInit } from "./transport";
 
 type StaffProfile = z.infer<typeof staffProfile>;
 type StaffBooking = z.infer<typeof booking> & { canCheckIn?: boolean };
@@ -38,6 +38,7 @@ export async function staffApi<T>(path: string, init?: ApiInit): Promise<T> {
   if (path === "/venue") return apiRequest(`/api/venues/by-slug/${encodeURIComponent(venue.slug)}`, init);
   const base = `/api/staff/venues/${venue.id}`;
   const endpoint = `${base}${path.replace(/^\/admin(?=\/)/, "")}`;
+  if (path.endsWith("/timeline")) return apiRequest(endpoint, init);
   if (path === "/admin/bookings" && init?.method === "POST") {
     const { requestId } = await apiRequest<{ requestId: string }>(`${base}/booking-requests`, init);
     const { booking } = await waitForBooking(`${base}/booking-requests/${requestId}`, init.signal);
@@ -66,4 +67,13 @@ export async function staffApi<T>(path: string, init?: ApiInit): Promise<T> {
     return { zone: viewZone(await apiRequest<z.infer<typeof zoneView>>(endpoint, init)) } as T;
   }
   return apiRequest(endpoint, init);
+}
+
+export async function exportAuditCsv(query: string) {
+  const endpoint = realApiMode
+    ? `/api/staff/venues/${(await getProfile()).venue.id}/audit/export.csv?${query}`
+    : `/api/mock/admin/audit/export.csv?${query}`;
+  const response = await fetch(endpoint, { cache: "no-store" });
+  if (!response.ok) throw new Error("ส่งออกหลักฐานไม่สำเร็จ");
+  return response.blob();
 }

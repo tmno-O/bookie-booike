@@ -6,6 +6,7 @@ import { Shell, shellStyles as s } from "../shell";
 import { api, asFailure, bookingStatusLabel, partyLabel, thaiDate, type Booking } from "../flow";
 import styles from "./bookings.module.css";
 import { CancelBooking } from "../cancel-booking";
+import { BookingReceipt } from "../booking-receipt";
 
 export default function BookingsScreen({ slug }: { slug: string }) {
   const [bookings, setBookings] = useState<Booking[]>();
@@ -58,6 +59,7 @@ export default function BookingsScreen({ slug }: { slug: string }) {
           </dl>
           <Link href={`/book/${slug}/confirmed?b=${b.id}`} className={styles.secondary}>ดูรายละเอียดการจอง</Link>
           <CancelBooking booking={b} onChanged={(updated) => setBookings((rows) => rows?.map((row) => row.id === updated.id ? updated : row))} />
+          <BookingReceipt booking={b} />
         </section>
       ))}
       {nextOffset !== null && (

@@ -1,6 +1,6 @@
 import type { ISql } from "postgres";
 import type { z } from "zod";
-import type { bookingStatus } from "@/contracts/booking";
+import type { bookingReceipt, bookingStatus } from "@/contracts/booking";
 import { bookingListQuery } from "@/contracts/staff";
 import { bucketForPartySize } from "@/contracts/party";
 import { db } from "@/lib/db";
@@ -16,6 +16,7 @@ type BookingRow = {
   createdAt: Date; cancelledAt: Date | null; checkedInAt: Date | null;
   reference: string; name: string; phone: string; source: "liff" | "staff_assisted";
   cancellableUntil: Date | null; canCancel: boolean;
+  receipt: z.infer<typeof bookingReceipt> | null;
 };
 
 function bookingFields(sql: ISql) {
@@ -25,8 +26,17 @@ function bookingFields(sql: ISql) {
     coalesce(b.contact_phone, '') as phone, b.source,
     case when v.customer_cancel_enabled then b.service_at - make_interval(mins => v.cancel_cutoff_minutes) end as cancellable_until,
     v.customer_cancel_enabled and b.status in ('confirmed', 'pending_allocation')
-      and clock_timestamp() < b.service_at - make_interval(mins => v.cancel_cutoff_minutes) as can_cancel
-    from bookings b join zones z on z.venue_id = b.venue_id and z.id = b.zone_id join venues v on v.id = b.venue_id`;
+      and clock_timestamp() < b.service_at - make_interval(mins => v.cancel_cutoff_minutes) as can_cancel,
+    case when proof.row_hash is not null then jsonb_build_object('reference', coalesce(proof.details->>'reference', b.reference),
+      'ticketSeq', coalesce(proof.details->>'ticket_seq', ticket.seq::text),
+      'receivedAt', coalesce(proof.details->>'received_at', to_jsonb(request.received_at) #>> '{}'),
+      'decidedAt', coalesce(proof.details->>'decided_at', to_jsonb(request.decided_at) #>> '{}'),
+      'verifyCode', left(encode(proof.row_hash, 'hex'), 16)) end as receipt
+    from bookings b join zones z on z.venue_id = b.venue_id and z.id = b.zone_id join venues v on v.id = b.venue_id
+    join booking_requests request on request.id = b.request_id and request.venue_id = b.venue_id
+    left join queue_tickets ticket on ticket.id = request.ticket_id
+    left join lateral (select row_hash, details from audit_logs a where a.venue_id = b.venue_id and a.entity_id = b.id
+      and a.action in ('booking.confirmed', 'booking.pending_allocation') order by a.seq limit 1) proof on true`;
 }
 
 function bookingView(row: BookingRow) {

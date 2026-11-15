@@ -40,6 +40,9 @@ import { PATCH as cancelPolicy } from "../../app/api/mock/admin/settings/route";
 import { PATCH as cancelByStaff } from "../../app/api/mock/admin/bookings/[id]/route";
 import { GET as announcementsGet } from "../../app/api/mock/announcements/route";
 import { POST as announcementsOptOut } from "../../app/api/mock/announcements/opt-out/route";
+import { GET as auditGet } from "../../app/api/mock/admin/audit/route";
+import { GET as auditCsv } from "../../app/api/mock/admin/audit/export.csv/route";
+import { GET as mockTimeline } from "../../app/api/mock/admin/bookings/[id]/timeline/route";
 
 const dir = await mkdtemp(path.join(tmpdir(), "mock-db-"));
 process.env.MOCK_DB_PATH = path.join(dir, "db.json");
@@ -141,6 +144,25 @@ describe("mock announcements", () => {
     const closed = { ...data, serviceDate: addDays(today(), 3) };
     await call(closureCreate, "/api/mock/admin/hours/closures", { method: "POST", cookie, body: { serviceDate: closed.serviceDate } });
     expect((await (await call(specialCreate, "/api/mock/admin/hours/special", { method: "POST", cookie, body: closed })).json()).error.code).toBe("CLOSED");
+  });
+});
+
+describe("mock audit", () => {
+  beforeEach(() => call(resetDb, "/api/mock/reset", { method: "POST", body: { queueStepSeconds: 0 } }));
+  it("marks simulated evidence, masks phone numbers, and restricts CSV export to owners", async () => {
+    const staff = cookieOf(await call(staffLogin, "/api/mock/admin/login", { method: "POST", body: { email: "staff@bookie.test" } }));
+    const path = `/api/mock/admin/audit?date=${today()}&q=9911`;
+    expect((await call(auditGet, path)).status).toBe(401);
+    const data = await (await call(auditGet, path, { cookie: staff })).json();
+    expect(data.simulated).toBe(true); expect(data.entries.length).toBeGreaterThan(0);
+    expect(JSON.stringify(data)).not.toContain("0919119911");
+    expect((await call(auditCsv, path, { cookie: staff })).status).toBe(403);
+    const owner = cookieOf(await call(staffLogin, "/api/mock/admin/login", { method: "POST", body: { email: "owner@bookie.test" } }));
+    const csv = await call(auditCsv, path, { cookie: owner });
+    expect(csv.headers.get("content-type")).toContain("text/csv");
+    expect(await csv.text()).toContain("***9911");
+    const timeline = await call(mockTimeline, "/api/mock/admin/bookings/seed-1/timeline", { cookie: staff }, { id: "seed-1" });
+    expect((await timeline.json()).entries).toHaveLength(2);
   });
 });
 
