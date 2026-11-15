@@ -1,11 +1,11 @@
 import type { z } from "zod";
-import type { specialHours, standardHours } from "@/contracts/hours";
+import type { closureInput, specialHours, standardHours } from "@/contracts/hours";
 import type { Staff } from "@/lib/auth/staff-auth";
 import { db } from "@/lib/db";
 import { ApiError, notFound } from "@/lib/errors";
 import { bangkokDate } from "@/lib/service-date";
 import { staffAudit } from "./audit";
-import { staffChange } from "./venue";
+import { changeRule, staffChange } from "./venue";
 
 type Standard = z.infer<typeof standardHours>;
 type Special = z.infer<typeof specialHours>;
@@ -22,7 +22,52 @@ export function getBookingHours(venueId: string) {
         to_char(opens_at at time zone 'Asia/Bangkok', 'HH24:MI') as time, opens_at
       from booking_releases r where venue_id = ${venueId} order by r.service_date
     `;
-    return { standard, specials, canEdit: true };
+    const [rule] = await tx<{ openWeekdays: number[] }[]>`
+      select coalesce(open_weekdays, array[0,1,2,3,4,5,6]::smallint[]) as open_weekdays
+      from booking_rules where venue_id = ${venueId} and scope = 'venue' order by version desc limit 1
+    `;
+    const closures = await closureRows(tx, venueId);
+    return { standard, specials, openWeekdays: rule?.openWeekdays ?? [0,1,2,3,4,5,6], closures, canEdit: true };
+  });
+}
+
+async function closureRows(tx: import("postgres").ISql, venueId: string) {
+  return tx`
+    select to_char(c.service_date, 'YYYY-MM-DD') as service_date, c.reason,
+      (select count(*)::int from bookings b where b.venue_id = c.venue_id and b.service_date = c.service_date
+        and b.status in ('pending_allocation', 'confirmed', 'checked_in')) as affected_bookings
+    from venue_closures c where c.venue_id = ${venueId} order by c.service_date
+  `;
+}
+
+export function listClosures(venueId: string) { return closureRows(db(), venueId); }
+export async function closureImpact(venueId: string, date: string) {
+  const [row] = await db()`select count(*)::int as affected_bookings from bookings
+    where venue_id = ${venueId} and service_date = ${date} and status in ('pending_allocation', 'confirmed', 'checked_in')`;
+  return row;
+}
+export function saveOpenWeekdays(staff: Staff, openWeekdays: number[]) {
+  return changeRule(staff, { scope: "venue", openWeekdays, closed: false });
+}
+export function addClosure(staff: Staff, closure: z.infer<typeof closureInput>) {
+  return staffChange(staff, async (tx) => {
+    if (closure.serviceDate < bangkokDate()) throw new ApiError(422, "DATE_IN_PAST", "คืนที่เลือกผ่านมาแล้ว");
+    const [row] = await tx`
+      insert into venue_closures (venue_id, service_date, reason, created_by)
+      values (${staff.venueId}, ${closure.serviceDate}, ${closure.reason}, ${staff.userId})
+      on conflict (venue_id, service_date) do nothing returning service_date
+    `;
+    if (!row) throw new ApiError(409, "CLOSURE_EXISTS", "คืนนี้ปิดพิเศษอยู่แล้ว");
+    await staffAudit(tx, staff, "hours.closure_added", staff.venueId, closure);
+    return { closure: (await closureRows(tx, staff.venueId)).find((c) => c.serviceDate === closure.serviceDate) };
+  });
+}
+export function removeClosure(staff: Staff, serviceDate: string) {
+  return staffChange(staff, async (tx) => {
+    const [row] = await tx`delete from venue_closures where venue_id = ${staff.venueId} and service_date = ${serviceDate} returning reason`;
+    if (!row) notFound("Closure");
+    await staffAudit(tx, staff, "hours.closure_removed", staff.venueId, { serviceDate, reason: row.reason });
+    return { ok: true };
   });
 }
 

@@ -3,12 +3,13 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { AdminShell } from "../admin-shell";
-import { SpecialDayDialog, StandardDialog, type Standard } from "../hours-dialogs";
+import { ClosureDialog, SpecialDayDialog, StandardDialog, type Standard } from "../hours-dialogs";
 import { adminApi, asFailure, shortThaiDate, type Staff } from "../admin-api";
 import styles from "../admin.module.css";
 
 type Special = { id: string; serviceDate: string; opensOn: string; time: string };
-type Hours = { standard: Standard; specials: Special[]; canEdit: boolean };
+type Hours = { standard: Standard; specials: Special[]; canEdit: boolean; openWeekdays: number[];
+  closures: { serviceDate: string; reason: string; affectedBookings: number }[] };
 
 const thaiTime = (t: string) => `${t} น.`;
 
@@ -18,11 +19,13 @@ export default function HoursScreen() {
   const [staff, setStaff] = useState<Staff>();
   const [hours, setHours] = useState<Hours>();
   const [today, setToday] = useState("");
-  const [dialog, setDialog] = useState<"standard" | "special" | null>(null);
+  const [dialog, setDialog] = useState<"standard" | "special" | "closure" | null>(null);
+  const [weekdays, setWeekdays] = useState<number[]>([]);
+  const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
 
-  const load = useCallback(() => adminApi<Hours>("/admin/hours").then((r) => { setHours(r); setError(""); })
+  const load = useCallback(() => adminApi<Hours>("/admin/hours").then((r) => { setHours(r); setWeekdays(r.openWeekdays); setError(""); })
     .catch((e) => {
       const failure = asFailure(e);
       if (failure.status === 401) router.replace("/admin/login");
@@ -50,6 +53,15 @@ export default function HoursScreen() {
     catch (e) { setError(asFailure(e).message); }
   }
   const std = hours?.standard;
+  async function saveWeekdays() {
+    setBusy(true); setError("");
+    try { await adminApi("/admin/hours/closures", { method: "PUT", body: { openWeekdays: weekdays } }); setNotice("บันทึกวันเปิดร้านแล้ว"); await load(); }
+    catch (e) { setError(asFailure(e).message); } finally { setBusy(false); }
+  }
+  async function removeClosure(date: string) {
+    try { await adminApi(`/admin/hours/closures/${date}`, { method: "DELETE" }); setNotice("ลบวันปิดพิเศษแล้ว"); void load(); }
+    catch (e) { setError(asFailure(e).message); }
+  }
 
   return (
     <AdminShell active="/admin/hours" staff={staff}>
@@ -58,6 +70,28 @@ export default function HoursScreen() {
       {notice && <p role="status" className={styles.notice}>{notice}</p>}
       {error && <p role="alert" className={styles.error}>{error}</p>}
       {hours && !hours.canEdit && <p className={styles.readOnly}>เฉพาะเจ้าของร้านที่แก้ไขเวลาเปิดจองได้</p>}
+
+      {hours && <section className={styles.card} style={{ marginTop: 32 }} aria-labelledby="weekdays-title">
+        <h2 id="weekdays-title" className={styles.cardTitle}>วันเปิดร้าน</h2>
+        <div className={styles.actions} style={{ flexWrap: "wrap", marginBlock: 16 }}>
+          {["อาทิตย์", "จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์"].map((day, index) =>
+            <label key={day} style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 44 }}>
+              <input type="checkbox" checked={weekdays.includes(index)} disabled={!hours.canEdit || busy}
+                onChange={(e) => setWeekdays((days) => e.target.checked ? [...days, index].sort() : days.filter((d) => d !== index))} />{day}
+            </label>)}
+        </div>
+        {!weekdays.length && <p className={styles.hintLine}>ไม่เลือกวันใด = ปิดรับจองทุกวัน</p>}
+        {hours.canEdit && <button className={`${styles.btn} ${styles.btnPrimary}`} disabled={busy} onClick={saveWeekdays}>{busy ? "กำลังบันทึก…" : "บันทึกวันเปิดร้าน"}</button>}
+      </section>}
+      <div className={styles.sectionHead}><h2 className={styles.h2}>วันปิดพิเศษ</h2>
+        {hours?.canEdit && <button className={`${styles.btn} ${styles.btnOutline}`} onClick={() => setDialog("closure")}>+ เพิ่มวันปิด</button>}</div>
+      <section className={styles.card} aria-label="วันปิดพิเศษ">
+        {hours?.closures.length === 0 && <p className={styles.cardSub}>ยังไม่มีวันปิดพิเศษ</p>}
+        {hours?.closures.map((c) => <div key={c.serviceDate} className={styles.cardHead}>
+          <p>{shortThaiDate(c.serviceDate)} · {c.reason || "ร้านปิด"}<br /><small>รายการจองเดิม {c.affectedBookings} รายการ · ไม่ยกเลิกอัตโนมัติ</small></p>
+          {hours.canEdit && <button className={styles.linkBtn} onClick={() => removeClosure(c.serviceDate)}>เปิดรับจองอีกครั้ง</button>}
+        </div>)}
+      </section>
 
       <section className={styles.card} style={{ marginTop: 32 }} aria-labelledby="std-title">
         <div className={styles.cardHead}>
@@ -99,6 +133,7 @@ export default function HoursScreen() {
 
       {dialog === "standard" && std && <StandardDialog current={std} onClose={() => setDialog(null)} onSaved={saved} />}
       {dialog === "special" && today && <SpecialDayDialog today={today} onClose={() => setDialog(null)} onSaved={saved} />}
+      {dialog === "closure" && today && <ClosureDialog today={today} onClose={() => setDialog(null)} onSaved={saved} />}
     </AdminShell>
   );
 }

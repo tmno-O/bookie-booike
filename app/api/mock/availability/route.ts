@@ -2,7 +2,7 @@ import { z } from "zod";
 import { ApiError } from "@/lib/errors";
 import { input, json, route } from "@/lib/http";
 import { addDays, today, withDb, zoneAvailability } from "@/mock/db";
-import { isNightOpen, opensAtFor } from "@/mock/schedule";
+import { isNightOpen, isServiceNightOpen, opensAtFor } from "@/mock/schedule";
 import { assertMockEnabled } from "@/mock/session";
 
 export const GET = route<Record<string, string>>(async (request) => {
@@ -14,7 +14,8 @@ export const GET = route<Record<string, string>>(async (request) => {
     }
     return {
       serviceDate: date, open: isNightOpen(db, date), opensAt: new Date(opensAtFor(db, date)).toISOString(),
-      zones: zoneAvailability(db, date),
+      closed: !isServiceNightOpen(db, date),
+      zones: zoneAvailability(db, date).map((z) => ({ ...z, available: z.available && isServiceNightOpen(db, date) })),
     };
   }));
 });

@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { Shell, shellStyles as s } from "../shell";
 import { api, asFailure, loadCustomer } from "../flow";
 
-type Venue = { open: boolean; secondsUntilOpen: number };
+type Venue = { opensAt: string | null; open: boolean; secondsUntilOpen: number };
 
 const countdown = (total: number) => {
   const h = Math.floor(total / 3600), m = Math.floor((total % 3600) / 60), sec = total % 60;
@@ -52,7 +52,7 @@ export default function WaitingScreen({ slug }: { slug: string }) {
       <div className={`${s.card} ${open ? s.cardAccent : ""}`} style={{ marginTop: 57 }} aria-live="polite">
         <p className={s.cardLabel} style={{ fontSize: 12 }}>{open ? "สถานะ" : "ร้านจะเปิดรับจองใน"}</p>
         <p className={`${s.cardValue} ${open ? s.cardValueAccent : ""}`}>
-          {!venue ? "กำลังโหลด…" : open ? "เปิดรับจองแล้ว" : countdown(venue.secondsUntilOpen)}
+          {!venue ? "กำลังโหลด…" : open ? "เปิดรับจองแล้ว" : venue.opensAt ? countdown(venue.secondsUntilOpen) : "ยังไม่มีคืนที่เปิดจอง"}
         </p>
       </div>
       {error && <p role="alert" className={s.error}>{error}</p>}

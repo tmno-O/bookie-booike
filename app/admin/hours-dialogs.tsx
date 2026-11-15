@@ -119,3 +119,34 @@ export function SpecialDayDialog({ today, onClose, onSaved }: { today: string; o
     </Frame>
   );
 }
+
+export function ClosureDialog({ today, onClose, onSaved }: { today: string; onClose: () => void; onSaved: () => void }) {
+  const [date, setDate] = useState("");
+  const [reason, setReason] = useState("");
+  const [impact, setImpact] = useState<number>();
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const first = useRef<HTMLInputElement>(null);
+  useEffect(() => { first.current?.focus(); }, []);
+  useEffect(() => {
+    if (!date) return;
+    let active = true;
+    adminApi<{ affectedBookings: number }>(`/admin/hours/closures?date=${date}`)
+      .then((r) => { if (active) setImpact(r.affectedBookings); })
+      .catch((e) => { if (active) setError(asFailure(e).message); });
+    return () => { active = false; };
+  }, [date]);
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    if (!date || impact === undefined) return setError("กรุณาเลือกวันที่และรอตรวจสอบรายการจอง");
+    setBusy(true); setError("");
+    try { await adminApi("/admin/hours/closures", { method: "POST", body: { serviceDate: date, reason } }); onSaved(); }
+    catch (e) { setError(asFailure(e).message); setBusy(false); }
+  }
+  return <Frame title="เพิ่มวันปิดพิเศษ" sub="หยุดรับจองคืนนี้ รายการจองเดิมยังคงอยู่" busy={busy} onClose={onClose} onSubmit={save} error={error}>
+    <label className={styles.field}><span>วันที่ปิด</span><input ref={first} type="date" className={styles.input} min={today} value={date}
+      onChange={(e) => { setDate(e.target.value); setImpact(undefined); setError(""); }} /></label>
+    <label className={styles.field}><span>เหตุผล</span><input className={styles.input} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} /></label>
+    {date && <p role="status" className={styles.hintLine}>{impact === undefined ? "กำลังตรวจสอบรายการจอง…" : `มีรายการจอง ${impact} รายการ ระบบไม่ยกเลิกให้อัตโนมัติ กรุณาติดต่อผู้จองหากต้องการยกเลิก`}</p>}
+  </Frame>;
+}

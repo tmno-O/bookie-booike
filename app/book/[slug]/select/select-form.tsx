@@ -12,10 +12,11 @@ import styles from "./select.module.css";
 const PARTIES = [{ label: "1–4", value: "1-4" }, { label: "5–8", value: "5-8" }, { label: "9–12", value: "9-12" }, { label: "12+", value: "12+" }];
 type Zone = { id: string; name: string; tablesLeft: number; available: boolean; closed?: boolean };
 const MAP_ZONES = ["VIP", "Indoor", "Outdoor"];
-type NightInfo = { zones: Zone[]; open: boolean; opensAt: string };
+type NightInfo = { zones: Zone[]; open: boolean; opensAt: string; closed?: boolean };
 const openText = (iso: string) =>
   new Intl.DateTimeFormat("th-TH-u-ca-gregory", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Bangkok" }).format(new Date(iso));
-type Venue = { today: string; maxAdvanceDays: number; shop?: { name: string; entryPolicy: string } };
+type Venue = { today: string; maxAdvanceDays: number; openWeekdays: number[];
+  closedDates: { serviceDate: string; reason: string }[]; shop?: { name: string; entryPolicy: string } };
 
 const addDays = (date: string, days: number) => {
   const d = new Date(`${date}T00:00:00Z`);
@@ -31,7 +32,7 @@ export default function SelectForm({ slug }: { slug: string }) {
   const [date, setDate] = useState("");
   const [party, setParty] = useState(0);
   const [zones, setZones] = useState<Zone[]>([]);
-  const [night, setNight] = useState<{ open: boolean; opensAt: string }>({ open: true, opensAt: "" });
+  const [night, setNight] = useState<{ open: boolean; opensAt: string; closed?: boolean }>({ open: true, opensAt: "" });
   const [zoneId, setZoneId] = useState<string>();
   const [plan, setPlan] = useState<FloorPlan | null>(null);
   const [error, setError] = useState("");
@@ -78,12 +79,12 @@ export default function SelectForm({ slug }: { slug: string }) {
   }, [venue]);
 
   const loadZones = () => api<NightInfo>(availabilityPath)
-    .then((r) => { setZones(r.zones); setNight({ open: r.open, opensAt: r.opensAt }); return r.zones; });
+    .then((r) => { setZones(r.zones); setNight({ open: r.open, opensAt: r.opensAt, closed: r.closed }); return r.zones; });
   useEffect(() => {
     if (!date) return;
     let active = true;
     api<NightInfo>(availabilityPath)
-      .then((r) => { if (active) { setZones(r.zones); setNight({ open: r.open, opensAt: r.opensAt }); } }).catch((e) => active && setError(asFailure(e).message));
+      .then((r) => { if (active) { setZones(r.zones); setNight({ open: r.open, opensAt: r.opensAt, closed: r.closed }); } }).catch((e) => active && setError(asFailure(e).message));
     return () => { active = false; };
   }, [availabilityPath, date]);
 
@@ -110,12 +111,19 @@ export default function SelectForm({ slug }: { slug: string }) {
     }
   }
 
+  const closureReason = (day: string) => {
+    const closure = venue?.closedDates.find((c) => c.serviceDate === day);
+    if (closure) return closure.reason || "ร้านปิด";
+    if (venue && !venue.openWeekdays.includes(new Date(`${day}T00:00:00Z`).getUTCDay())) return "วันหยุดประจำสัปดาห์";
+    return null;
+  };
+  const closed = night.closed || !!closureReason(date);
   const zoneButton = (name: string, className = "") => {
     const zone = zones.find((z) => z.name === name);
     const full = zone ? !zone.available : false;
     const selected = !!zone && zoneId === zone.id;
     return (
-      <button type="button" key={name} aria-pressed={selected} disabled={!zone || full || !night.open || busy || !!returnTo}
+      <button type="button" key={name} aria-pressed={selected} disabled={!zone || full || !night.open || closed || busy || !!returnTo}
         className={`${styles.zone} ${className} ${selected ? styles.zoneOn : ""} ${full ? styles.zoneFull : ""}`}
         onClick={() => zone && setZoneId(zone.id)}>
         {name}{full && <span className={styles.full}>{zone?.closed ? "ปิด" : "เต็ม"}</span>}
@@ -133,10 +141,11 @@ export default function SelectForm({ slug }: { slug: string }) {
         <label className={styles.label} htmlFor="date">คืนที่ต้องการ</label>
         <div className={styles.dateField}>
           <span>{date ? thaiDate(date) : "กำลังโหลด…"}</span><span className={styles.chev} aria-hidden>⌄</span>
-          {venue && <input id="date" type="date" className={styles.dateInput} value={date}
-            min={venue.today} max={addDays(venue.today, venue.maxAdvanceDays)}
-            disabled={busy || !!returnTo}
-            onChange={(e) => { if (e.target.value) { setDate(e.target.value); setZoneId(undefined); setZones([]); } }} />}
+          {venue && <select id="date" className={styles.dateInput} value={date} disabled={busy || !!returnTo}
+            onChange={(e) => { setDate(e.target.value); setZoneId(undefined); setZones([]); }}>
+            {Array.from({ length: venue.maxAdvanceDays + 1 }, (_, i) => addDays(venue.today, i)).map((day) =>
+              <option key={day} value={day} disabled={!!closureReason(day)}>{thaiDate(day)}{closureReason(day) ? ` · ร้านปิด: ${closureReason(day)}` : ""}</option>)}
+          </select>}
         </div>
 
         <span className={styles.label} id="party-label">จำนวนผู้เข้าร่วม</span>
@@ -155,7 +164,7 @@ export default function SelectForm({ slug }: { slug: string }) {
               <FloorPlanView plan={plan} selectedId={zoneId} onSelect={setZoneId}
                 zones={Object.fromEntries(zones.map((z) => [z.id, {
                   name: z.name, badge: z.available ? undefined : z.closed ? "ปิด" : "เต็ม",
-                  disabled: !z.available || !night.open || busy || !!returnTo,
+                  disabled: !z.available || !night.open || closed || busy || !!returnTo,
                 }]))} />
             </div>
             {zones.some((z) => !plan.zones.some((shape) => shape.zoneId === z.id)) && (
@@ -179,7 +188,8 @@ export default function SelectForm({ slug }: { slug: string }) {
             )}
           </>
         )}
-        {!night.open && night.opensAt && <p role="status" className={styles.error} style={{ color: "#b94e29" }}>คืนนี้ยังไม่เปิดรับจอง · เปิดรับจอง {openText(night.opensAt)} น.</p>}
+        {closed && <p role="status" className={styles.error}>ร้านปิด · {closureReason(date) || "คืนนี้ปิดรับจอง"}</p>}
+        {!closed && !night.open && night.opensAt && <p role="status" className={styles.error} style={{ color: "#b94e29" }}>คืนนี้ยังไม่เปิดรับจอง · เปิดรับจอง {openText(night.opensAt)} น.</p>}
         <p className={styles.hint}>แตะพื้นที่บนผังเพื่อเลือกโซน</p>
         {venue?.shop?.entryPolicy && <p className={styles.caption} style={{ marginTop: 16, fontSize: 12 }}>นโยบายการเข้าร้าน: {venue.shop.entryPolicy}</p>}
         {error && <p role="alert" className={styles.error}>{error}</p>}
@@ -190,7 +200,7 @@ export default function SelectForm({ slug }: { slug: string }) {
             {returnTo === "queue" ? "ดูสถานะคำขอ" : "กลับไปรับคิวใหม่"}
           </Link>
         ) : (
-          <button type="submit" className={styles.cta} disabled={!zoneId || busy}>
+          <button type="submit" className={styles.cta} disabled={!zoneId || !night.open || closed || busy}>
             {busy ? "กำลังจอง…" : zoneId ? "ยืนยันการจอง" : "เลือกโซนเพื่อดำเนินการต่อ"}
           </button>
         )}

@@ -33,6 +33,8 @@ import { DELETE as inviteDelete } from "../../app/api/mock/admin/team/invites/[i
 import { GET as bookingsList } from "../../app/api/mock/admin/bookings/route";
 import { addDays, today } from "../../src/mock/db";
 import { mockIdToken } from "../../src/mock/line";
+import { POST as closureCreate, PUT as weekdaysSave } from "../../app/api/mock/admin/hours/closures/route";
+import { DELETE as closureDelete } from "../../app/api/mock/admin/hours/closures/[date]/route";
 
 const dir = await mkdtemp(path.join(tmpdir(), "mock-db-"));
 process.env.MOCK_DB_PATH = path.join(dir, "db.json");
@@ -60,6 +62,24 @@ async function readyCustomer(userId?: string) {
 const reserve = (who: { requestId: string; cookie: string }, zoneId: string, party = "1-4") =>
   call(book, "/api/mock/bookings", { method: "POST", cookie: who.cookie,
     body: { requestId: who.requestId, serviceDate: today(), party, zoneId } });
+
+describe("mock closures", () => {
+  beforeEach(() => call(resetDb, "/api/mock/reset", { method: "POST", body: { queueStepSeconds: 0 } }));
+  it("requires owner, reports existing bookings, blocks customers, and reopens", async () => {
+    const who = await readyCustomer();
+    const cookie = cookieOf(await call(staffLogin, "/api/mock/admin/login", { method: "POST", body: { email: "owner@bookie.test" } }));
+    const body = { serviceDate: today(), reason: "Holiday" };
+    expect((await call(closureCreate, "/api/mock/admin/hours/closures", { method: "POST", body })).status).toBe(401);
+    const created = await call(closureCreate, "/api/mock/admin/hours/closures", { method: "POST", body, cookie });
+    expect((await created.json()).closure.affectedBookings).toBe(6);
+    expect((await (await reserve(who, "zone-indoor")).json()).error.code).toBe("CLOSED");
+    await call(closureDelete, `/api/mock/admin/hours/closures/${today()}`, { method: "DELETE", cookie }, { date: today() });
+    expect((await reserve(who, "zone-indoor")).status).toBe(201);
+    await call(weekdaysSave, "/api/mock/admin/hours/closures", { method: "PUT", cookie, body: { openWeekdays: [] } });
+    expect((await (await call(venue, "/api/mock/venue")).json()).opensAt).toBeNull();
+    expect((await (await call(venue, "/api/mock/venue")).json()).open).toBe(false);
+  });
+});
 
 describe("mock LINE login", () => {
   beforeEach(async () => { await call(resetDb, "/api/mock/reset", { method: "POST", body: { queueStepSeconds: 0 } }); });

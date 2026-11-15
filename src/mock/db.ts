@@ -24,8 +24,10 @@ export type Booking = {
 export type BookingStatus = "pending" | "confirmed" | "checked_in";
 export type LineUser = { id: string; userId: string; displayName: string; createdAt: string };
 export type SpecialDay = { id: string; serviceDate: string; opensOn: string; time: string };
-export type Schedule = { standard: { daysBefore: number; time: string }; specials: SpecialDay[] };
-export const DEFAULT_SCHEDULE: Schedule = { standard: { daysBefore: 1, time: "20:00" }, specials: [] };
+export type Schedule = { standard: { daysBefore: number; time: string }; specials: SpecialDay[];
+  openWeekdays: number[]; closures: { serviceDate: string; reason: string }[] };
+export const DEFAULT_SCHEDULE: Schedule = { standard: { daysBefore: 1, time: "20:00" }, specials: [],
+  openWeekdays: [0,1,2,3,4,5,6], closures: [] };
 export type ShopProfile = { name: string; phone: string; address: string; entryPolicy: string };
 export const DEFAULT_PROFILE: ShopProfile = {
   name: "ร้านตัวอย่าง", phone: "02 123 4567", address: "เชียงใหม่ ประเทศไทย", entryPolicy: "กรุณามาถึงตามเวลาที่ร้านกำหนด",
@@ -119,6 +121,8 @@ async function load(): Promise<Db> {
     const legacy = db.venue as Db["venue"] & { opensAt?: string };
     legacy.holdUntil ??= legacy.opensAt ?? new Date(0).toISOString();
     legacy.schedule ??= structuredClone(DEFAULT_SCHEDULE);
+    legacy.schedule.openWeekdays ??= [0,1,2,3,4,5,6];
+    legacy.schedule.closures ??= [];
     const seats: Record<string, number> = { VIP: 24, Indoor: 48, Outdoor: 60 };
     for (const z of db.zones) { z.seats ??= seats[z.name] ?? 20; z.status ??= "open"; }
     for (const b of db.bookings) { b.status ??= "confirmed"; b.channel ??= "line"; }

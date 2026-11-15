@@ -79,7 +79,9 @@ export const venuePublic = z.object({
   allocationMode: z.enum(["auto", "manual"]).optional(),
 });
 export const venueBookingProfile = venuePublic.extend({
-  opensAt: instant, open: z.boolean(), secondsUntilOpen: z.number().int().nonnegative(),
+  opensAt: instant.nullable(), open: z.boolean(), secondsUntilOpen: z.number().int().nonnegative(),
+  openWeekdays: z.array(z.number().int().min(0).max(6)),
+  closedDates: z.array(z.object({ serviceDate, reason: z.string() })),
   today: serviceDate, maxAdvanceDays: z.number().int().nonnegative(),
   shop: z.object({ name: label, phone: z.string(), address: z.string(), entryPolicy: z.string() }),
 });

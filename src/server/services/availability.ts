@@ -33,7 +33,9 @@ export async function venueAvailability(venueId: string, serviceDate: string, pa
     const tables = await tx`select * from venue_availability(${venueId}, ${serviceDate})`;
     const zones = await zoneAvailability(tx, venueId, serviceDate, partySize, { allowPending: true });
     const [night] = await tx`
-      select s.opens_at, s.opens_at <= now() and (closes_at is null or closes_at > now()) as night_open
+      select s.opens_at, service_night_open(${venueId}, ${serviceDate}) and s.opens_at <= now()
+        and (closes_at is null or closes_at > now()) as night_open,
+        not service_night_open(${venueId}, ${serviceDate}) as closed
       from (select opens_at_for(${venueId}, ${serviceDate}) as opens_at) s
       left join booking_releases b on b.venue_id = ${venueId} and b.service_date = ${serviceDate}
     `;

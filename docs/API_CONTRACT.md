@@ -62,3 +62,6 @@ JSON ใช้ camelCase. ส่ง `Content-Type: application/json` เมื�
 | `GET /customers?q=` | ค้น contact ภายในร้านจากชื่อ เลขท้ายเบอร์ หรือเบอร์เต็มที่ร้านบันทึก |
 
 Route เวลาเปิดจอง, โปรไฟล์ร้าน และการจัดการคำเชิญคืน `403 FORBIDDEN` เมื่อ role เป็น staff. เวลามาตรฐานกับวันพิเศษตีความตาม `Asia/Bangkok`. วันพิเศษมีผลเหนือค่ามาตรฐานต่อคืนบริการ.
+# วันเปิดร้านและวันปิดพิเศษ
+
+Owner: `GET /api/staff/venues/{venueId}/hours` returns `openWeekdays` (Sunday=0) and `closures` with `serviceDate`, `reason`, `affectedBookings`. `PUT .../hours/closures` accepts `{openWeekdays: number[]}`; an empty array closes every weekday. `GET .../hours/closures?date=YYYY-MM-DD` previews affected bookings. `POST .../hours/closures` accepts `{serviceDate, reason}`; `DELETE .../hours/closures/{date}` reopens that night. Existing bookings remain intact. Public venue adds `openWeekdays`, `closedDates`; `opensAt` is null when the bookable window contains no open nights. Closed nights reject requests with `CLOSED`, including requests already queued before closure.

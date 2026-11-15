@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { ApiError } from "@/lib/errors";
 import { addDays, today, zoneAvailability, type Booking, type Db, type Zone } from "./db";
+import { isServiceNightOpen } from "./schedule";
 
 /** Shared slot check: bookable date window, known zone, free table. Throws an ApiError otherwise. */
 export function checkSlot(db: Db, serviceDate: string, zoneId: string): Zone {
@@ -12,6 +13,7 @@ export function checkSlot(db: Db, serviceDate: string, zoneId: string): Zone {
 
 /** Known zone with a free table that night (pending requests do not hold tables). */
 export function ensureCapacity(db: Db, serviceDate: string, zoneId: string): Zone {
+  if (!isServiceNightOpen(db, serviceDate)) throw new ApiError(409, "CLOSED", "ร้านปิดในคืนนี้");
   const zone = db.zones.find((z) => z.id === zoneId);
   if (!zone) throw new ApiError(422, "ZONE_NOT_FOUND", "Zone not found");
   if (zone.status === "closed") throw new ApiError(409, "ZONE_CLOSED", "This zone is not open for booking");
