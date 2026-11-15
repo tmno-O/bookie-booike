@@ -13,7 +13,13 @@ type Liff = {
   isLoggedIn(): boolean;
   getIDToken(): string | null;
   login(options: { redirectUri: string }): void;
+  logout(): void;
 };
+
+// A stale or rejected LIFF ID token is cleared once and LINE login restarts; a second failure is shown instead.
+const RELOGIN_KEY = "bookie:liff-relogin";
+const RENEWABLE = new Set(["LINE_TOKEN_EXPIRED", "INVALID_LINE_TOKEN"]);
+function storage() { try { return window.sessionStorage; } catch { return null; } }
 
 export default function LoginScreen({ slug, mockLine }: { slug: string; mockLine: boolean }) {
   const demo = !realApiMode || mockLine;
@@ -40,7 +46,17 @@ function LiffLogin({ slug }: { slug: string }) {
       if (!liff.isLoggedIn()) { setSdk(liff); return; }
       const idToken = liff.getIDToken();
       if (!idToken) throw new Error("LINE ไม่ได้ส่ง ID token");
-      await api("/line/login", { method: "POST", body: { idToken } });
+      try {
+        await api("/line/login", { method: "POST", body: { idToken } });
+        storage()?.removeItem(RELOGIN_KEY);
+      } catch (e) {
+        const failure = asFailure(e);
+        if (!RENEWABLE.has(failure.code) || storage()?.getItem(RELOGIN_KEY)) throw e;
+        storage()?.setItem(RELOGIN_KEY, "1");
+        liff.logout();
+        liff.login({ redirectUri: `${location.origin}${location.pathname}` });
+        return;
+      }
       if (active) router.replace(`/book/${slug}/details`);
     }).catch((e) => active && setError(e instanceof Error ? e.message : asFailure(e).message));
     return () => { active = false; };

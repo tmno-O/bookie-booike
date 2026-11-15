@@ -5,6 +5,7 @@ import {
 } from "@/contracts/venue";
 import { db } from "@/lib/db";
 import { ApiError, notFound } from "@/lib/errors";
+import { liffChannel } from "@/lib/auth/line-verify";
 import { encryptSecret } from "@/lib/crypto";
 import type { Staff } from "@/lib/auth/staff-auth";
 import { staffAudit } from "./audit";
@@ -159,6 +160,9 @@ export async function saveLineIntegration(staff: Staff, patch: z.infer<typeof li
     const liffId = patch.liffId ?? old?.liffId;
     if (!providerId || !channelId || !liffId) {
       throw new ApiError(400, "LINE_CONFIG_INCOMPLETE", "Provider, channel and LIFF IDs are required");
+    }
+    if (liffChannel(liffId) !== channelId) {
+      throw new ApiError(422, "LINE_CHANNEL_MISMATCH", `LIFF ID ${liffId} belongs to LINE Login channel ${liffChannel(liffId)}, not ${channelId}`);
     }
     const channelChanged = old && (old.providerId !== providerId || old.channelId !== channelId);
     const secret = patch.channelSecret === undefined
