@@ -107,3 +107,14 @@ docker exec supabase_db_Hackathon-Final psql -U postgres -d postgres -c "select 
 - เปิด LINE push โดยตั้ง access token ของ Messaging API channel ที่ใช้ provider เดียวกับ LINE Login แล้วตั้ง `LINE_NOTIFICATIONS_ENABLED=true` และรัน `npm run worker:notifications`. เก็บ `LINE_SECRET_KEY` ใน secret store ของ environment.
 - การทดสอบ local ใช้ LINE mock กับ ElasticMQ. งานนอกขอบเขตเดโมคือการชำระเงิน มัดจำ คืนเงิน, rich menu publish, LINE webhook, ส่งอีเมลคำเชิญ และคืนโต๊ะเมื่อ no-show.
 .
+
+## การพิสูจน์ความถูกต้องของคิวและการจอง
+
+- `queue_tickets.seq` เป็น identity พร้อม unique constraint; active allocation หนึ่งโต๊ะต่อคืนถูกบังคับด้วย unique index การตัดสินและยกเลิกใช้ advisory lock ต่อร้าน/คืน
+- `queue_seq` คือเลขคำขอ DB; driver ประมวลผลหัวคิวที่ commit แล้วต่อร้าน/คืน คำขอที่ยังไม่ commit มองไม่เห็น ลำดับเลขที่จ่ายระหว่าง transaction พร้อมกันจึงไม่ใช่คำรับรองลำดับส่งจากอุปกรณ์ลูกค้า
+- `/admin/audit` แสดง ticket, queue_seq, เวลารับ/ตัดสินระดับมิลลิวินาที Asia/Bangkok, ผลปฏิเสธ, โต๊ะ/โซน และเบอร์ปิดบัง ค้นเลขอ้างอิงหรือเบอร์ 4 ตัวท้ายได้ Owner ส่งออก CSV ได้
+- ทุกแถว `audit_logs` ต่อ hash chain ต่อร้าน พร้อม seq และ SHA-256 ของข้อมูลมาตรฐาน UTC; trigger ปฏิเสธ UPDATE/DELETE/TRUNCATE ตรวจด้วย `verify_audit_chain()` หรือปุ่มในหน้า audit ลูกค้าเทียบรหัส 16 hex บนใบยืนยันกับแถว `booking.confirmed` / `booking.pending_allocation` ของร้าน
+- Hash chain ตรวจพบการเปลี่ยนข้อมูลหรือการขาดหายใน chain ที่เก็บอยู่ ผู้มีสิทธิ์ระดับผู้ดูแล DB ยังปิด trigger แล้วเขียน chain ใหม่หรือลบท้าย chain ได้ ต้องเก็บ checkpoint (`lastSeq`, `headHash`) หรือสำเนาภายนอกเพื่อพิสูจน์เทียบย้อนหลัง รหัสสั้นไม่ใช่ลายเซ็นดิจิทัลหรือการยืนยันตัวบุคคล
+- ประวัติก่อน migration เก็บ hash ของข้อมูลเดิม และใช้ `created_at` เดิมแทน `received_at`; ไม่สามารถสร้างรายละเอียด/เวลาจริงย้อนหลังที่เดิมไม่ได้เก็บ
+
+ผลทดสอบ 5,000 คำขอหลังเพิ่ม audit และข้อจำกัดการเทียบ performance: [evidence/audit](docs/evidence/audit/README.md). ขั้นตอนติดตั้ง migrations และ notification Cron: [DEPLOY.md](docs/DEPLOY.md).

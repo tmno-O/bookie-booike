@@ -43,6 +43,8 @@ export const requestStatus = z.object({
   bookingId: id.nullable(),
 });
 export const bookingStatus = z.enum(["confirmed", "pending_allocation", "checked_in", "cancelled"]);
+export const bookingReceipt = z.object({ reference: z.string(), ticketSeq: z.string().nullable(),
+  receivedAt: instant, decidedAt: instant.nullable(), verifyCode: z.string().regex(/^[a-f0-9]{16}$/) });
 export const booking = z.object({
   id, venueId: id, customerId: id, tableId: id.nullable(), zoneId: id,
   serviceDate, serviceAt: instant, partySize: z.number().int().positive(),
@@ -52,6 +54,7 @@ export const booking = z.object({
   name: z.string(), phone: z.string(), zoneName: z.string(), party: partyBucket,
   source: z.enum(["liff", "staff_assisted"]),
   cancellableUntil: instant.nullable(), canCancel: z.boolean(),
+  receipt: bookingReceipt.nullable(),
 });
 export const cancellationInput = z.strictObject({ status: z.literal("cancelled") });
 export type BookingInput = z.infer<typeof legacyBookingInput>;

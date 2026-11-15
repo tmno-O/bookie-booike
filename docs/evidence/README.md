@@ -53,3 +53,7 @@ from booking_requests
 where idempotency_key like 'burst-<run_id>-%'
 group by 1, 2 order by 1, 2;
 ```
+
+## หลังเพิ่ม audit trail (15 พฤศจิกายน 2569)
+
+ทดสอบ 5,000 คำขอ / 250 พร้อมกันอีกครั้ง: รับ 202 ครบ ยืนยัน 1 ปฏิเสธ 4,999 ตรวจ hash chain ผ่าน ดู [ผลและข้อจำกัดการเทียบ p95](audit/README.md).

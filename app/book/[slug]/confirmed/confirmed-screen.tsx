@@ -6,6 +6,7 @@ import { Shell, shellStyles as s } from "../shell";
 import { api, asFailure, bookingStatusLabel, partyLabel, thaiDate, type Booking } from "../flow";
 import styles from "./confirmed.module.css";
 import { CancelBooking } from "../cancel-booking";
+import { BookingReceipt } from "../booking-receipt";
 
 export default function ConfirmedScreen({ slug }: { slug: string }) {
   const id = useSearchParams().get("b");
@@ -43,6 +44,7 @@ export default function ConfirmedScreen({ slug }: { slug: string }) {
         </dl>
         <p className={styles.contact}><b>ชื่อลูกค้า</b>{booking.name}<br /><span style={{ fontWeight: 400 }}>เบอร์โทร&nbsp; {booking.phone}</span></p>
         <CancelBooking booking={booking} onChanged={setBooking} />
+        <BookingReceipt booking={booking} />
         <p className={styles.line}>การแจ้งเตือน LINE</p>
         <p className={styles.lineNote}>ยังไม่มีข้อมูลการส่งข้อความ</p>
       </>}

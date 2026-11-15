@@ -70,6 +70,9 @@ it("cancels before cutoff idempotently, releases the table, and records the poli
   const [audit] = await tx`select details from audit_logs where entity_id = ${booking.bookingId} and action = 'booking.cancelled'`;
   expect(audit.details).toMatchObject({ cutoff_minutes: 120, service_date: ids.date });
   expect(audit.details.deadline).toBeTruthy();
+  const [proof] = await tx`select details from audit_logs where entity_id = ${booking.bookingId} and action = 'booking.confirmed'`;
+  const [original] = await tx`select reference from bookings where id = ${booking.bookingId}`;
+  expect(proof.details.reference).toBe(original.reference);
   const [next] = await tx`select (process_booking_request(${await submit(tx, ids)})).*`;
   expect(next.status).toBe("confirmed");
 }));
@@ -122,4 +125,32 @@ it("fans out once only to past bookers, excludes opt-out and new customers, and 
   expect(recipients.map((r) => r.customerId)).toEqual([ids.customer]);
   await tx`insert into venue_closures (venue_id, service_date, created_by) values (${ids.venue}, ${ids.date}, ${randomUUID()})`;
   await expect(tx.savepoint(async (sub) => sub`select announce_release(${ids.venue}, ${ids.date}, 'Other', ${opens}, ${randomUUID()})`)).rejects.toThrow("CLOSED");
+}));
+
+it("protects append-only history and detects the first tampered row independently of session timezone", () => fixture(async (tx, ids) => {
+  await tx`select process_booking_request(${await submit(tx, ids)})`;
+  const verify = () => tx`select * from verify_audit_chain(${ids.venue}, null, null)`;
+  expect((await verify())[0]).toMatchObject({ checked: 2, firstBadSeq: null });
+  await tx`set local time zone 'Asia/Bangkok'`;
+  expect((await verify())[0].firstBadSeq).toBeNull();
+  await expect(tx.savepoint(async (sub) => sub`update audit_logs set details = '{}' where venue_id = ${ids.venue}`)).rejects.toThrow("AUDIT_APPEND_ONLY");
+  await expect(tx.savepoint(async (sub) => sub`delete from audit_logs where venue_id = ${ids.venue}`)).rejects.toThrow("AUDIT_APPEND_ONLY");
+  // Simulate a privileged tamper. The whole fixture, including trigger changes, rolls back.
+  await tx`alter table audit_logs disable trigger audit_logs_immutable`;
+  await tx`update audit_logs set details = details || '{"result_code":"FORGED"}'::jsonb where venue_id = ${ids.venue} and seq = 2`;
+  await tx`alter table audit_logs enable trigger audit_logs_immutable`;
+  expect((await verify())[0]).toMatchObject({ checked: 2, firstBadSeq: "2" });
+}));
+
+it("records ticket issue, readiness, and expiry with a valid chain", () => fixture(async (tx, ids) => {
+  const [ticket] = await tx`insert into queue_tickets (venue_id, customer_id, contact_name, contact_phone)
+    values (${ids.venue}, ${ids.customer}, 'Guest', '0812345678') returning id, seq`;
+  await tx`select advance_queue(${ids.venue})`;
+  await tx`update queue_tickets set ready_at = clock_timestamp() - interval '1 hour' where id = ${ticket.id}`;
+  await tx`select advance_queue(${ids.venue})`;
+  const events = await tx`select action, details from audit_logs where venue_id = ${ids.venue} order by seq`;
+  expect(events.map((r) => r.action)).toEqual(["queue.ticket_issued", "queue.ticket_ready", "queue.ticket_expired"]);
+  for (const row of events) expect(row.details.ticket_seq).toBe(ticket.seq);
+  const [chain] = await tx`select * from verify_audit_chain(${ids.venue})`;
+  expect(chain.firstBadSeq).toBeNull();
 }));
