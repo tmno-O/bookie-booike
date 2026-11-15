@@ -78,11 +78,20 @@ describe("mock closures", () => {
     const cookie = cookieOf(await call(staffLogin, "/api/mock/admin/login", { method: "POST", body: { email: "owner@bookie.test" } }));
     const body = { serviceDate: today(), reason: "Holiday" };
     expect((await call(closureCreate, "/api/mock/admin/hours/closures", { method: "POST", body })).status).toBe(401);
-    const created = await call(closureCreate, "/api/mock/admin/hours/closures", { method: "POST", body, cookie });
+    const unchosen = await call(closureCreate, "/api/mock/admin/hours/closures", { method: "POST", body, cookie });
+    expect(unchosen.status).toBe(409);
+    expect((await unchosen.json()).error.code).toBe("CLOSURE_HAS_BOOKINGS");
+    const created = await call(closureCreate, "/api/mock/admin/hours/closures", { method: "POST", body: { ...body, bookings: "keep" }, cookie });
     expect((await created.json()).closure.affectedBookings).toBe(6);
     expect((await (await reserve(who, "zone-indoor")).json()).error.code).toBe("CLOSED");
     await call(closureDelete, `/api/mock/admin/hours/closures/${today()}`, { method: "DELETE", cookie }, { date: today() });
     expect((await reserve(who, "zone-indoor")).status).toBe(201);
+    // Closing with "cancel" cancels the active bookings of that night, including the one just made.
+    const cancelled = await (await call(closureCreate, "/api/mock/admin/hours/closures",
+      { method: "POST", cookie, body: { serviceDate: today(), reason: "Repair", bookings: "cancel" } })).json();
+    expect(cancelled.cancelledBookings).toBeGreaterThan(0);
+    expect(cancelled.closure.affectedBookings).toBeLessThan(7);
+    await call(closureDelete, `/api/mock/admin/hours/closures/${today()}`, { method: "DELETE", cookie }, { date: today() });
     await call(weekdaysSave, "/api/mock/admin/hours/closures", { method: "PUT", cookie, body: { openWeekdays: [] } });
     expect((await (await call(venue, "/api/mock/venue")).json()).opensAt).toBeNull();
     expect((await (await call(venue, "/api/mock/venue")).json()).open).toBe(false);
@@ -696,7 +705,7 @@ describe("mock admin shop settings and team", () => {
     const asOwner = await (await call(settingsGet, "/api/mock/admin/settings", { cookie: await owner() })).json();
     expect(asOwner).toEqual({
       profile: { name: "ร้านตัวอย่าง", phone: "02 123 4567", address: "เชียงใหม่ ประเทศไทย", entryPolicy: "กรุณามาถึงตามเวลาที่ร้านกำหนด" },
-      canEdit: true, customerCancelEnabled: true, cancelCutoffMinutes: 120,
+      canEdit: true, customerCancelEnabled: true, cancelCutoffMinutes: 120, largePartyMode: "staff_review",
     });
     expect((await (await call(settingsGet, "/api/mock/admin/settings", { cookie: await staffOnly() })).json()).canEdit).toBe(false);
     expect((await call(settingsGet, "/api/mock/admin/settings")).status).toBe(401);

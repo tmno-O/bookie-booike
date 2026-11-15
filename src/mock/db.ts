@@ -44,6 +44,7 @@ export type Db = {
   lineUsers: LineUser[];
   profile: ShopProfile;
   cancellation: { customerCancelEnabled: boolean; cancelCutoffMinutes: number };
+  largePartyMode: "staff_review" | "disabled";
   announcements: { id: string; serviceDate: string; title: string; opensAt: string; recipients: string[] }[];
   announcementOptOut: string[];
   invites: Invite[];
@@ -95,6 +96,7 @@ export function seed(opts: { opensInSeconds?: number; queueStepSeconds?: number 
     lineUsers: [],
     profile: { ...DEFAULT_PROFILE },
     cancellation: { customerCancelEnabled: true, cancelCutoffMinutes: 120 },
+    largePartyMode: "staff_review",
     announcements: [], announcementOptOut: [],
     invites: [],
     floorPlan: { draft: null, published: null, publishedAt: null },
@@ -122,6 +124,7 @@ async function load(): Promise<Db> {
     db.lineUsers ??= []; // databases saved before LINE login existed
     db.profile ??= { ...DEFAULT_PROFILE };
     db.cancellation ??= { customerCancelEnabled: true, cancelCutoffMinutes: 120 };
+    db.largePartyMode ??= "staff_review";
     db.announcements ??= []; db.announcementOptOut ??= [];
     db.invites ??= [];
     db.floorPlan ??= { draft: null, published: null, publishedAt: null }; // databases saved before floor plans existed

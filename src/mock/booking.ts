@@ -27,12 +27,15 @@ export function addBooking(db: Db, data: {
   requestId: string; customerId: string; name: string; phone: string; serviceDate: string; party: string;
   zone: Zone; channel: Booking["channel"]; requestedAt?: string;
 }): Booking {
+  if (data.party === "12+" && db.largePartyMode === "disabled") {
+    throw new ApiError(409, "LARGE_PARTY_DISABLED", "ร้านไม่รับจองออนไลน์สำหรับกลุ่มเกิน 12 คน กรุณาติดต่อร้าน");
+  }
   db.seq += 1;
   const booking: Booking = {
     id: randomUUID(), reference: `BL-${data.serviceDate.slice(0, 4)}-${String(db.seq).padStart(4, "0")}`,
     requestId: data.requestId, customerId: data.customerId, name: data.name, phone: data.phone,
     serviceDate: data.serviceDate, party: data.party, zoneId: data.zone.id, zoneName: data.zone.name,
-    createdAt: new Date().toISOString(), status: "confirmed", channel: data.channel,
+    createdAt: new Date().toISOString(), status: data.party === "12+" ? "pending" : "confirmed", channel: data.channel,
     ...(data.channel === "line" && {
       queueNo: Math.max(0, ...db.bookings.map((b) => b.queueNo ?? 0)) + 1,
       requestedAt: data.requestedAt ?? new Date().toISOString(),

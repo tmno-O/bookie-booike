@@ -121,6 +121,12 @@ it("fans out once only to past bookers, excludes opt-out and new customers, and 
   const announce = () => tx`select announce_release(${ids.venue}, ${ids.date}, 'Festival', ${opens}, ${randomUUID()}) as id`;
   const [first] = await announce(); const [retry] = await announce();
   expect(retry.id).toBe(first.id);
+  // Announcing only records the announcement; the audience is queued later in batches, outside the venue lock.
+  expect(await tx`select 1 from announcement_outbox where announcement_id = ${first.id}`).toHaveLength(0);
+  for (let i = 0; i < 5; i++) if ((await tx`select fanout_announcement(${first.id}, 1) as done`)[0].done) break;
+  const [state] = await tx`select fanout_done from release_announcements where id = ${first.id}`;
+  expect(state.fanoutDone).toBe(true);
+  expect((await tx`select fanout_announcement(${first.id}, 1) as done`)[0].done).toBe(true);
   const recipients = await tx`select customer_id from announcement_outbox where announcement_id = ${first.id}`;
   expect(recipients.map((r) => r.customerId)).toEqual([ids.customer]);
   await tx`insert into venue_closures (venue_id, service_date, created_by) values (${ids.venue}, ${ids.date}, ${randomUUID()})`;
@@ -153,4 +159,59 @@ it("records ticket issue, readiness, and expiry with a valid chain", () => fixtu
   for (const row of events) expect(row.details.ticket_seq).toBe(ticket.seq);
   const [chain] = await tx`select * from verify_audit_chain(${ids.venue})`;
   expect(chain.firstBadSeq).toBeNull();
+}));
+
+async function largeRequest(tx: TransactionSql, ids: { venue: string; customer: string; zone: string; date: string }) {
+  const [row] = await tx`insert into booking_requests
+    (venue_id, customer_id, actor_type, actor_id, source, service_date, party_size, zone_id, party_bucket, idempotency_key, payload_hash, status)
+    values (${ids.venue}, ${ids.customer}, 'customer', ${ids.customer}, 'liff', ${ids.date}, 15, ${ids.zone}, '12+', ${randomUUID()}, 'test', 'queued')
+    returning id`;
+  return row.id as string;
+}
+
+it("sends 12+ parties to staff review and joins the fewest free tables, or refuses them when the owner disabled it", () => fixture(async (tx, ids) => {
+  await tx`update zones set capacity = 36 where id = ${ids.zone}`;
+  for (const name of ["T2", "T3"]) {
+    await tx`insert into venue_tables (venue_id, zone_id, name, capacity) values (${ids.venue}, ${ids.zone}, ${name}, 12)`;
+  }
+  const [pending] = await tx`select (process_booking_request(${await largeRequest(tx, ids)})).*`;
+  expect(pending.status).toBe("confirmed");
+  const [booking] = await tx`select status, table_id from bookings where id = ${pending.bookingId}`;
+  expect(booking).toMatchObject({ status: "pending_allocation", tableId: null });
+  const staff = "90000000-0000-4000-8000-000000000002";
+  await tx`insert into venue_members (venue_id, user_id, role) values (${ids.venue}, ${staff}, 'staff')`;
+  const [allocated] = await tx`select allocate_booking(${ids.venue}, ${pending.bookingId}, ${staff}, null) as code`;
+  expect(allocated.code).toBe("ALLOCATED");
+  const held = await tx`select table_id from booking_allocations where booking_id = ${pending.bookingId} and active`;
+  expect(held).toHaveLength(2);
+  // 12 seats and one table remain, so another 15-person party cannot fit, but a small party still can.
+  const [full] = await tx`select (process_booking_request(${await largeRequest(tx, ids)})).*`;
+  expect(full).toMatchObject({ status: "rejected", resultCode: "ZONE_FULL" });
+  const [small] = await tx`select (process_booking_request(${await submit(tx, { ...ids, table: (await tx`select id from venue_tables
+    where zone_id = ${ids.zone} and id not in (select table_id from booking_allocations where active)`)[0].id })})).*`;
+  expect(small.status).toBe("confirmed");
+  // Cancelling releases every joined table.
+  await tx`select cancel_booking(${ids.venue}, ${pending.bookingId}, 'staff', ${staff})`;
+  expect(await tx`select 1 from booking_allocations where booking_id = ${pending.bookingId} and active`).toHaveLength(0);
+  await tx`insert into venue_settings (venue_id, large_party_mode) values (${ids.venue}, 'disabled')
+    on conflict (venue_id) do update set large_party_mode = 'disabled'`;
+  const [refused] = await tx`select (process_booking_request(${await largeRequest(tx, ids)})).*`;
+  expect(refused).toMatchObject({ status: "rejected", resultCode: "LARGE_PARTY_DISABLED" });
+}));
+
+it("keeps check-in open after midnight until the service night ends", () => fixture(async (tx, ids) => {
+  const at = (date: string, time: string) => `${date}T${time}+07:00`;
+  const [next] = await tx`select to_char(${ids.date}::date + 1, 'YYYY-MM-DD') as d, to_char(${ids.date}::date - 1, 'YYYY-MM-DD') as p`;
+  const open = async (time: string) => (await tx`select check_in_open(${ids.table}, ${ids.date}, ${time}::timestamptz) as ok`)[0].ok;
+  expect(await open(at(ids.date, "19:00:00"))).toBe(true);
+  expect(await open(at(next.d, "00:30:00"))).toBe(true);
+  expect(await open(at(next.d, "01:59:00"))).toBe(true);
+  expect(await open(at(next.d, "02:00:00"))).toBe(false);
+  expect(await open(at(next.p, "23:00:00"))).toBe(false);
+}));
+
+it("refuses an allocation whose night differs from its booking", () => fixture(async (tx, ids) => {
+  const [booking] = await tx`select (process_booking_request(${await submit(tx, ids)})).*`;
+  await expect(tx.savepoint(async (sub) => sub`insert into booking_allocations (venue_id, booking_id, table_id, service_date)
+    values (${ids.venue}, ${booking.bookingId}, ${ids.table}, ${ids.date}::date + 1)`)).rejects.toThrow("ALLOCATION_NIGHT_MISMATCH");
 }));

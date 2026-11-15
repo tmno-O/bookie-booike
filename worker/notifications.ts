@@ -14,6 +14,7 @@ type Notification = {
   serviceDate: string;
   bookingStatus: string;
   stale: boolean;
+  note: string | null;
 };
 
 export async function deliverNextNotification(send: typeof fetch = fetch, venueId?: string) {
@@ -22,7 +23,7 @@ export async function deliverNextNotification(send: typeof fetch = fetch, venueI
     const [job] = await tx<Notification[]>`
       select n.id, n.booking_id, n.venue_id, n.kind, n.attempts, i.subject, l.access_token_ciphertext,
         to_char(b.service_date, 'YYYY-MM-DD') as service_date, b.status as booking_status,
-        n.created_at < now() - interval '23 hours' as stale
+        n.created_at < now() - interval '23 hours' as stale, n.note
       from notification_outbox n
       join bookings b on b.venue_id = n.venue_id and b.id = n.booking_id
       left join venue_line_integrations l on l.venue_id = n.venue_id
@@ -70,6 +71,7 @@ async function sendNotification(job: Notification, send: typeof fetch): Promise<
               { type: "text", text: title, weight: "bold", size: "lg", wrap: true },
               { type: "text", text: `คืนบริการ ${job.serviceDate}`, margin: "md", wrap: true },
               { type: "text", text: `รหัส ${job.bookingId}`, size: "sm", wrap: true },
+              ...(job.note ? [{ type: "text", text: job.note, margin: "md", wrap: true }] : []),
             ],
           },
         },

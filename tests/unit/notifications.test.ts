@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterEach, expect, it, vi } from "vitest";
 import { encryptSecret } from "@/lib/crypto";
-import { sendLinePush } from "@/server/line-push";
+import { sendLineMulticast, sendLinePush } from "@/server/line-push";
 import { POST as drain } from "../../app/api/internal/notifications/drain/route";
 
 const config = vi.hoisted(() => ({ CRON_SECRET: "x".repeat(32), LINE_SECRET_KEY: "ab".repeat(32), LINE_NOTIFICATIONS_ENABLED: true, LINE_VERIFY_MODE: "real" }));
@@ -42,4 +42,18 @@ it("uses stable LINE retry IDs and distinguishes retry, duplicate acceptance, pe
   expect((await sendLinePush({ ...job, stale: true }, [], send)).status).toBe("dead");
   expect((await sendLinePush({ ...job, subject: null }, [], send)).status).toBe("skipped");
   expect(send).not.toHaveBeenCalled();
+});
+
+it("sends one multicast per batch with the batch id as retry key and caps recipients at 500", async () => {
+  const venueId = randomUUID(), batchId = randomUUID();
+  const sender = { retryKey: batchId, venueId, accessTokenCiphertext: encryptSecret("token", `${venueId}:access-token`) };
+  const send = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 200 }));
+  expect((await sendLineMulticast(sender, ["U1", "U2"], [{ type: "text", text: "Round" }], send)).status).toBe("sent");
+  const [url, init] = send.mock.calls[0];
+  expect(url).toBe("https://api.line.me/v2/bot/message/multicast");
+  expect(new Headers(init?.headers).get("X-Line-Retry-Key")).toBe(batchId);
+  expect(JSON.parse(String(init?.body)).to).toEqual(["U1", "U2"]);
+  expect((await sendLineMulticast(sender, [], [], send)).status).toBe("skipped");
+  expect(() => sendLineMulticast(sender, Array.from({ length: 501 }, (_, i) => `U${i}`), [], send)).toThrow();
+  expect((await sendLineMulticast({ ...sender, accessTokenCiphertext: null }, ["U1"], [], send)).status).toBe("skipped");
 });

@@ -112,4 +112,35 @@ $job$);
 
 The endpoint reserves roughly 20 seconds for bounded deliveries, uses row locks to avoid overlapping workers, and retains stable LINE retry IDs. Check `net._http_response`, Cron run history, and both outboxes (`pending`, `sent`, `skipped`, `dead`). Missing cron configuration returns 503; invalid credentials return 401; disabled push preserves pending jobs. No cloud job or secret is provisioned by the migration.
 
+### Signed audit checkpoints
+
+Generate an Ed25519 key once and store it only in Vercel as `AUDIT_SIGNING_KEY` (never in Supabase):
+
+```bash
+node -e "console.log(require('node:crypto').generateKeyPairSync('ed25519').privateKey.export({format:'der',type:'pkcs8'}).toString('base64'))"
+```
+
+Schedule the checkpoint job like the drain, for example every 15 minutes:
+
+```sql
+select cron.schedule('bookie-audit-checkpoint', '*/15 * * * *', $job$
+  select net.http_post(
+    url := (select decrypted_secret from vault.decrypted_secrets where name = 'bookie_app_url')
+      || '/api/internal/audit/checkpoint',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'bookie_cron_secret')
+    ),
+    body := '{}'::jsonb,
+    timeout_milliseconds := 25000
+  );
+$job$);
+```
+
+A database administrator can rebuild the hash chain but cannot sign a new checkpoint without the Vercel key, so a rewrite shows up as an invalid checkpoint in `/admin/audit`. Owners should also download the signed checkpoint periodically; it can be checked offline with the public key it contains. Rotating the key makes earlier checkpoints report as invalid, so keep the previous key until those checkpoints are archived.
+
+### Security headers
+
+`next.config.ts` sends `X-Frame-Options: DENY` and `frame-ancestors 'none'` on `/admin` and `/api`, `SAMEORIGIN` elsewhere, plus `nosniff`, `Referrer-Policy`, `Permissions-Policy` and HSTS. Check them after deploy with `curl -I https://<domain>/admin/login`.
+
 References: [Supabase scheduling with Vault and pg_net](https://supabase.com/docs/guides/functions/schedule-functions), [LINE LIFF redirect behavior](https://developers.line.biz/en/docs/liff/opening-liff-app/). The LIFF link supplies `next=waiting`; customers without saved contact details complete that step first.
