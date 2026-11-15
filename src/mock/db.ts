@@ -23,7 +23,7 @@ export type Booking = {
 };
 export type BookingStatus = "pending" | "confirmed" | "checked_in" | "cancelled";
 export type LineUser = { id: string; userId: string; displayName: string; createdAt: string };
-export type SpecialDay = { id: string; serviceDate: string; opensOn: string; time: string };
+export type SpecialDay = { id: string; serviceDate: string; opensOn: string; time: string; title?: string; announce?: boolean };
 export type Schedule = { standard: { daysBefore: number; time: string }; specials: SpecialDay[];
   openWeekdays: number[]; closures: { serviceDate: string; reason: string }[] };
 export const DEFAULT_SCHEDULE: Schedule = { standard: { daysBefore: 1, time: "20:00" }, specials: [],
@@ -44,6 +44,8 @@ export type Db = {
   lineUsers: LineUser[];
   profile: ShopProfile;
   cancellation: { customerCancelEnabled: boolean; cancelCutoffMinutes: number };
+  announcements: { id: string; serviceDate: string; title: string; opensAt: string; recipients: string[] }[];
+  announcementOptOut: string[];
   invites: Invite[];
   floorPlan: { draft: FloorPlan | null; published: FloorPlan | null; publishedAt: string | null };
   queue: QueueEntry[];
@@ -93,6 +95,7 @@ export function seed(opts: { opensInSeconds?: number; queueStepSeconds?: number 
     lineUsers: [],
     profile: { ...DEFAULT_PROFILE },
     cancellation: { customerCancelEnabled: true, cancelCutoffMinutes: 120 },
+    announcements: [], announcementOptOut: [],
     invites: [],
     floorPlan: { draft: null, published: null, publishedAt: null },
     queue: [],
@@ -119,6 +122,7 @@ async function load(): Promise<Db> {
     db.lineUsers ??= []; // databases saved before LINE login existed
     db.profile ??= { ...DEFAULT_PROFILE };
     db.cancellation ??= { customerCancelEnabled: true, cancelCutoffMinutes: 120 };
+    db.announcements ??= []; db.announcementOptOut ??= [];
     db.invites ??= [];
     db.floorPlan ??= { draft: null, published: null, publishedAt: null }; // databases saved before floor plans existed
     const legacy = db.venue as Db["venue"] & { opensAt?: string };

@@ -100,3 +100,26 @@ it("cancels pending-allocation bookings without creating a table allocation", ()
   const [allocation] = await tx`select count(*)::int as total from booking_allocations where booking_id = ${booking.bookingId}`;
   expect(allocation.total).toBe(0);
 }));
+
+it("fans out once only to past bookers, excludes opt-out and new customers, and refuses closed releases", () => fixture(async (tx, ids) => {
+  await tx`select process_booking_request(${await submit(tx, ids)})`;
+  const opted = randomUUID(), newcomer = randomUUID();
+  for (const customer of [opted, newcomer]) {
+    await tx`insert into customers (id) values (${customer})`;
+    await tx`insert into venue_customers (venue_id, customer_id, display_name) values (${ids.venue}, ${customer}, 'Guest')`;
+  }
+  // The cancelled winner remains a past booker. Opted-out customer also booked previously.
+  const [previous] = await tx`select id from bookings where venue_id = ${ids.venue}`;
+  await tx`select cancel_booking(${ids.venue}, ${previous.id}, 'customer', ${ids.customer})`;
+  await tx`select process_booking_request(${await submit(tx, { ...ids, customer: opted })})`;
+  await tx`update venue_customers set announcements_opt_out = true where venue_id = ${ids.venue} and customer_id = ${opted}`;
+  const opens = `${ids.date}T10:00:00Z`;
+  await tx`insert into booking_releases (venue_id, service_date, opens_at, title) values (${ids.venue}, ${ids.date}, ${opens}, 'Festival')`;
+  const announce = () => tx`select announce_release(${ids.venue}, ${ids.date}, 'Festival', ${opens}, ${randomUUID()}) as id`;
+  const [first] = await announce(); const [retry] = await announce();
+  expect(retry.id).toBe(first.id);
+  const recipients = await tx`select customer_id from announcement_outbox where announcement_id = ${first.id}`;
+  expect(recipients.map((r) => r.customerId)).toEqual([ids.customer]);
+  await tx`insert into venue_closures (venue_id, service_date, created_by) values (${ids.venue}, ${ids.date}, ${randomUUID()})`;
+  await expect(tx.savepoint(async (sub) => sub`select announce_release(${ids.venue}, ${ids.date}, 'Other', ${opens}, ${randomUUID()})`)).rejects.toThrow("CLOSED");
+}));

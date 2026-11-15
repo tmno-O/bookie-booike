@@ -69,3 +69,9 @@ Owner: `GET /api/staff/venues/{venueId}/hours` returns `openWeekdays` (Sunday=0)
 ## Cancellation policy
 
 Owner `PATCH .../settings` accepts `customerCancelEnabled` and `cancelCutoffMinutes` (0–525600). Booking views include `cancellableUntil` (null when disabled) and `canCancel`. Customer `POST /api/me/bookings/{id}/cancel` returns the updated booking. Conflicts: `CANCEL_DISABLED`, `CANCELLATION_CUTOFF_PASSED`, `ALREADY_CHECKED_IN` (409). Repeated cancellation is idempotent. Staff `PATCH .../bookings/{id}` with `{status: "cancelled"}` bypasses customer policy. Both pending allocations and confirmed bookings can be cancelled; active allocations are released atomically.
+
+## Release announcements
+
+Owner `POST .../hours/special` also accepts `title` (120 characters) and `announce` (default false). Announcement requires a nonempty title and an open service night. Creation atomically records the release, announcement, and one outbox row per eligible customer with a prior booking, excluding opt-out. Retrying the same special day returns `409 SPECIAL_DAY_EXISTS` without duplicating recipients. Hours responses include recipient/sent/failed counts.
+
+Session-scoped `GET /api/me/announcements` returns `{announcements: [{id,title,serviceDate,opensAt}], optedOut}`. Closed, deleted, replaced, or expired releases are hidden. `POST /api/me/announcements/opt-out` accepts `{optOut: boolean}`; opting out skips pending pushes. `POST /api/internal/notifications/drain` requires `Authorization: Bearer <CRON_SECRET>` and handles booking and announcement outboxes with bounded work, retries, and stale-job expiry. See DEPLOY.md for Supabase Cron configuration.

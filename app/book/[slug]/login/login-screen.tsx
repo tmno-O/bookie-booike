@@ -3,7 +3,7 @@
 import Script from "next/script";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { api, asFailure, realApiMode } from "../flow";
+import { api, asFailure, loadCustomer, realApiMode } from "../flow";
 import styles from "./login.module.css";
 
 type Account = { userId: string; displayName: string };
@@ -41,7 +41,7 @@ function LiffLogin({ slug }: { slug: string }) {
       const idToken = liff.getIDToken();
       if (!idToken) throw new Error("LINE ไม่ได้ส่ง ID token");
       await api("/line/login", { method: "POST", body: { idToken } });
-      if (active) router.replace(`/book/${slug}/details`);
+      if (active) router.replace(`/book/${slug}/${new URLSearchParams(window.location.search).get("next") === "waiting" && loadCustomer() ? "waiting" : "details"}`);
     }).catch((e) => active && setError(e instanceof Error ? e.message : asFailure(e).message));
     return () => { active = false; };
   }, [router, sdkLoaded, slug]);
@@ -55,7 +55,7 @@ function LiffLogin({ slug }: { slug: string }) {
         <h1 className={styles.title}>เข้าสู่ระบบด้วย LINE</h1>
         <p className={styles.subtitle}>เพื่อรับคิวและดูการจองของคุณ</p>
         <button type="button" className={styles.go} disabled={!sdk}
-          onClick={() => sdk?.login({ redirectUri: `${location.origin}${location.pathname}` })}>เข้าสู่ระบบ</button>
+          onClick={() => sdk?.login({ redirectUri: `${location.origin}${location.pathname}${location.search}` })}>เข้าสู่ระบบ</button>
         {error && <p role="alert" className={styles.error}>{error}</p>}
       </main>
     </div>
