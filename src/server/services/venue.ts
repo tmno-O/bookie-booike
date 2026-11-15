@@ -44,7 +44,13 @@ export async function getVenue(lookup: { venueId: string } | { slug: string }, s
 
 export async function getPublicVenue(slug: string) {
   const venue = await getVenue({ slug });
-  return { ...venue, ...await queueOpening(venue.id), shop: shopProfile(venue) };
+  const opening = await queueOpening(venue.id);
+  const [rule] = await db()`select coalesce(open_weekdays, array[0,1,2,3,4,5,6]::smallint[]) as open_weekdays,
+    coalesce(closed, false) as closed from booking_rules where venue_id = ${venue.id} and scope = 'venue' order by version desc limit 1`;
+  const closedDates = await db()`select to_char(service_date, 'YYYY-MM-DD') as service_date, reason
+    from venue_closures where venue_id = ${venue.id}
+      and service_date between ${opening.today}::date and ${opening.today}::date + ${opening.maxAdvanceDays}::int order by service_date`;
+  return { ...venue, ...opening, openWeekdays: rule?.closed ? [] : rule?.openWeekdays ?? [0,1,2,3,4,5,6], closedDates, shop: shopProfile(venue) };
 }
 
 export function shopProfile({ name, phone, address, entryPolicy }: z.infer<typeof shopProfileInput>) {
