@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Shell, shellStyles as s } from "../shell";
 import { api, asFailure, bookingStatusLabel, partyLabel, thaiDate, type Booking } from "../flow";
 import styles from "./confirmed.module.css";
+import { CancelBooking } from "../cancel-booking";
 
 export default function ConfirmedScreen({ slug }: { slug: string }) {
   const id = useSearchParams().get("b");
@@ -41,6 +42,7 @@ export default function ConfirmedScreen({ slug }: { slug: string }) {
           <div><dt className={styles.dl}>{pending ? "โซนที่ขอ" : "โซน"}</dt><dd className={styles.dd}>{booking.zoneName}</dd></div>
         </dl>
         <p className={styles.contact}><b>ชื่อลูกค้า</b>{booking.name}<br /><span style={{ fontWeight: 400 }}>เบอร์โทร&nbsp; {booking.phone}</span></p>
+        <CancelBooking booking={booking} onChanged={setBooking} />
         <p className={styles.line}>การแจ้งเตือน LINE</p>
         <p className={styles.lineNote}>ยังไม่มีข้อมูลการส่งข้อความ</p>
       </>}

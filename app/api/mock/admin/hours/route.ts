@@ -12,7 +12,7 @@ export const GET = route<Record<string, string>>(async (request) => {
     standard: db.venue.schedule.standard,
     openWeekdays: db.venue.schedule.openWeekdays,
     closures: db.venue.schedule.closures.map((c) => ({ ...c,
-      affectedBookings: db.bookings.filter((b) => b.serviceDate === c.serviceDate).length,
+      affectedBookings: db.bookings.filter((b) => b.status !== "cancelled" && b.serviceDate === c.serviceDate).length,
     })),
     specials: [...db.venue.schedule.specials].sort((a, b) => a.serviceDate.localeCompare(b.serviceDate))
       .map((s) => ({ ...s, opensAt: new Date(opensAtFor(db, s.serviceDate)).toISOString() })),

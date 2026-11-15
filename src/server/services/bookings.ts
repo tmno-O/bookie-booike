@@ -15,14 +15,18 @@ type BookingRow = {
   serviceDate: string; serviceAt: Date; partySize: number; status: z.infer<typeof bookingStatus>;
   createdAt: Date; cancelledAt: Date | null; checkedInAt: Date | null;
   reference: string; name: string; phone: string; source: "liff" | "staff_assisted";
+  cancellableUntil: Date | null; canCancel: boolean;
 };
 
 function bookingFields(sql: ISql) {
   return sql`select b.id, b.venue_id, b.customer_id, b.table_id, b.zone_id, z.name as zone_name,
     to_char(b.service_date, 'YYYY-MM-DD') as service_date, b.service_at, b.party_size, b.status,
     b.created_at, b.cancelled_at, b.checked_in_at, b.reference, b.contact_name as name,
-    coalesce(b.contact_phone, '') as phone, b.source
-    from bookings b join zones z on z.venue_id = b.venue_id and z.id = b.zone_id`;
+    coalesce(b.contact_phone, '') as phone, b.source,
+    case when v.customer_cancel_enabled then b.service_at - make_interval(mins => v.cancel_cutoff_minutes) end as cancellable_until,
+    v.customer_cancel_enabled and b.status in ('confirmed', 'pending_allocation')
+      and clock_timestamp() < b.service_at - make_interval(mins => v.cancel_cutoff_minutes) as can_cancel
+    from bookings b join zones z on z.venue_id = b.venue_id and z.id = b.zone_id join venues v on v.id = b.venue_id`;
 }
 
 function bookingView(row: BookingRow) {

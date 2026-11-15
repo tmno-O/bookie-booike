@@ -3,12 +3,19 @@ import { withDb } from "@/mock/db";
 import { assertMockEnabled } from "@/mock/session";
 import { requireOwner, requireStaff } from "@/mock/staff";
 import { profileInput } from "@/mock/validation";
+import { settingsPatch } from "@/contracts/venue";
 
 // Shop info shown to customers and the booking entry policy. Staff can read; only the owner can save.
 export const GET = route<Record<string, string>>(async (request) => {
   assertMockEnabled();
   const staff = requireStaff(request);
-  return json({ profile: await withDb((db) => db.profile), canEdit: staff.role === "owner" });
+  return json(await withDb((db) => ({ profile: db.profile, ...db.cancellation, canEdit: staff.role === "owner" })));
+});
+
+export const PATCH = route(async (request) => {
+  assertMockEnabled(); requireOwner(request);
+  const patch = await body(request, settingsPatch.pick({ customerCancelEnabled: true, cancelCutoffMinutes: true }));
+  return json(await withDb((db) => Object.assign(db.cancellation, patch)));
 });
 
 export const PUT = route<Record<string, string>>(async (request) => {
