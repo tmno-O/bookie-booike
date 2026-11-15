@@ -38,6 +38,8 @@ import { DELETE as closureDelete } from "../../app/api/mock/admin/hours/closures
 import { POST as customerCancel } from "../../app/api/mock/bookings/[id]/cancel/route";
 import { PATCH as cancelPolicy } from "../../app/api/mock/admin/settings/route";
 import { PATCH as cancelByStaff } from "../../app/api/mock/admin/bookings/[id]/route";
+import { GET as announcementsGet } from "../../app/api/mock/announcements/route";
+import { POST as announcementsOptOut } from "../../app/api/mock/announcements/opt-out/route";
 
 const dir = await mkdtemp(path.join(tmpdir(), "mock-db-"));
 process.env.MOCK_DB_PATH = path.join(dir, "db.json");
@@ -119,6 +121,26 @@ describe("mock cancellation", () => {
     const cancel = () => call(customerCancel, `/api/mock/bookings/${id}/cancel`, { method: "POST", cookie: who.cookie }, { id });
     expect((await (await cancel()).json()).booking).toMatchObject({ status: "cancelled", canCancel: false });
     expect((await cancel()).status).toBe(200);
+  });
+});
+
+describe("mock announcements", () => {
+  beforeEach(() => call(resetDb, "/api/mock/reset", { method: "POST", body: { queueStepSeconds: 0 } }));
+  it("targets past bookers, keeps in-app messages independent of LINE, and honors opt-out", async () => {
+    const who = await readyCustomer(); await reserve(who, "zone-indoor");
+    const newcomer = await login("Umock0002");
+    const cookie = cookieOf(await call(staffLogin, "/api/mock/admin/login", { method: "POST", body: { email: "owner@bookie.test" } }));
+    const data = { serviceDate: addDays(today(), 2), opensOn: today(), time: "00:00", title: "Festival", announce: true };
+    expect((await call(specialCreate, "/api/mock/admin/hours/special", { method: "POST", cookie, body: data })).status).toBe(201);
+    expect((await call(specialCreate, "/api/mock/admin/hours/special", { method: "POST", cookie, body: data })).status).toBe(409);
+    const list = (cookie: string) => call(announcementsGet, "/api/mock/announcements", { cookie }).then((r) => r.json());
+    expect((await list(who.cookie)).announcements).toHaveLength(1);
+    expect((await list(newcomer)).announcements).toEqual([]);
+    await call(announcementsOptOut, "/api/mock/announcements/opt-out", { method: "POST", cookie: who.cookie, body: { optOut: true } });
+    expect(await list(who.cookie)).toEqual({ announcements: [], optedOut: true });
+    const closed = { ...data, serviceDate: addDays(today(), 3) };
+    await call(closureCreate, "/api/mock/admin/hours/closures", { method: "POST", cookie, body: { serviceDate: closed.serviceDate } });
+    expect((await (await call(specialCreate, "/api/mock/admin/hours/special", { method: "POST", cookie, body: closed })).json()).error.code).toBe("CLOSED");
   });
 });
 

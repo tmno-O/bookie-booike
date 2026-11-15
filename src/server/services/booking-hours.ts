@@ -19,7 +19,13 @@ export function getBookingHours(venueId: string) {
     const specials = await tx<(Special & { id: string; opensAt: Date })[]>`
       select to_char(r.service_date, 'YYYY-MM-DD') as id, to_char(r.service_date, 'YYYY-MM-DD') as service_date,
         to_char(opens_at at time zone 'Asia/Bangkok', 'YYYY-MM-DD') as opens_on,
-        to_char(opens_at at time zone 'Asia/Bangkok', 'HH24:MI') as time, opens_at
+        to_char(opens_at at time zone 'Asia/Bangkok', 'HH24:MI') as time, opens_at, coalesce(r.title, '') as title,
+        (select count(*)::int from announcement_outbox o join release_announcements a on a.id = o.announcement_id
+          where a.venue_id = r.venue_id and a.service_date = r.service_date and a.opens_at = r.opens_at) as recipients,
+        (select count(*)::int from announcement_outbox o join release_announcements a on a.id = o.announcement_id
+          where a.venue_id = r.venue_id and a.service_date = r.service_date and a.opens_at = r.opens_at and o.status = 'sent') as sent,
+        (select count(*)::int from announcement_outbox o join release_announcements a on a.id = o.announcement_id
+          where a.venue_id = r.venue_id and a.service_date = r.service_date and a.opens_at = r.opens_at and o.status = 'dead') as failed
       from booking_releases r where venue_id = ${venueId} order by r.service_date
     `;
     const [rule] = await tx<{ openWeekdays: number[] }[]>`
@@ -87,13 +93,16 @@ export function saveStandardHours(staff: Staff, standard: Standard) {
 export function addSpecialHours(staff: Staff, special: Special) {
   return staffChange(staff, async (tx) => {
     if (special.serviceDate < bangkokDate()) throw new ApiError(422, "DATE_IN_PAST", "คืนที่เลือกผ่านมาแล้ว");
+    const [night] = await tx`select service_night_open(${staff.venueId}, ${special.serviceDate}) as open`;
+    if (!night.open) throw new ApiError(409, "CLOSED", "ร้านปิดในคืนที่เลือก");
     const [row] = await tx<{ opensAt: Date }[]>`
-      insert into booking_releases (venue_id, service_date, opens_at)
-      values (${staff.venueId}, ${special.serviceDate}, (${special.opensOn}::date + ${special.time}::time) at time zone 'Asia/Bangkok')
+      insert into booking_releases (venue_id, service_date, opens_at, title)
+      values (${staff.venueId}, ${special.serviceDate}, (${special.opensOn}::date + ${special.time}::time) at time zone 'Asia/Bangkok', ${special.title})
       on conflict (venue_id, service_date) do nothing returning opens_at
     `;
     if (!row) throw new ApiError(409, "SPECIAL_DAY_EXISTS", "คืนนี้มีการตั้งเวลาเฉพาะอยู่แล้ว");
-    await staffAudit(tx, staff, "hours.special_added", staff.venueId);
+    if (special.announce) await tx`select announce_release(${staff.venueId}, ${special.serviceDate}, ${special.title}, ${row.opensAt}, ${staff.userId})`;
+    await staffAudit(tx, staff, "hours.special_added", staff.venueId, special);
     return { special: { ...special, id: special.serviceDate, opensAt: row.opensAt } };
   });
 }

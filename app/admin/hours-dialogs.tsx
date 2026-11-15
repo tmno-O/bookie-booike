@@ -87,6 +87,8 @@ export function SpecialDayDialog({ today, onClose, onSaved }: { today: string; o
   const [serviceDate, setServiceDate] = useState("");
   const [opensOn, setOpensOn] = useState("");
   const [time, setTime] = useState("20:00");
+  const [title, setTitle] = useState("");
+  const [announce, setAnnounce] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const first = useRef<HTMLInputElement>(null);
@@ -95,12 +97,13 @@ export function SpecialDayDialog({ today, onClose, onSaved }: { today: string; o
   async function save(e: FormEvent) {
     e.preventDefault();
     if (!serviceDate) return setError("กรุณาเลือกคืนที่ต้องการ");
+    if (announce && !title.trim()) return setError("กรุณาระบุชื่อวันพิเศษก่อนแจ้งลูกค้า");
     if (!opensOn) return setError("กรุณาเลือกวันเปิดรับจอง");
     if (opensOn > serviceDate) return setError("วันเปิดรับจองต้องไม่เกินคืนที่จอง");
     if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) return setError("กรุณาเลือกเวลาเปิดรับจอง");
     setBusy(true); setError("");
     try {
-      await adminApi("/admin/hours/special", { method: "POST", body: { serviceDate, opensOn, time } });
+      await adminApi("/admin/hours/special", { method: "POST", body: { serviceDate, opensOn, time, title, announce } });
       onSaved();
     } catch (err) {
       const f = asFailure(err); setError(ERRORS[f.code] ?? f.message); setBusy(false);
@@ -109,6 +112,7 @@ export function SpecialDayDialog({ today, onClose, onSaved }: { today: string; o
   const label = { color: "#25211f", fontWeight: 600 } as const;
   return (
     <Frame title="เพิ่มวันพิเศษ" sub="กำหนดเวลาเปิดจองเฉพาะคืนที่เลือก" busy={busy} onClose={onClose} onSubmit={save} error={error}>
+      <label className={styles.field}><span className={styles.fieldLabel}>ชื่อวันพิเศษ</span><input className={styles.input} maxLength={120} value={title} onChange={(e) => setTitle(e.target.value)} /></label>
       <label className={styles.field} style={{ gridTemplateColumns: "1fr" }}><span className={styles.fieldLabel} style={label}>คืนที่ต้องการ</span>
         <input ref={first} className={styles.input} type="date" min={today} value={serviceDate}
           onChange={(e) => { setServiceDate(e.target.value); if (!opensOn && e.target.value) setOpensOn(e.target.value); }} /></label>
@@ -116,6 +120,7 @@ export function SpecialDayDialog({ today, onClose, onSaved }: { today: string; o
         <input className={styles.input} type="date" min={today} max={serviceDate || undefined} value={opensOn} onChange={(e) => setOpensOn(e.target.value)} /></label>
       <label className={styles.field} style={{ gridTemplateColumns: "1fr" }}><span className={styles.fieldLabel} style={label}>เวลาเปิดรับจอง</span>
         <input className={styles.input} type="time" value={time} onChange={(e) => setTime(e.target.value)} /></label>
+      <label style={{ display: "flex", alignItems: "center", gap: 12, minHeight: 44 }}><input type="checkbox" checked={announce} onChange={(e) => setAnnounce(e.target.checked)} />แจ้งลูกค้าที่เคยจองผ่าน LINE และในแอป</label>
     </Frame>
   );
 }

@@ -1,4 +1,4 @@
-import { decryptSecret } from "@/lib/crypto";
+import { sendLinePush, type Delivery } from "@/server/line-push";
 import { db } from "@/lib/db";
 
 const maxAttempts = 5;
@@ -53,32 +53,12 @@ export async function deliverNextNotification(send: typeof fetch = fetch, venueI
   });
 }
 
-type Delivery = { status: "retry" | "sent" | "skipped" | "dead"; error: string | null };
-
 async function sendNotification(job: Notification, send: typeof fetch): Promise<Delivery> {
   if (job.kind === "confirmed" && job.bookingStatus === "cancelled") {
     return { status: "skipped", error: "BOOKING_ALREADY_CANCELLED" };
   }
-  if (!job.accessTokenCiphertext || !job.subject) return { status: "skipped", error: "LINE_PUSH_NOT_CONFIGURED" };
-  if (job.stale) return { status: "dead", error: "DELIVERY_WINDOW_EXPIRED" };
-
-  let token: string;
-  try {
-    token = decryptSecret(job.accessTokenCiphertext, `${job.venueId}:access-token`);
-  } catch {
-    return { status: "dead", error: "INVALID_LINE_CIPHERTEXT" };
-  }
-
   const title = job.kind === "confirmed" ? "ยืนยันการจองแล้ว" : "ยกเลิกการจองแล้ว";
-  const response = await send("https://api.line.me/v2/bot/message/push", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`, "Content-Type": "application/json", "X-Line-Retry-Key": job.id,
-    },
-    signal: AbortSignal.timeout(5_000),
-    body: JSON.stringify({
-      to: job.subject,
-      messages: [{
+  return sendLinePush(job, [{
         type: "flex",
         altText: title,
         contents: {
@@ -93,15 +73,5 @@ async function sendNotification(job: Notification, send: typeof fetch): Promise<
             ],
           },
         },
-      }],
-    }),
-  }).catch(() => null);
-  if (!response) return { status: "retry", error: "LINE_NETWORK_ERROR" };
-  if (response.ok || (response.status === 409 && response.headers.has("x-line-accepted-request-id"))) {
-    return { status: "sent", error: null };
-  }
-  return {
-    status: response.status >= 500 || response.status === 429 ? "retry" : "dead",
-    error: `LINE_HTTP_${response.status}`,
-  };
+  }], send);
 }

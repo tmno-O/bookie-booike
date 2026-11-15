@@ -15,6 +15,7 @@ const schema = z.object({
   LINE_VERIFY_MODE: z.enum(["real", "mock"]).default("real"),
   LINE_SECRET_KEY: z.string().regex(/^[0-9a-f]{64}$/i),
   LINE_NOTIFICATIONS_ENABLED: z.enum(["true", "false"]).default("false").transform((value) => value === "true"),
+  CRON_SECRET: z.preprocess((value) => value === "" ? undefined : value, z.string().min(32).optional()),
   BOOKING_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(30),
   BOOKING_MAX_RECEIVES: z.coerce.number().int().min(1).max(100).default(5),
 }).refine((env) => env.QUEUE_DRIVER !== "sqs" || env.SQS_QUEUE_URL, {

@@ -8,11 +8,14 @@ export const weekdaysInput = z.strictObject({
 });
 export const closureInput = z.strictObject({ serviceDate, reason: z.string().trim().max(300).default("") });
 export const closureView = closureInput.extend({ affectedBookings: z.number().int().nonnegative() });
-export const specialHours = z.strictObject({ serviceDate, opensOn: serviceDate, time: clockTime })
-  .refine((value) => value.opensOn <= value.serviceDate, "วันเปิดรับจองต้องไม่เกินคืนที่จอง");
+export const specialHours = z.strictObject({ serviceDate, opensOn: serviceDate, time: clockTime,
+  title: z.string().trim().max(120).default(""), announce: z.boolean().default(false) })
+  .refine((value) => value.opensOn <= value.serviceDate, "วันเปิดรับจองต้องไม่เกินคืนที่จอง")
+  .refine((value) => !value.announce || !!value.title, "กรุณาระบุชื่อวันพิเศษก่อนแจ้งลูกค้า");
 export const hoursData = z.object({
   standard: standardHours,
-  specials: z.array(z.object({ id: serviceDate, serviceDate, opensOn: serviceDate, time: clockTime, opensAt: instant })),
+  specials: z.array(z.object({ id: serviceDate, serviceDate, opensOn: serviceDate, time: clockTime, opensAt: instant,
+    title: z.string(), recipients: z.number().int(), sent: z.number().int(), failed: z.number().int() })),
   canEdit: z.literal(true),
   openWeekdays: weekdaysInput.shape.openWeekdays,
   closures: z.array(closureView),

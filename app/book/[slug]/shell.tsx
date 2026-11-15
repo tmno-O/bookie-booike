@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { IBM_Plex_Sans_Thai } from "next/font/google";
 import styles from "./shell.module.css";
+import { AnnouncementBanner } from "./announcement-banner";
 
 const plex = IBM_Plex_Sans_Thai({ subsets: ["thai", "latin"], weight: ["400", "600"] });
 
@@ -17,7 +18,7 @@ export function Shell({ slug, back, children, cta }: {
           <span className={styles.brand}>Bookie lyon.</span>
           <Link href={`/book/${slug}/bookings`} className={styles.mine}>การจองของฉัน</Link>
         </header>
-        <main className={styles.body}>{children}</main>
+        <main className={styles.body}><AnnouncementBanner slug={slug} />{children}</main>
         <div className={styles.footer}>
           {cta.href && !cta.disabled
             ? <Link href={cta.href} className={styles.cta}>{cta.label}</Link>

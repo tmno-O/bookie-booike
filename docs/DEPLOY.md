@@ -25,7 +25,7 @@
    ```bash
    npx supabase login
    npx supabase link --project-ref <project-ref>
-   npx supabase db push
+   npx supabase db push --include-all
    ```
 
 3. Integrations → Cron เปิดใช้ แล้วรันใน SQL Editor (`drain_booking_requests` เป็น procedure ต้องใช้ `call`):
@@ -87,4 +87,29 @@ Production ปฏิเสธ `LINE_VERIFY_MODE=mock` ลูกค้าจึ�
 - เก็บ secret ไว้ใน Vercel และ Supabase เท่านั้น ห้าม commit
 - ห้ามรันโหมด `sqs` และ `db` กับฐานข้อมูลเดียวกันพร้อมกัน drain ของโหมด `db` จะหยิบคำขอ `queued` ทั้งหมด
 - Vercel Hobby ใช้ได้เฉพาะงานไม่เชิงพาณิชย์
-- ยังไม่มี: หน้าสมัคร owner, การรับคำเชิญ staff, รีเซ็ตรหัสผ่าน, แจ้งเตือน LINE บน Vercel (ต้องส่งจาก Supabase ด้วย `pg_net` หรือ Edge Function) และข้อความขอ consent PDPA สำหรับเบอร์โทร
+- ยังไม่มี: หน้าสมัคร owner, การรับคำเชิญ staff, รีเซ็ตรหัสผ่าน, ข้อความขอ consent PDPA สำหรับเบอร์โทร
+
+## 5. Booking and release notifications on Vercel
+
+Apply migrations with `npx supabase db push --include-all` (the policy migrations precede the existing floor-plan migration). Configure a Messaging API access token from the same LINE provider, `LINE_NOTIFICATIONS_ENABLED=true`, `LINE_VERIFY_MODE=real`, and a random `CRON_SECRET` of at least 32 characters in Vercel. In-app announcements work even when push is disabled or fails.
+
+Enable `pg_cron`, `pg_net`, and Vault in Supabase. Store the application URL and the same cron secret in Vault using the dashboard (names `bookie_app_url`, `bookie_cron_secret`). Schedule one POST per minute:
+
+```sql
+select cron.schedule('bookie-notifications', '* * * * *', $job$
+  select net.http_post(
+    url := (select decrypted_secret from vault.decrypted_secrets where name = 'bookie_app_url')
+      || '/api/internal/notifications/drain',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'bookie_cron_secret')
+    ),
+    body := '{}'::jsonb,
+    timeout_milliseconds := 25000
+  );
+$job$);
+```
+
+The endpoint reserves roughly 20 seconds for bounded deliveries, uses row locks to avoid overlapping workers, and retains stable LINE retry IDs. Check `net._http_response`, Cron run history, and both outboxes (`pending`, `sent`, `skipped`, `dead`). Missing cron configuration returns 503; invalid credentials return 401; disabled push preserves pending jobs. No cloud job or secret is provisioned by the migration.
+
+References: [Supabase scheduling with Vault and pg_net](https://supabase.com/docs/guides/functions/schedule-functions), [LINE LIFF redirect behavior](https://developers.line.biz/en/docs/liff/opening-liff-app/). The LIFF link supplies `next=waiting`; customers without saved contact details complete that step first.

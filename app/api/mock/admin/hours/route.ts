@@ -15,7 +15,9 @@ export const GET = route<Record<string, string>>(async (request) => {
       affectedBookings: db.bookings.filter((b) => b.status !== "cancelled" && b.serviceDate === c.serviceDate).length,
     })),
     specials: [...db.venue.schedule.specials].sort((a, b) => a.serviceDate.localeCompare(b.serviceDate))
-      .map((s) => ({ ...s, opensAt: new Date(opensAtFor(db, s.serviceDate)).toISOString() })),
+      .map((s) => ({ ...s, title: s.title ?? "", opensAt: new Date(opensAtFor(db, s.serviceDate)).toISOString(),
+        recipients: db.announcements.filter((a) => a.serviceDate === s.serviceDate).reduce((n, a) => n + a.recipients.length, 0),
+        sent: 0, failed: 0 })),
     canEdit: staff.role === "owner",
   })));
 });

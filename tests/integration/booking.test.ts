@@ -60,6 +60,10 @@ import { sqs } from "@/lib/sqs";
 import { consumeBookingMessage, receiveBookingMessage } from "../../worker/consume";
 import { reconcilePending } from "../../worker/recovery";
 import { deliverNextNotification } from "../../worker/notifications";
+import { deliverNextAnnouncement } from "../../worker/announcements";
+import { encryptSecret } from "@/lib/crypto";
+import { GET as announcements } from "../../app/api/me/announcements/route";
+import { POST as optOut } from "../../app/api/me/announcements/opt-out/route";
 
 // This suite covers the optional SQS FIFO driver with the Node worker; db-queue.test.ts covers the default.
 process.env.QUEUE_DRIVER = "sqs";
@@ -478,7 +482,7 @@ it("lets only owners edit hours and applies Bangkok special releases to customer
     expect(await added.json()).toMatchObject({ special: { id: date, opensAt } });
     expect(await (await visibility()).json()).toMatchObject({ nightOpen: true, opensAt });
     const snapshot = hoursData.parse(await (await hours(request("GET", owner), params)).json());
-    expect(snapshot.specials).toContainEqual({ id: date, opensAt, ...special });
+    expect(snapshot.specials).toContainEqual({ id: date, opensAt, ...special, title: "", recipients: 0, sent: 0, failed: 0 });
     expect(await (await addSpecial(request("POST", { ...owner, data: special }), params)).json())
       .toMatchObject({ error: { code: "SPECIAL_DAY_EXISTS" } });
     expect((await deleteSpecial(request("DELETE", owner), specialParams)).status).toBe(200);
@@ -621,6 +625,8 @@ afterAll(async () => {
   const sql = db();
   try {
     await sql.begin(async (tx) => {
+      await tx`delete from announcement_outbox where venue_id in ${tx(venues)}`;
+      await tx`delete from release_announcements where venue_id in ${tx(venues)}`;
       await tx`delete from notification_outbox where venue_id in ${tx(venues)}`;
       await tx`delete from booking_events where venue_id in ${tx(venues)}`;
       await tx`delete from booking_allocations where venue_id in ${tx(venues)}`;
@@ -850,4 +856,32 @@ describe.sequential("Supabase + ElasticMQ booking", () => {
     const [sent] = await sql`select status, attempts from notification_outbox where id = ${job.id}`;
     expect(sent).toMatchObject({ status: "sent", attempts: 2 });
   });
+});
+
+
+it("keeps in-app announcements after LINE retry and stops delivery after opt-out", async () => {
+  const sql = db();
+  await sql`update venue_tables set status = 'active' where id = ${tableId}`;
+  const [past] = await sql`insert into booking_requests
+    (venue_id, customer_id, actor_type, actor_id, source, service_date, party_size, table_id, idempotency_key, payload_hash, status)
+    values (${venueId}, ${alice.customerId}, 'customer', ${alice.customerId}, 'liff', ${day(27)}, 2, ${tableId}, ${randomUUID()}, 'announcement-test', 'queued') returning id`;
+  await sql`select process_booking_request(${past.id})`;
+  const data = { serviceDate: day(29), opensOn: day(0), time: "00:00", title: "Festival", announce: true };
+  const response = await addSpecial(request("POST", { token: ownerToken, data }), context({ venueId }));
+  expect(response.status, await response.clone().text()).toBe(201);
+  const list = () => announcements(request("GET", { cookie: alice.cookie }), context({})).then((r) => r.json());
+  expect((await list()).announcements).toContainEqual(expect.objectContaining({ title: "Festival" }));
+  expect((await (await announcements(request("GET", { cookie: other.cookie }), context({}))).json()).announcements).toEqual([]);
+  await sql`update venue_line_integrations set access_token_ciphertext = ${encryptSecret("token", `${venueId}:access-token`)} where venue_id = ${venueId}`;
+  const retry: typeof fetch = async () => new Response(null, { status: 503 });
+  expect(await deliverNextAnnouncement(retry, venueId)).toBe(true);
+  expect((await list()).announcements).toHaveLength(1);
+  await sql`update announcement_outbox set next_attempt_at = now() where venue_id = ${venueId} and status = 'pending'`;
+  const calls: string[] = [];
+  const send: typeof fetch = async (_url, init) => { calls.push(new Headers(init?.headers).get("X-Line-Retry-Key")!); return new Response(null, { status: 200 }); };
+  while (await deliverNextAnnouncement(send, venueId)) { /* drain this test audience */ }
+  expect(calls.length).toBeGreaterThan(0);
+  expect(new Set(calls).size).toBe(calls.length);
+  expect((await optOut(request("POST", { cookie: alice.cookie, data: { optOut: true } }), context({}))).status).toBe(200);
+  expect(await list()).toEqual({ announcements: [], optedOut: true });
 });

@@ -18,6 +18,8 @@ async function venueId() {
 
 export async function customerApi<T>(path: string, init?: ApiInit): Promise<T> {
   switch (path) {
+    case "/announcements": return apiRequest("/api/me/announcements", init);
+    case "/announcements/opt-out": return apiRequest("/api/me/announcements/opt-out", init);
     case "/venue":
       return apiRequest(`/api/venues/by-slug/${encodeURIComponent(customerVenueSlug())}`, init);
     case "/queue":
