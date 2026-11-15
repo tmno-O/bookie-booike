@@ -11,7 +11,7 @@ export const GET = route<Record<string, string>>(async (request) => {
   const param = new URL(request.url).searchParams.get("date") ?? today();
   const date = input(z.string().regex(/^\d{4}-\d{2}-\d{2}$/), param);
   return json(await withDb((db) => {
-    const night = db.bookings.filter((b) => b.serviceDate === date)
+    const night = db.bookings.filter((b) => b.serviceDate === date && b.status !== "cancelled")
       .sort((a, b) => a.reference.localeCompare(b.reference));
     const waiting = db.queue.filter((e) => !e.bookingId).length;
     return {

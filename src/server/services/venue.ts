@@ -30,11 +30,11 @@ export async function getVenue(lookup: { venueId: string } | { slug: string }, s
     id: string; slug: string; name: string; description: string | null; contact: string | null;
     mapUrl: string | null; imageUrl: string | null; timezone: string; phone: string; address: string;
     entryPolicy: string; tableSelectionMode: "customer_picks" | "auto_assign";
-    cancelCutoffMinutes: number; liffId: string | null; allocationMode: "auto" | "manual";
+    cancelCutoffMinutes: number; customerCancelEnabled: boolean; liffId: string | null; allocationMode: "auto" | "manual";
   }[]>`
     select v.id, v.slug, v.name, v.description, v.contact, v.map_url, v.image_url, v.timezone,
            v.phone, v.address, v.entry_policy,
-           v.table_selection_mode, v.cancel_cutoff_minutes, l.liff_id, coalesce(s.allocation_mode, 'auto') as allocation_mode
+           v.table_selection_mode, v.cancel_cutoff_minutes, v.customer_cancel_enabled, l.liff_id, coalesce(s.allocation_mode, 'auto') as allocation_mode
     from venues v left join venue_line_integrations l on l.venue_id = v.id
     left join venue_settings s on s.venue_id = v.id
     where ${predicate}

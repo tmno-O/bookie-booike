@@ -59,3 +59,44 @@ it("queue opening skips a closed service night", () => fixture(async (tx, ids) =
   const [opening] = await tx`select opens_at = opens_at_for(${ids.venue}, ${day.date}::date + 1) as correct from queue_opening(${ids.venue})`;
   expect(opening.correct).toBe(true);
 }));
+
+it("cancels before cutoff idempotently, releases the table, and records the policy", () => fixture(async (tx, ids) => {
+  const [booking] = await tx`select (process_booking_request(${await submit(tx, ids)})).*`;
+  const cancel = () => tx`select cancel_booking(${ids.venue}, ${booking.bookingId}, 'customer', ${ids.customer}) as code`;
+  expect((await cancel())[0].code).toBe("CANCELLED");
+  expect((await cancel())[0].code).toBe("CANCELLED");
+  const [event] = await tx`select count(*)::int as total from booking_events where booking_id = ${booking.bookingId} and kind = 'cancelled'`;
+  expect(event.total).toBe(1);
+  const [audit] = await tx`select details from audit_logs where entity_id = ${booking.bookingId} and action = 'booking.cancelled'`;
+  expect(audit.details).toMatchObject({ cutoff_minutes: 120, service_date: ids.date });
+  expect(audit.details.deadline).toBeTruthy();
+  const [next] = await tx`select (process_booking_request(${await submit(tx, ids)})).*`;
+  expect(next.status).toBe("confirmed");
+}));
+
+it("enforces disabled policy and cutoff for customers while staff can override both", () => fixture(async (tx, ids) => {
+  const [booking] = await tx`select (process_booking_request(${await submit(tx, ids)})).*`;
+  await tx`update venues set customer_cancel_enabled = false where id = ${ids.venue}`;
+  const cancel = (actor = "customer", id = ids.customer) => tx`select cancel_booking(${ids.venue}, ${booking.bookingId}, ${actor}, ${id}) as code`;
+  expect((await cancel())[0].code).toBe("CANCEL_DISABLED");
+  expect((await cancel("customer", randomUUID()))[0].code).toBe("NOT_FOUND");
+  await tx`update venues set customer_cancel_enabled = true where id = ${ids.venue}`;
+  await tx`update bookings set service_at = clock_timestamp() - interval '1 minute' where id = ${booking.bookingId}`;
+  expect((await cancel())[0].code).toBe("CUTOFF_PASSED");
+  const staff = "90000000-0000-4000-8000-000000000001";
+  await tx`insert into venue_members (venue_id, user_id, role) values (${ids.venue}, ${staff}, 'owner')`;
+  expect((await cancel("staff", staff))[0].code).toBe("CANCELLED");
+}));
+
+it("cancels pending-allocation bookings without creating a table allocation", () => fixture(async (tx, ids) => {
+  await tx`insert into venue_settings (venue_id, allocation_mode) values (${ids.venue}, 'manual')`;
+  const request = await submit(tx, ids);
+  await tx`update booking_requests set table_id = null, zone_id = ${ids.zone}, party_bucket = '1-4', party_size = 4, queue_no = 1 where id = ${request}`;
+  const [booking] = await tx`select (process_booking_request(${request})).*`;
+  const [state] = await tx`select status from bookings where id = ${booking.bookingId}`;
+  expect(state.status).toBe("pending_allocation");
+  const [cancelled] = await tx`select cancel_booking(${ids.venue}, ${booking.bookingId}, 'customer', ${ids.customer}) as code`;
+  expect(cancelled.code).toBe("CANCELLED");
+  const [allocation] = await tx`select count(*)::int as total from booking_allocations where booking_id = ${booking.bookingId}`;
+  expect(allocation.total).toBe(0);
+}));

@@ -7,6 +7,10 @@ export function customerVenueSlug() {
   return decodeURIComponent(window.location.pathname.split("/")[2] ?? "");
 }
 
+export function cancelBooking(id: string) {
+  return apiRequest(`/api/me/bookings/${encodeURIComponent(id)}/cancel`, { method: "POST" });
+}
+
 async function venueId() {
   const { id } = await apiRequest<{ id: string }>(`/api/venues/by-slug/${encodeURIComponent(customerVenueSlug())}`);
   return id;
@@ -41,6 +45,7 @@ export async function customerApi<T>(path: string, init?: ApiInit): Promise<T> {
       }
       if (path.startsWith("/bookings?")) return apiRequest(`/api/me${path}`, init);
       if (path.startsWith("/bookings/")) {
+        if (path.endsWith("/cancel")) return { booking: await cancelBooking(path.split("/")[2]) } as T;
         return { booking: await apiRequest(`/api/me${path}`, init) } as T;
       }
       return apiRequest(`/api${path}`, init);

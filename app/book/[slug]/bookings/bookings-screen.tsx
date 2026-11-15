@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Shell, shellStyles as s } from "../shell";
 import { api, asFailure, bookingStatusLabel, partyLabel, thaiDate, type Booking } from "../flow";
 import styles from "./bookings.module.css";
+import { CancelBooking } from "../cancel-booking";
 
 export default function BookingsScreen({ slug }: { slug: string }) {
   const [bookings, setBookings] = useState<Booking[]>();
@@ -56,6 +57,7 @@ export default function BookingsScreen({ slug }: { slug: string }) {
             {b.status && <div><dt className={styles.dl}>สถานะ</dt><dd className={styles.dd}>{bookingStatusLabel[b.status]}</dd></div>}
           </dl>
           <Link href={`/book/${slug}/confirmed?b=${b.id}`} className={styles.secondary}>ดูรายละเอียดการจอง</Link>
+          <CancelBooking booking={b} onChanged={(updated) => setBookings((rows) => rows?.map((row) => row.id === updated.id ? updated : row))} />
         </section>
       ))}
       {nextOffset !== null && (

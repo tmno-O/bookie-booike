@@ -65,3 +65,7 @@ Route เวลาเปิดจอง, โปรไฟล์ร้าน แ�
 # วันเปิดร้านและวันปิดพิเศษ
 
 Owner: `GET /api/staff/venues/{venueId}/hours` returns `openWeekdays` (Sunday=0) and `closures` with `serviceDate`, `reason`, `affectedBookings`. `PUT .../hours/closures` accepts `{openWeekdays: number[]}`; an empty array closes every weekday. `GET .../hours/closures?date=YYYY-MM-DD` previews affected bookings. `POST .../hours/closures` accepts `{serviceDate, reason}`; `DELETE .../hours/closures/{date}` reopens that night. Existing bookings remain intact. Public venue adds `openWeekdays`, `closedDates`; `opensAt` is null when the bookable window contains no open nights. Closed nights reject requests with `CLOSED`, including requests already queued before closure.
+
+## Cancellation policy
+
+Owner `PATCH .../settings` accepts `customerCancelEnabled` and `cancelCutoffMinutes` (0–525600). Booking views include `cancellableUntil` (null when disabled) and `canCancel`. Customer `POST /api/me/bookings/{id}/cancel` returns the updated booking. Conflicts: `CANCEL_DISABLED`, `CANCELLATION_CUTOFF_PASSED`, `ALREADY_CHECKED_IN` (409). Repeated cancellation is idempotent. Staff `PATCH .../bookings/{id}` with `{status: "cancelled"}` bypasses customer policy. Both pending allocations and confirmed bookings can be cancelled; active allocations are released atomically.

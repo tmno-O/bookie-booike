@@ -51,6 +51,7 @@ export const booking = z.object({
   reference: z.string().regex(/^BL-\d{4}-\d{4,}$/),
   name: z.string(), phone: z.string(), zoneName: z.string(), party: partyBucket,
   source: z.enum(["liff", "staff_assisted"]),
+  cancellableUntil: instant.nullable(), canCancel: z.boolean(),
 });
 export const cancellationInput = z.strictObject({ status: z.literal("cancelled") });
 export type BookingInput = z.infer<typeof legacyBookingInput>;

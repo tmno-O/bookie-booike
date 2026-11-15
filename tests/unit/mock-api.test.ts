@@ -35,6 +35,9 @@ import { addDays, today } from "../../src/mock/db";
 import { mockIdToken } from "../../src/mock/line";
 import { POST as closureCreate, PUT as weekdaysSave } from "../../app/api/mock/admin/hours/closures/route";
 import { DELETE as closureDelete } from "../../app/api/mock/admin/hours/closures/[date]/route";
+import { POST as customerCancel } from "../../app/api/mock/bookings/[id]/cancel/route";
+import { PATCH as cancelPolicy } from "../../app/api/mock/admin/settings/route";
+import { PATCH as cancelByStaff } from "../../app/api/mock/admin/bookings/[id]/route";
 
 const dir = await mkdtemp(path.join(tmpdir(), "mock-db-"));
 process.env.MOCK_DB_PATH = path.join(dir, "db.json");
@@ -78,6 +81,44 @@ describe("mock closures", () => {
     await call(weekdaysSave, "/api/mock/admin/hours/closures", { method: "PUT", cookie, body: { openWeekdays: [] } });
     expect((await (await call(venue, "/api/mock/venue")).json()).opensAt).toBeNull();
     expect((await (await call(venue, "/api/mock/venue")).json()).open).toBe(false);
+  });
+});
+
+describe("mock cancellation", () => {
+  beforeEach(() => call(resetDb, "/api/mock/reset", { method: "POST", body: { queueStepSeconds: 0 } }));
+  it("enforces ownership and policy, allows staff override, and releases capacity", async () => {
+    const who = await readyCustomer();
+    const made = await (await reserve(who, "zone-vip")).json();
+    const id = made.booking.id;
+    const other = await login("Umock0002");
+    const cancel = (cookie: string) => call(customerCancel, `/api/mock/bookings/${id}/cancel`, { method: "POST", cookie }, { id });
+    expect((await cancel(other)).status).toBe(404);
+    const cookie = cookieOf(await call(staffLogin, "/api/mock/admin/login", { method: "POST", body: { email: "owner@bookie.test" } }));
+    await call(cancelPolicy, "/api/mock/admin/settings", { method: "PATCH", cookie, body: { customerCancelEnabled: false } });
+    expect((await (await cancel(who.cookie)).json()).error.code).toBe("CANCEL_DISABLED");
+    await call(cancelPolicy, "/api/mock/admin/settings", { method: "PATCH", cookie, body: { customerCancelEnabled: true, cancelCutoffMinutes: 525600 } });
+    expect((await (await cancel(who.cookie)).json()).error.code).toBe("CANCELLATION_CUTOFF_PASSED");
+    const staff = await call(cancelByStaff, `/api/mock/admin/bookings/${id}`, { method: "PATCH", cookie, body: { status: "cancelled" } }, { id });
+    expect((await staff.json()).booking.status).toBe("cancelled");
+    expect((await cancel(who.cookie)).status).toBe(200);
+    expect((await reserve(await readyCustomer("Umock0002"), "zone-vip")).status).toBe(201);
+  });
+  it("allows customer cancellation before deadline and returns the same cancelled booking on retry", async () => {
+    const who = await readyCustomer();
+    const response = await call(book, "/api/mock/bookings", { method: "POST", cookie: who.cookie,
+      body: { requestId: who.requestId, serviceDate: addDays(today(), 2), party: "1-4", zoneId: "zone-indoor" } });
+    // Open the future night independent of wall-clock time.
+    if (response.status !== 201) {
+      const owner = cookieOf(await call(staffLogin, "/api/mock/admin/login", { method: "POST", body: { email: "owner@bookie.test" } }));
+      await call(specialCreate, "/api/mock/admin/hours/special", { method: "POST", cookie: owner,
+        body: { serviceDate: addDays(today(), 2), opensOn: today(), time: "00:00" } });
+    }
+    const result = response.status === 201 ? await response.json() : await (await call(book, "/api/mock/bookings", { method: "POST", cookie: who.cookie,
+      body: { requestId: who.requestId, serviceDate: addDays(today(), 2), party: "1-4", zoneId: "zone-indoor" } })).json();
+    const id = result.booking.id;
+    const cancel = () => call(customerCancel, `/api/mock/bookings/${id}/cancel`, { method: "POST", cookie: who.cookie }, { id });
+    expect((await (await cancel()).json()).booking).toMatchObject({ status: "cancelled", canCancel: false });
+    expect((await cancel()).status).toBe(200);
   });
 });
 
@@ -611,7 +652,7 @@ describe("mock admin shop settings and team", () => {
     const asOwner = await (await call(settingsGet, "/api/mock/admin/settings", { cookie: await owner() })).json();
     expect(asOwner).toEqual({
       profile: { name: "ร้านตัวอย่าง", phone: "02 123 4567", address: "เชียงใหม่ ประเทศไทย", entryPolicy: "กรุณามาถึงตามเวลาที่ร้านกำหนด" },
-      canEdit: true,
+      canEdit: true, customerCancelEnabled: true, cancelCutoffMinutes: 120,
     });
     expect((await (await call(settingsGet, "/api/mock/admin/settings", { cookie: await staffOnly() })).json()).canEdit).toBe(false);
     expect((await call(settingsGet, "/api/mock/admin/settings")).status).toBe(401);

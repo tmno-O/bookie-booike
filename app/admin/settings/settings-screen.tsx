@@ -19,9 +19,15 @@ export default function SettingsScreen() {
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [cancelEnabled, setCancelEnabled] = useState(true);
+  const [cutoff, setCutoff] = useState("2");
+  const [unit, setUnit] = useState("60");
+  const [policyBusy, setPolicyBusy] = useState(false);
 
-  const load = useCallback(() => adminApi<{ profile: Profile; canEdit: boolean }>("/admin/settings")
-    .then((r) => { setProfile(r.profile); setCanEdit(r.canEdit); })
+  const load = useCallback(() => adminApi<{ profile: Profile; canEdit: boolean; customerCancelEnabled: boolean; cancelCutoffMinutes: number }>("/admin/settings")
+    .then((r) => { setProfile(r.profile); setCanEdit(r.canEdit); setCancelEnabled(r.customerCancelEnabled);
+      const divisor = r.cancelCutoffMinutes > 0 && r.cancelCutoffMinutes % 1440 === 0 ? 1440 : 60;
+      setUnit(String(divisor)); setCutoff(String(r.cancelCutoffMinutes / divisor)); })
     .catch((e) => {
       const failure = asFailure(e);
       if (failure.status === 401) router.replace("/admin/login");
@@ -65,6 +71,15 @@ export default function SettingsScreen() {
       <input id={id} className={styles.input} value={profile?.[key] ?? ""} onChange={set(key)} readOnly={!canEdit} disabled={!profile} />
     </div>
   );
+  async function saveCancellation() {
+    const minutes = Number(cutoff) * Number(unit);
+    if (!cutoff.trim() || !Number.isInteger(minutes) || minutes < 0 || minutes > 525600) return setError("ระยะยกเลิกต้องเป็นนาทีเต็ม ระหว่าง 0 ถึง 365 วัน");
+    setPolicyBusy(true); setError("");
+    try {
+      await adminApi("/admin/settings", { method: "PATCH", body: { customerCancelEnabled: cancelEnabled, cancelCutoffMinutes: minutes } });
+      setNotice("บันทึกนโยบายยกเลิกแล้ว");
+    } catch (e) { setError(asFailure(e).message); } finally { setPolicyBusy(false); }
+  }
 
   return (
     <AdminShell active="/admin/settings" staff={staff}>
@@ -85,6 +100,18 @@ export default function SettingsScreen() {
               {input("shop-phone", "เบอร์โทรติดต่อ", "phone")}
               {input("shop-address", "ที่อยู่ร้าน", "address", true)}
             </div>
+          </section>
+          <section className={styles.card} aria-labelledby="cancel-policy-title">
+            <h2 id="cancel-policy-title" className={styles.cardTitle}>นโยบายการยกเลิก</h2>
+            <label style={{ display: "flex", gap: 12, alignItems: "center", minHeight: 44 }}>
+              <input type="checkbox" checked={cancelEnabled} disabled={!canEdit || policyBusy} onChange={(e) => setCancelEnabled(e.target.checked)} />ให้ลูกค้ายกเลิกเอง
+            </label>
+            <p className={styles.cardSub}>ต้องยกเลิกก่อนเวลาเริ่มบริการตามระยะที่กำหนด พนักงานยกเลิกแทนได้</p>
+            <div className={styles.fieldsGrid}>
+              <label><span className={styles.fieldLabelStrong}>ระยะเวลาก่อนเริ่มบริการ</span><input className={styles.input} type="number" min="0" step="any" value={cutoff} disabled={!canEdit || policyBusy} onChange={(e) => setCutoff(e.target.value)} /></label>
+              <label><span className={styles.fieldLabelStrong}>หน่วย</span><select className={styles.input} value={unit} disabled={!canEdit || policyBusy} onChange={(e) => { setCutoff(String(Number(cutoff) * Number(unit) / Number(e.target.value))); setUnit(e.target.value); }}><option value="60">ชั่วโมง</option><option value="1440">วัน</option></select></label>
+            </div>
+            {canEdit && <div className={styles.saveRow}><button type="button" className={`${styles.btn} ${styles.btnPrimary}`} disabled={policyBusy} onClick={saveCancellation}>{policyBusy ? "กำลังบันทึก…" : "บันทึกนโยบายยกเลิก"}</button></div>}
           </section>
           <section className={styles.card} aria-labelledby="policy-title">
             <h2 id="policy-title" className={styles.cardTitle} style={{ fontSize: 17 }}>นโยบายการจอง</h2>

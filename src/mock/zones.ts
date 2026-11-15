@@ -4,7 +4,7 @@ import { PARTY_SIZE, tablesFor, today, type Db, type Zone } from "./db";
 /** Zones with seat usage for one night (confirmed bookings only; pending requests hold no seats). */
 export function zoneRows(db: Db, date: string) {
   return db.zones.map((z) => {
-    const booked = db.bookings.filter((b) => b.serviceDate === date && b.zoneId === z.id && b.status !== "pending");
+    const booked = db.bookings.filter((b) => b.serviceDate === date && b.zoneId === z.id && (b.status === "confirmed" || b.status === "checked_in"));
     return {
       id: z.id, name: z.name, seats: z.seats, status: z.status, tables: tablesFor(z),
       tablesUsed: booked.length, bookedSeats: booked.reduce((sum, b) => sum + PARTY_SIZE[b.party], 0),
@@ -23,7 +23,7 @@ export function assertCapacityCovers(db: Db, zone: Zone, seats: number) {
   const tables = Math.max(1, Math.ceil(seats / 12));
   const perNight = new Map<string, number>();
   for (const b of db.bookings) {
-    if (b.zoneId === zone.id && b.status !== "pending" && b.serviceDate >= today()) {
+    if (b.zoneId === zone.id && (b.status === "confirmed" || b.status === "checked_in") && b.serviceDate >= today()) {
       perNight.set(b.serviceDate, (perNight.get(b.serviceDate) ?? 0) + 1);
     }
   }

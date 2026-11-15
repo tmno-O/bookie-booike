@@ -17,11 +17,11 @@ export type QueueEntry = {
 export type Booking = {
   id: string; reference: string; requestId: string; customerId: string; name: string; phone: string;
   serviceDate: string; party: string; zoneId: string; zoneName: string; createdAt: string;
-  status: BookingStatus; channel: "line" | "staff"; checkedInAt?: string;
+  status: BookingStatus; channel: "line" | "staff"; checkedInAt?: string; cancelledAt?: string;
   /** Queue request number and when it was sent (customer requests only). */
   queueNo?: number; requestedAt?: string;
 };
-export type BookingStatus = "pending" | "confirmed" | "checked_in";
+export type BookingStatus = "pending" | "confirmed" | "checked_in" | "cancelled";
 export type LineUser = { id: string; userId: string; displayName: string; createdAt: string };
 export type SpecialDay = { id: string; serviceDate: string; opensOn: string; time: string };
 export type Schedule = { standard: { daysBefore: number; time: string }; specials: SpecialDay[];
@@ -43,6 +43,7 @@ export type Db = {
   zones: Zone[];
   lineUsers: LineUser[];
   profile: ShopProfile;
+  cancellation: { customerCancelEnabled: boolean; cancelCutoffMinutes: number };
   invites: Invite[];
   floorPlan: { draft: FloorPlan | null; published: FloorPlan | null; publishedAt: string | null };
   queue: QueueEntry[];
@@ -91,6 +92,7 @@ export function seed(opts: { opensInSeconds?: number; queueStepSeconds?: number 
     zones,
     lineUsers: [],
     profile: { ...DEFAULT_PROFILE },
+    cancellation: { customerCancelEnabled: true, cancelCutoffMinutes: 120 },
     invites: [],
     floorPlan: { draft: null, published: null, publishedAt: null },
     queue: [],
@@ -116,6 +118,7 @@ async function load(): Promise<Db> {
     const db = JSON.parse(await readFile(file(), "utf8")) as Db;
     db.lineUsers ??= []; // databases saved before LINE login existed
     db.profile ??= { ...DEFAULT_PROFILE };
+    db.cancellation ??= { customerCancelEnabled: true, cancelCutoffMinutes: 120 };
     db.invites ??= [];
     db.floorPlan ??= { draft: null, published: null, publishedAt: null }; // databases saved before floor plans existed
     const legacy = db.venue as Db["venue"] & { opensAt?: string };
@@ -163,7 +166,7 @@ export function queueState(db: Db, entry: QueueEntry, now = Date.now()) {
 
 export function zoneAvailability(db: Db, date: string) {
   return db.zones.map((zone) => {
-    const left = tablesFor(zone) - db.bookings.filter((b) => b.serviceDate === date && b.zoneId === zone.id && b.status !== "pending").length;
+    const left = tablesFor(zone) - db.bookings.filter((b) => b.serviceDate === date && b.zoneId === zone.id && (b.status === "confirmed" || b.status === "checked_in")).length;
     const closed = zone.status === "closed";
     return { id: zone.id, name: zone.name, tablesLeft: Math.max(0, left), available: left > 0 && !closed, closed };
   });
