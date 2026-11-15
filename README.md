@@ -26,7 +26,7 @@ npm run dev -- --port 3100
 
 - [หน้าจองของลูกค้า](http://localhost:3100/book/bookie-demo) เดินจาก login ถึงรับคิว เลือกคืนและโซน แล้วดูผลกับประวัติการจอง. ใช้หน้าต่างปกติคู่กับหน้าต่างส่วนตัว หรือใช้สองโปรไฟล์เบราว์เซอร์ เพื่อเห็นคิวขยับหลังส่งคำขอแรก.
 - [หน้าแอดมิน](http://localhost:3100/admin/login) ใช้ `owner@bookie.test` หรือ `staff@bookie.test` กับรหัส local `BookieDemo123!`. เจ้าของจัดการเวลาเปิดจอง ข้อมูลร้าน และคำเชิญ. ทั้งสอง role จัดการจอง คิว เช็กอิน และโซน.
-- [เดโมเลือกโต๊ะผ่าน API เดิม](http://localhost:3100/book/bookie-demo/demo) และ [สถานะ DB กับคิว](http://localhost:3100/api/health) ใช้ทดสอบระบบเดิมและการเชื่อมต่อ.
+- [เดโมเลือกโต๊ะผ่าน API เดิม](http://localhost:3100/book/bookie-demo/demo) (ต้องตั้ง `DIRECT_BOOKING_ENABLED=true` ในเครื่อง ไม่เช่นนั้นได้ `403 QUEUE_TICKET_REQUIRED`) และ [สถานะ DB กับคิว](http://localhost:3100/api/health) ใช้ทดสอบระบบเดิมและการเชื่อมต่อ.
 
 `NEXT_PUBLIC_API_MODE=mock` ใช้ JSON mock สำหรับทั้งสองหน้าจอและเป็นค่าเริ่มต้น. รีสตาร์ต Next.js เมื่อเปลี่ยนโหมด. ตัวอย่างขั้นตอนทั้งสองแบบอยู่ใน [คู่มือทดสอบ](docs/MOCK_TESTING.md).
 
@@ -43,7 +43,7 @@ Integration tests ใช้ Supabase, ElasticMQ (`docker compose up -d`) แล�
 
 ### k6 spike และ burst
 
-รันเมื่อเว็บทำงาน (และ booking worker ถ้าใช้โหมด `sqs`). เลือกคืนอนาคตสองคืนที่โต๊ะ A2 ของ `bookie-demo` ยังว่าง. แต่ละชุดจองโต๊ะเดียวและบันทึกผล contention ในฐานข้อมูล local.
+รันเมื่อเว็บทำงาน (และ booking worker ถ้าใช้โหมด `sqs`). สคริปต์จองโต๊ะตรงโดยไม่รับคิว จึงต้องเปิดเว็บด้วย `DIRECT_BOOKING_ENABLED=true` (ใช้ในเครื่องเท่านั้น production ปฏิเสธค่านี้). เลือกคืนอนาคตสองคืนที่โต๊ะ A2 ของ `bookie-demo` ยังว่าง. แต่ละชุดจองโต๊ะเดียวและบันทึกผล contention ในฐานข้อมูล local.
 
 ```powershell
 $env:BASE_URL = 'http://localhost:3100'

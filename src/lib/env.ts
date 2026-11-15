@@ -18,6 +18,8 @@ const schema = z.object({
   CRON_SECRET: z.preprocess((value) => value === "" ? undefined : value, z.string().min(32).optional()),
   // Base64 PKCS#8 DER Ed25519 private key, kept outside the database so signed audit checkpoints cannot be forged there.
   AUDIT_SIGNING_KEY: z.preprocess((value) => value === "" ? undefined : value, z.string().regex(/^[A-Za-z0-9+/]+={0,2}$/).optional()),
+  // Lets customers book a table without a queue ticket (the /demo page and k6 load scripts). Never in production.
+  DIRECT_BOOKING_ENABLED: z.enum(["true", "false"]).default("false").transform((value) => value === "true"),
   BOOKING_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(30),
   BOOKING_MAX_RECEIVES: z.coerce.number().int().min(1).max(100).default(5),
 }).refine((env) => env.QUEUE_DRIVER !== "sqs" || env.SQS_QUEUE_URL, {
@@ -26,6 +28,9 @@ const schema = z.object({
 }).refine((env) => env.NODE_ENV !== "production" || env.LINE_VERIFY_MODE !== "mock", {
   path: ["LINE_VERIFY_MODE"],
   message: "Mock LINE verification is forbidden in production",
+}).refine((env) => env.NODE_ENV !== "production" || !env.DIRECT_BOOKING_ENABLED, {
+  path: ["DIRECT_BOOKING_ENABLED"],
+  message: "Booking without a queue ticket is forbidden in production",
 });
 
 export function parseEnv(input: Record<string, string | undefined>) {

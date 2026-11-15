@@ -1,3 +1,5 @@
+// Posts table bookings without a queue ticket, so the server under test must run with DIRECT_BOOKING_ENABLED=true
+// (local only; production refuses to start with it).
 import http from "k6/http";
 import { check, sleep } from "k6";
 import { Counter } from "k6/metrics";
