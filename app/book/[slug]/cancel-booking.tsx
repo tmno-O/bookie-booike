@@ -34,7 +34,7 @@ export function CancelBooking({ booking, onChanged }: { booking: Booking; onChan
   }
   return <>
     <CancellationNote booking={booking} />
-    <button type="button" className={styles.secondary} disabled={!allowed} onClick={() => dialog.current?.showModal()}>ยกเลิกการจอง</button>
+    <button type="button" className={styles.cancelBtn} disabled={!allowed} onClick={() => dialog.current?.showModal()}>ยกเลิกการจอง</button>
     {!allowed && booking.cancellableUntil && <p>เลยกำหนดยกเลิก ติดต่อร้าน</p>}
     <dialog ref={dialog} className={styles.cancelDialog} onCancel={(e) => { if (busy) e.preventDefault(); }}>
       <h2>ยืนยันยกเลิกการจอง</h2>
