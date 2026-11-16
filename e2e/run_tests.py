@@ -165,7 +165,7 @@ def open_browser(p, args, width: int, height: int):
 
 def warm_up(base: str) -> None:
     """Compile every page once so Next dev does not hot-reload the page under the browser mid-test."""
-    paths = ["/book/demo/login", "/book/demo/details", "/book/demo/waiting", "/book/demo/queue", "/book/demo/select",
+    paths = ["/book/bookie-demo/login", "/book/bookie-demo/details", "/book/bookie-demo/select",
              "/book/demo/confirmed", "/book/demo/bookings", "/admin", "/admin/login", "/admin/queue", "/admin/zones",
              "/admin/hours", "/admin/settings", "/admin/bookings", "/admin/bookings/new"]
     for path in paths:
@@ -194,25 +194,17 @@ def customer_flow(run: Run, browser: Browser, base: str, slow: int) -> dict:
     def fill_details():
         page.locator("#phone").fill("0855555555")
         page.get_by_role("button", name="ดำเนินการต่อ").click()
-        page.wait_for_url(re.compile(r"/waiting$"))
+        page.wait_for_url(re.compile(r"/select$"))
 
     flow.step("details", fill_details)
-    flow.step("waiting-open", lambda: expect(page.get_by_text("เปิดรับจองแล้ว")).to_be_visible())
 
-    def join_queue():
-        page.get_by_role("button", name="รับคิวจอง").click()
-        page.wait_for_url(re.compile(r"/queue\?r="))
-        shared["request"] = page.url.split("r=")[-1]
-
-    flow.step("join-queue", join_queue)
-    flow.step("queue-your-turn", lambda: expect(page.get_by_role("heading", name="ถึงคิวของคุณแล้ว")).to_be_visible(timeout=60_000))
-
-    def go_select():
-        page.get_by_role("link", name=re.compile("ถึงคิวแล้ว")).click()
-        page.wait_for_url(re.compile(r"/select\?r="))
+    def compatible_links():
+        for old in ("waiting", "queue"):
+            page.goto(f"{book}/{old}")
+            expect(page).to_have_url(f"{book}/select")
         expect(page.get_by_role("button", name="Indoor", exact=True)).to_be_enabled()
 
-    flow.step("select-open", go_select)
+    flow.step("select-open", compatible_links)
 
     def choose():
         page.get_by_role("button", name="5–8", exact=True).click()
@@ -239,7 +231,7 @@ def customer_flow(run: Run, browser: Browser, base: str, slow: int) -> dict:
 
     flow.step("my-bookings", my_bookings)
 
-    # a second visit to the select page for a night that has not opened yet shows the closed message
+    # The customer can get back to the booking flow from their history.
     def other_night():
         page.goto(f"{book}/details")
         expect(page.locator("#name")).to_be_visible()
@@ -417,7 +409,7 @@ def main() -> int:
     HEADED = args.headed or args.chrome
     if args.chrome and args.slow == 0:
         args.slow = 900  # visible runs default to a calm pace
-    api(base, "/reset", {"queueStepSeconds": 0.2})  # fresh seed data, fast queue
+    api(base, "/reset", {})  # fresh seed data
     began = time.time()
     try:
         with sync_playwright() as p:

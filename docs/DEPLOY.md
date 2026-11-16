@@ -8,7 +8,7 @@
 | --- | --- |
 | โค้ดรองรับ deploy: pooler (`DATABASE_PREPARE`, `DATABASE_POOL_MAX`), คิวใน Postgres (`QUEUE_DRIVER=db`), `vercel.json` region `sin1` | อยู่ใน `main` แล้ว (PR #3) |
 | หลักฐาน k6 เทียบสองโหมด | [docs/evidence](evidence/README.md) |
-| Supabase cloud, Vercel project, LINE Login + LIFF | ยังไม่ได้ทำ ต้องใช้บัญชีเจ้าของ repo |
+| Supabase cloud, Vercel project, LINE Login + LIFF | เปิดใช้งานแล้วตามข้อมูลทีม (16 พ.ย. 2569) |
 
 ## ทำไมใช้คิวใน Postgres บน Vercel
 
@@ -78,9 +78,9 @@ Production ปฏิเสธ `LINE_VERIFY_MODE=mock` ลูกค้าจึ�
 ## 4. ตรวจบน cloud
 
 - [ ] `/api/health` ตอบ `ok: true`
-- [ ] เปิดลิงก์ LIFF ในแอป LINE บนมือถือ 2 เครื่อง เดินครบ: รับคิว → เลือกโซน → confirmed → การจองของฉัน
+- [ ] เปิดลิงก์ LIFF ในแอป LINE บนมือถือ 2 เครื่อง เดินครบ: เข้าสู่ระบบ → กรอกข้อมูล → เลือกโซน → confirmed → การจองของฉัน
 - [ ] Admin: login → dashboard → check-in → staff จองแทน → จัดสรรโซน
-- [ ] k6 burst กับโดเมนจริง ไล่ 500 → 2,000 → 5,000 ด้วยร้านทดสอบแยกแบบ `customer_picks` แล้วดู CPU และ connection ใน Supabase → Reports
+- [ ] รัน k6 บนสภาพแวดล้อมทดสอบแยก โดยเลือกโซนที่มีโต๊ะว่างหนึ่งโต๊ะ
 
 ## ข้อควรระวัง
 

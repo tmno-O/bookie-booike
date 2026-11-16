@@ -15,7 +15,6 @@ const zoneId = randomUUID();
 const tableId = randomUUID();
 const slug = `dbq-${venueId}`;
 const customers: { cookie: string; customerId: string }[] = [];
-const ticketCustomers: string[] = [];
 let initialized = false;
 
 function request(method: string, options: { cookie?: string; data?: unknown; key?: string } = {}) {
@@ -37,7 +36,7 @@ function day(offset: number) {
 
 async function book(customer: (typeof customers)[number], serviceDate: string, key = randomUUID()) {
   const response = await requestBooking(request("POST", {
-    cookie: customer.cookie, key, data: { venueId, serviceDate, tableId, partySize: 2 },
+    cookie: customer.cookie, key, data: { venueId, serviceDate, zoneId, partyBucket: "1-4", contactName: "Guest", contactPhone: "0812345678" },
   }), context({}));
   expect(response.status, await response.clone().text()).toBe(202);
   return (await response.json() as { requestId: string }).requestId;
@@ -101,7 +100,6 @@ afterAll(async () => {
       await tx`delete from venue_tables where venue_id = ${venueId}`;
       await tx`delete from zones where venue_id = ${venueId}`;
       await tx`delete from venue_customers where venue_id = ${venueId}`;
-      for (const id of ticketCustomers) await tx`delete from customers where id = ${id}`;
       const identities = await tx<{ customerId: string }[]>`
         delete from customer_identities where provider_id = ${slug} returning customer_id
       `;
@@ -120,12 +118,11 @@ describe.sequential("Database booking queue", () => {
     const ids = await Promise.all(customers.map((customer) => book(customer, date)));
     await settle();
 
-    // Concurrent inserts can commit out of queue_seq order, so the winner is the first request
-    // decided, not necessarily the lowest sequence number (as with SQS, order is arrival in the queue).
-    const rows = [...await night(date)].sort((a, b) => a.decidedAt.getTime() - b.decidedAt.getTime());
+    // Same-night submissions receive their sequence while holding the admission lock through commit.
+    const rows = await night(date);
     expect(rows.map((row) => row.id).sort()).toEqual([...ids].sort());
     expect(rows[0]).toMatchObject({ status: "confirmed", resultCode: null });
-    for (const row of rows.slice(1)) expect(row).toMatchObject({ status: "rejected", resultCode: "TABLE_UNAVAILABLE" });
+    for (const row of rows.slice(1)) expect(row).toMatchObject({ status: "rejected", resultCode: "ZONE_FULL" });
 
     const winner = customers[ids.indexOf(rows[0].id)];
     const status = await readRequest(request("GET", { cookie: winner.cookie }), context({ requestId: rows[0].id }));
@@ -211,14 +208,14 @@ describe.sequential("Database booking queue", () => {
     await db()`select booking_housekeeping()`;
   });
 
-  it("audits 50 simultaneous contenders, allocates once, and issues unique concurrent ticket numbers", async () => {
+  it("audits 50 simultaneous contenders without issuing tickets and allocates once", async () => {
     const date = day(12);
     const ids = await Promise.all(Array.from({ length: 50 }, (_, i) => book(customers[i % customers.length], date)));
     await Promise.all([settle(), settle(), settle()]);
     const rows = await night(date);
     expect(rows).toHaveLength(50);
     expect(rows.filter((r) => r.status === "confirmed")).toHaveLength(1);
-    expect(rows.filter((r) => r.resultCode === "TABLE_UNAVAILABLE")).toHaveLength(49);
+    expect(rows.filter((r) => r.resultCode === "ZONE_FULL")).toHaveLength(49);
     const [allocation] = await db()`select count(*)::int as total from booking_allocations where table_id = ${tableId} and service_date = ${date} and active`;
     expect(allocation.total).toBe(1);
     const events = await db()`select details from audit_logs where venue_id = ${venueId}
@@ -230,14 +227,8 @@ describe.sequential("Database booking queue", () => {
     for (const { details } of events) {
       expect(details.received_at).toBeTruthy(); expect(details.decided_at).toBeTruthy(); expect(details.result_code).toBeTruthy();
     }
-    for (let i = 0; i < 50; i++) {
-      const id = randomUUID(); ticketCustomers.push(id);
-      await db()`insert into customers (id) values (${id})`;
-      await db()`insert into venue_customers (venue_id, customer_id, display_name) values (${venueId}, ${id}, 'Concurrent guest')`;
-    }
-    const tickets = await Promise.all(ticketCustomers.map((id) => db()`insert into queue_tickets (venue_id, customer_id, contact_name, contact_phone)
-      values (${venueId}, ${id}, 'Guest', '0812345678') returning seq`));
-    expect(new Set(tickets.map((r) => r[0].seq)).size).toBe(50);
+    const [tickets] = await db()`select count(*)::int as count from queue_tickets where venue_id = ${venueId}`;
+    expect(tickets.count).toBe(0);
     const [chain] = await db()`select * from verify_audit_chain(${venueId})`;
     expect(chain.firstBadSeq).toBeNull();
   });

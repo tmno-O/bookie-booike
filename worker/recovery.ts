@@ -1,6 +1,5 @@
 import { db } from "@/lib/db";
 import { publishBookingRequest } from "@/server/services/booking-request";
-import { expireQueueTickets } from "@/server/services/queue-ticket";
 
 export async function reconcilePending(venueId?: string) {
   const sql = db();
@@ -15,7 +14,6 @@ export async function reconcilePending(venueId?: string) {
   for (const request of requests) {
     if (await publishBookingRequest(request.id)) published++;
   }
-  await expireQueueTickets(venueId);
   await sql`delete from booking_rate_limits where window_start < now() - interval '1 hour'`;
   await sql`delete from customer_sessions where expires_at < now()`;
   await sql`delete from staff_sessions where expires_at < now()`;

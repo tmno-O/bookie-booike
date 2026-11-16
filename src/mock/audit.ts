@@ -10,7 +10,7 @@ export function mockAuditEntries(db: Db, date?: string, bookingId?: string): Aud
   const entries = rows.flatMap((b) => {
     const receivedAt = b.requestedAt ?? b.createdAt;
     const base = { id: "0", seq: "0", actor: b.channel === "line" ? "customer" : "staff",
-      reference: b.reference, phone: `***${b.phone.slice(-4)}`, ticketSeq: b.queueNo ? String(b.queueNo) : null,
+      reference: b.reference, phone: `***${b.phone.slice(-4)}`, ticketSeq: null,
       queueSeq: b.queueNo ? String(b.queueNo) : null, receivedAt, decidedAt: b.createdAt,
       tableId: null, zoneId: b.zoneId, tableName: null, zoneName: b.zoneName, rowHash: mockBookingHash(b) };
     return [

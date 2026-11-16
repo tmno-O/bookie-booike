@@ -1,9 +1,5 @@
-import { Suspense } from "react";
-import QueueScreen from "./queue-screen";
+import { redirect } from "next/navigation";
 
-// Request status — in queue (Figma "03 · อยู่ในคิว", node 169:400)
-export const metadata = { title: "คิวจอง" };
-
-export default async function QueuePage({ params }: { params: Promise<{ slug: string }> }) {
-  return <Suspense><QueueScreen slug={(await params).slug} /></Suspense>;
+export default async function LegacyBookingPage({ params }: { params: Promise<{ slug: string }> }) {
+  redirect(`/book/${encodeURIComponent((await params).slug)}/select`);
 }

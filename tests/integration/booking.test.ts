@@ -6,9 +6,6 @@ import { ChangeMessageVisibilityCommand, CreateQueueCommand, DeleteQueueCommand 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { POST as signIn } from "../../app/api/session/line/route";
 import { GET as customerProfile } from "../../app/api/me/route";
-import { POST as joinQueue } from "../../app/api/venues/[venueId]/queue-tickets/route";
-import { GET as readTicket } from "../../app/api/me/queue-tickets/[id]/route";
-import { queueTicket } from "@/contracts/queue";
 import { GET as availability } from "../../app/api/venues/[venueId]/availability/route";
 import { GET as publicVenue } from "../../app/api/venues/by-slug/[slug]/route";
 import { venueBookingProfile } from "@/contracts/venue";
@@ -121,9 +118,9 @@ async function login(slug: string, subject: string, name: string) {
   return { cookie: cookie.split(";")[0], customerId };
 }
 
-function book(date: string, cookie = alice.cookie, key = randomUUID().toString(), partySize = 4) {
+function book(date: string, cookie = alice.cookie, key = randomUUID().toString(), contactName = "Alice") {
   return requestBooking(request("POST", {
-    cookie, key, data: { venueId, serviceDate: date, tableId, partySize, contactPhone: "0812345678" },
+    cookie, key, data: { venueId, serviceDate: date, zoneId, partyBucket: "1-4", contactName, contactPhone: "0812345678" },
   }), context({}));
 }
 
@@ -142,79 +139,32 @@ it("exposes the Bangkok booking schedule and honors a special release", async ()
   }
 });
 
-it("issues one ticket per active customer and admits concurrent tickets in sequence", async () => {
-  const contact = { name: "Guest", phone: "0812345678" };
-  const join = (cookie: string) =>
-    joinQueue(request("POST", { cookie, data: contact }), context({ venueId }));
-  const [one, two, three] = await Promise.all([join(alice.cookie), join(alice.cookie), join(bob.cookie)]);
-  expect([one.status, two.status].sort()).toEqual([200, 201]);
-  expect(three.status).toBe(201);
-  const aliceTicket = queueTicket.parse(await one.json());
-  expect(queueTicket.parse(await two.json()).requestId).toBe(aliceTicket.requestId);
-  const bobTicket = queueTicket.parse(await three.json());
-  expect([aliceTicket.position, bobTicket.position].sort()).toEqual([1, 2]);
-  const first = aliceTicket.ready ? aliceTicket : bobTicket;
-  const second = aliceTicket.ready ? bobTicket : aliceTicket;
-  const firstCookie = aliceTicket.ready ? alice.cookie : bob.cookie;
-  const secondCookie = aliceTicket.ready ? bob.cookie : alice.cookie;
-  const read = (cookie: string, id: string) => readTicket(request("GET", { cookie }), context({ id }));
-  expect((await read(other.cookie, first.requestId)).status).toBe(404);
-  expect((await read(secondCookie, first.requestId)).status).toBe(404);
-  await db()`update queue_tickets set ready_at = now() - interval '3 minutes' where id = ${first.requestId}`;
-  await reconcilePending(venueId);
-  expect(await (await read(firstCookie, first.requestId)).json()).toMatchObject({ status: "expired", position: 0 });
-  expect(await (await read(secondCookie, second.requestId)).json()).toMatchObject({ status: "ready", position: 1 });
-  await db()`delete from queue_tickets where venue_id = ${venueId}`;
-});
-
-it("keeps the queue closed until a night opens in Bangkok", async () => {
-  await db()`insert into booking_releases (venue_id, service_date, opens_at)
-    select ${otherVenueId}, ${day(0)}::date + i, now() + interval '1 day' from generate_series(0, 30) as i`;
-  try {
-    const response = await joinQueue(request("POST", { cookie: other.cookie, data: { name: "Guest", phone: "0812345678" } }),
-      context({ venueId: otherVenueId }));
-    expect(response.status).toBe(403);
-    expect(await response.json()).toMatchObject({ error: { code: "NOT_OPEN" } });
-  } finally {
-    await db()`delete from booking_releases where venue_id = ${otherVenueId}`;
-  }
-});
-
-it("consumes ready tickets once and resolves the last zone table through FIFO", async () => {
+it("submits directly and resolves the last zone table through FIFO", async () => {
   const sql = db();
-  await sql`insert into venue_settings (venue_id, admit_window) values (${venueId}, 2)`;
-  const contact = { name: "Booker", phone: "0819998888" };
-  const join = async (cookie: string) => queueTicket.parse(await (await joinQueue(
-    request("POST", { cookie, data: contact }), context({ venueId }),
-  )).json());
-  const tickets = await Promise.all([join(alice.cookie), join(bob.cookie)]);
-  expect(tickets.every((ticket) => ticket.ready)).toBe(true);
-
+  const contact = { contactName: "Booker", contactPhone: "0819998888" };
   const date = day(10);
   const availabilityResponse = await availability(request("GET", { path: `/?date=${date}&partyBucket=1-4` }), context({ venueId }));
   expect(await availabilityResponse.json()).toMatchObject({
     nightOpen: true, zones: [{ id: zoneId, available: true, tablesLeft: 1 }],
   });
 
-  const submit = (ticketId: string, cookie: string, serviceDate = date, key = ticketId) =>
+  const submit = (cookie: string, serviceDate = date, key = randomUUID().toString()) =>
     requestBooking(request("POST", {
-      cookie, key, data: { venueId, ticketId, serviceDate, zoneId, partyBucket: "1-4" },
+      cookie, key, data: { venueId, serviceDate, zoneId, partyBucket: "1-4", ...contact },
     }), context({}));
-  const invalid = await submit(tickets[0].requestId, bob.cookie, date, randomUUID());
-  expect(invalid.status).toBe(404);
+  const key = randomUUID();
   await sql`insert into booking_releases (venue_id, service_date, opens_at) values (${venueId}, ${date}, now() + interval '1 day')`;
-  const early = await submit(tickets[0].requestId, alice.cookie);
+  const early = await submit(alice.cookie, date, key);
   expect(await early.json()).toMatchObject({ error: { code: "NIGHT_NOT_OPEN" } });
   await sql`delete from booking_releases where venue_id = ${venueId} and service_date = ${date}`;
 
-  const responses = await Promise.all([submit(tickets[0].requestId, alice.cookie), submit(tickets[1].requestId, bob.cookie)]);
+  const responses = await Promise.all([submit(alice.cookie, date, key), submit(bob.cookie)]);
   const accepted = await Promise.all(responses.map(async (response) => {
     expect(response.status, await response.clone().text()).toBe(202);
     return response.json();
   }));
-  expect(await (await submit(tickets[0].requestId, alice.cookie)).json()).toEqual(accepted[0]);
-  const replay = await submit(tickets[0].requestId, alice.cookie, date, randomUUID());
-  expect(await replay.json()).toMatchObject({ error: { code: "TICKET_NOT_READY" } });
+  expect(await (await submit(alice.cookie, date, key)).json()).toEqual(accepted[0]);
+  expect((await submit(alice.cookie, day(11), key)).status).toBe(422);
 
   const first = await nextMessage();
   await consumeBookingMessage(first);
@@ -230,15 +180,12 @@ it("consumes ready tickets once and resolves the last zone table through FIFO", 
   const owner = winner === 0 ? alice : bob;
   const booking = await readBooking(request("GET", { cookie: owner.cookie }), context({ bookingId }));
   expect(await booking.json()).toMatchObject({
-    tableId, name: contact.name, phone: contact.phone, reference: expect.stringMatching(/^BL-\d{4}-\d{4,}$/),
+    tableId, name: contact.contactName, phone: contact.contactPhone, reference: expect.stringMatching(/^BL-\d{4}-\d{4,}$/),
   });
-  expect(await (await readTicket(request("GET", { cookie: owner.cookie }), context({ id: tickets[winner].requestId }))).json())
-    .toMatchObject({ status: "used", bookingId });
 
   const setting = await patchSettings(request("PATCH", { token: ownerToken, data: { allocationMode: "manual" } }), context({ venueId }));
   expect(setting.status).toBe(200);
-  const manualTicket = await join(alice.cookie);
-  const manual = await submit(manualTicket.requestId, alice.cookie, day(11));
+  const manual = await submit(alice.cookie, day(11));
   expect(manual.status, await manual.clone().text()).toBe(202);
   await consumeBookingMessage(await nextMessage());
   const status = await getStatus((await manual.json()).requestId);
@@ -249,7 +196,7 @@ it("consumes ready tickets once and resolves the last zone table through FIFO", 
   expect(nextOffset).toBeNull();
   expect(bookings.map((entry: unknown) => bookingContract.parse(entry))).toMatchObject([{
     id: status.bookingId, status: "pending_allocation", zoneName: "Zone", party: "1-4",
-    name: contact.name, phone: contact.phone, source: "liff",
+    name: contact.contactName, phone: contact.contactPhone, source: "liff",
   }]);
   const denied = await readBookings(request("GET", { cookie: bob.cookie, path: `/?date=${day(11)}` }), context({}));
   expect(await denied.json()).toEqual({ bookings: [], nextOffset: null });
@@ -700,7 +647,7 @@ describe.sequential("Supabase + ElasticMQ booking", () => {
     const submitted = await Promise.all(responses.map((response) => response.json()));
     const same = await book(date, alice.cookie, key);
     expect(await same.json()).toEqual(submitted[0]);
-    expect((await book(date, alice.cookie, key, 3)).status).toBe(422);
+    expect((await book(date, alice.cookie, key, "Changed name")).status).toBe(422);
 
     const ordered: string[] = [];
     for (let i = 0; i < 20; i++) {
@@ -712,7 +659,7 @@ describe.sequential("Supabase + ElasticMQ booking", () => {
     const results = await db()`select id, status, result_code, booking_id from booking_requests where id in ${db()(ordered)}`;
     expect(new Set(ordered)).toEqual(new Set(submitted.map(({ requestId }) => requestId)));
     expect(results.filter((row) => row.status === "confirmed").map((row) => row.id)).toEqual([ordered[0]]);
-    expect(results.filter((row) => row.resultCode === "TABLE_UNAVAILABLE")).toHaveLength(19);
+    expect(results.filter((row) => ["ZONE_FULL", "TABLE_UNAVAILABLE"].includes(row.resultCode))).toHaveLength(19);
     const first = results.find((row) => row.id === ordered[0])!;
     expect((await readBooking(request("GET", { cookie: other.cookie }), context({ bookingId: first.bookingId }))).status).toBe(404);
     expect((await readRequest(request("GET", { cookie: bob.cookie }), context({ requestId: submitted[0].requestId }))).status).toBe(404);
@@ -786,10 +733,10 @@ describe.sequential("Supabase + ElasticMQ booking", () => {
       token: ownerToken, data: { tableSelectionMode: "auto_assign" },
     }), context({ venueId }));
     expect(settings.status, await settings.clone().text()).toBe(200);
-    const response = await requestBooking(request("POST", {
-      cookie: alice.cookie, key: randomUUID(),
-      data: { venueId, serviceDate: day(5), zoneId, partySize: 2 },
-    }), context({}));
+    const response = await staffBooking(request("POST", {
+      token: staffToken, key: randomUUID(),
+      data: { customerId: alice.customerId, serviceDate: day(5), zoneId, partySize: 2 },
+    }), context({ venueId }));
     expect(response.status, await response.clone().text()).toBe(202);
     const { requestId } = await response.json();
     await consumeBookingMessage(await nextMessage());

@@ -9,17 +9,17 @@ import { sqs, sqsQueueUrl } from "@/lib/sqs";
 import { scheduleBookingDrain } from "./booking-queue";
 import { upsertStaffContact } from "./staff";
 
-type Actor = { type: "customer"; id: string; tokenHash: string } | { type: "staff"; id: string };
+type Actor = { type: "customer" | "staff"; id: string };
 type QueueRequest = { id: string; payloadHash: string };
 
-type BookingSubmission = BookingInput & { ticketId?: string; partyBucket?: PartyBucket; contactName?: string };
+type BookingSubmission = BookingInput & { partyBucket?: PartyBucket; contactName?: string };
 
 export async function createBookingRequest(booking: BookingSubmission, customerId: string | null, actor: Actor, key: string) {
-  const { venueId, serviceDate, serviceAt, partySize, tableId, zoneId, ticketId, partyBucket } = booking;
+  const { venueId, serviceDate, serviceAt, partySize, tableId, zoneId, partyBucket, contactName, contactPhone } = booking;
   const startsAt = serviceAt ? new Date(serviceAt).toISOString() : null;
   const payload = [customerId, serviceDate, startsAt, partySize, tableId, zoneId, booking.contactPhone];
   // Keep hashes for existing table-based clients stable.
-  if (partyBucket) payload.push(ticketId, partyBucket, booking.contactName);
+  if (partyBucket) payload.push(null, partyBucket, contactName);
   const payloadHash = sha256(JSON.stringify(payload));
   // With the database queue the request is queued as it is recorded; there is no broker to publish to.
   const queued = env().QUEUE_DRIVER === "db";
@@ -41,7 +41,7 @@ export async function createBookingRequest(booking: BookingSubmission, customerI
 
     const [rate] = await tx<{ hits: number }[]>`
       insert into booking_rate_limits (scope, window_start, hits)
-        values (${actor.type === "customer" ? actor.tokenHash : scope}, date_trunc('minute', clock_timestamp()), 1)
+        values (${scope}, date_trunc('minute', clock_timestamp()), 1)
       on conflict (scope, window_start) do update set hits = booking_rate_limits.hits + 1
       where booking_rate_limits.hits < ${env().BOOKING_RATE_LIMIT_PER_MINUTE}
       returning hits
@@ -64,23 +64,13 @@ export async function createBookingRequest(booking: BookingSubmission, customerI
       if (!customer) return new ApiError(404, "NOT_FOUND", "Customer not found");
     }
 
-    let { contactName, contactPhone } = booking;
-    if (ticketId) {
-      await tx`select advance_queue(${venueId})`;
-      const [ticket] = await tx<{ status: string; contactName: string; contactPhone: string }[]>`
-        select status, contact_name, contact_phone from queue_tickets
-        where venue_id = ${venueId} and customer_id = ${customerId} and id = ${ticketId}
+    if (actor.type === "customer") {
+      const [schedule] = await tx<{ code: string | null }[]>`
+        select booking_window_issue(${venueId}, ${serviceDate}, clock_timestamp()) as code
       `;
-      if (!ticket) return new ApiError(404, "NOT_FOUND", "Queue ticket not found");
-      if (ticket.status !== "ready") return new ApiError(409, "TICKET_NOT_READY", "คิวหมดอายุหรือยังไม่ถึงคิว");
-      ({ contactName, contactPhone } = ticket);
-      const [schedule] = await tx<{ open: boolean; inRange: boolean }[]>`
-        select opens_at_for(${venueId}, ${serviceDate}) <= clock_timestamp() as open,
-          ${serviceDate}::date between w.today and w.today + w.max_advance_days as in_range
-        from queue_opening(${venueId}) w
-      `;
-      if (!schedule.inRange) return new ApiError(422, "DATE_OUT_OF_RANGE", "วันที่อยู่นอกช่วงเปิดจอง");
-      if (!schedule.open) return new ApiError(409, "NIGHT_NOT_OPEN", "คืนนี้ยังไม่เปิดรับจอง");
+      if (schedule.code === "DATE_OUT_OF_RANGE") return new ApiError(422, schedule.code, "วันที่อยู่นอกช่วงเปิดจอง");
+      if (schedule.code === "NIGHT_NOT_OPEN") return new ApiError(409, schedule.code, "คืนนี้ยังไม่เปิดรับจอง");
+      if (schedule.code) return new ApiError(409, schedule.code, "คืนนี้ปิดรับจองแล้ว");
     }
 
     if (partyBucket) {
@@ -126,22 +116,21 @@ export async function createBookingRequest(booking: BookingSubmission, customerI
       await tx`update venue_customers set phone_last_four = ${phoneLastFour}
         where venue_id = ${venueId} and customer_id = ${customerId}`;
     }
+    // Give same-night submissions their sequence while holding a lock through commit.
+    // Otherwise a higher sequence could commit before a lower one and be drained first.
+    if (queued) await tx`select pg_advisory_xact_lock(hashtextextended(${`${venueId}:${serviceDate}`}, 8))`;
     const [created] = await tx<QueueRequest[]>`
       insert into booking_requests
         (venue_id, customer_id, actor_type, actor_id, source, service_date, service_at, party_size,
-          table_id, zone_id, phone_last_four, idempotency_key, payload_hash, ticket_id, party_bucket,
+          table_id, zone_id, phone_last_four, idempotency_key, payload_hash, party_bucket,
           contact_name, contact_phone, status, published_at)
       values (${venueId}, ${resolvedCustomerId}, ${actor.type}, ${actor.id},
         ${actor.type === "customer" ? "liff" : "staff_assisted"}, ${serviceDate}, ${startsAt}, ${partySize},
-        ${tableId ?? null}, ${zoneId ?? null}, ${phoneLastFour}, ${key}, ${payloadHash}, ${ticketId ?? null},
+        ${tableId ?? null}, ${zoneId ?? null}, ${phoneLastFour}, ${key}, ${payloadHash},
         ${partyBucket ?? null}, ${contactName ?? null}, ${contactPhone ?? null},
         ${queued ? "queued" : "pending_publish"}, ${queued ? sql`clock_timestamp()` : null})
       returning id, payload_hash
     `;
-    if (ticketId) {
-      await tx`update queue_tickets set status = 'used' where id = ${ticketId}`;
-      await tx`select advance_queue(${venueId})`;
-    }
     return created;
   });
   if (result instanceof ApiError) throw result;

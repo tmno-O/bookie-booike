@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { apiRequest } from "@/client/transport";
 import { slug as venueSlug } from "@/contracts/common";
-import { api, asFailure, loadCustomer, realApiMode } from "../flow";
+import { api, asFailure, realApiMode } from "../flow";
 import styles from "./login.module.css";
 
 type Account = { userId: string; displayName: string };
@@ -87,7 +87,7 @@ function LiffLogin({ slug, liffId }: { slug: string; liffId?: string | null }) {
         liff.login({ redirectUri: `${location.origin}${location.pathname}${next ? `?next=${encodeURIComponent(next)}` : ""}` });
         return;
       }
-      if (active) router.replace(`/book/${slug}/${new URLSearchParams(window.location.search).get("next") === "waiting" && loadCustomer() ? "waiting" : "details"}`);
+      if (active) router.replace(`/book/${slug}/details`);
     }).catch((e) => active && setError(e instanceof Error ? e.message : asFailure(e).message));
     return () => { active = false; };
   }, [router, sdkLoaded, slug, liffId]);
@@ -99,7 +99,7 @@ function LiffLogin({ slug, liffId }: { slug: string; liffId?: string | null }) {
       <main className={styles.screen}>
         <p className={styles.brand}>Bookie lyon.</p>
         <h1 className={styles.title}>เข้าสู่ระบบด้วย LINE</h1>
-        <p className={styles.subtitle}>เพื่อรับคิวและดูการจองของคุณ</p>
+        <p className={styles.subtitle}>เพื่อจองโต๊ะและดูการจองของคุณ</p>
         <button type="button" className={styles.go} disabled={!sdk}
           onClick={() => sdk?.login({ redirectUri: `${location.origin}${location.pathname}${location.search}` })}>เข้าสู่ระบบ</button>
         {error && <p role="alert" className={styles.error}>{error}</p>}
@@ -142,7 +142,7 @@ function DemoLogin({ slug }: { slug: string }) {
       <main className={styles.screen}>
         <p className={styles.brand}>Bookie lyon.</p>
         <h1 className={styles.title}>เข้าสู่ระบบด้วย LINE</h1>
-        <p className={styles.subtitle}>เพื่อรับคิวและดูการจองของคุณ</p>
+        <p className={styles.subtitle}>เพื่อจองโต๊ะและดูการจองของคุณ</p>
         <p className={styles.banner}>หน้าจำลองสำหรับทดสอบเท่านั้น — ไม่ได้เชื่อมต่อ LINE จริง</p>
 
         <p className={styles.label}>เลือกบัญชี LINE ทดสอบ</p>

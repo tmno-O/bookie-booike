@@ -99,6 +99,7 @@ export const venueBookingProfile = venuePublic.extend({
   openWeekdays: z.array(z.number().int().min(0).max(6)),
   closedDates: z.array(z.object({ serviceDate, reason: z.string() })),
   today: serviceDate, maxAdvanceDays: z.number().int().nonnegative(), openNights: z.array(serviceDate).optional(),
+  upcomingNights: z.array(z.object({ serviceDate, opensAt: instant })).optional(),
   shop: z.object({ name: label, phone: z.string(), address: z.string(), entryPolicy: z.string() }),
 });
 export const availabilityQuery = z.object({ date: serviceDate, partyBucket: partyBucket.optional() });

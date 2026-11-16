@@ -6,26 +6,22 @@ JSON ใช้ camelCase. ส่ง `Content-Type: application/json` เมื�
 
 | Method และ path | สัญญา |
 | --- | --- |
-| `GET /api/venues/by-slug/{slug}` | ข้อมูลร้าน, `liffId`, `opensAt`, `open`, `secondsUntilOpen`, `today`, `maxAdvanceDays` และ `shop` ที่มีชื่อ เบอร์ ที่อยู่ และนโยบายเข้าร้าน |
+| `GET /api/venues/by-slug/{slug}` | ข้อมูลร้าน, `liffId`, `opensAt`, `open`, `secondsUntilOpen`, `today`, `maxAdvanceDays`, `openNights`, `upcomingNights: [{serviceDate,opensAt}]` และ `shop` ที่มีชื่อ เบอร์ ที่อยู่ และนโยบายเข้าร้าน |
 | `GET /api/venues/{venueId}/availability?date=YYYY-MM-DD&partyBucket=1-4` | `nightOpen`, `opensAt`, `zones[]` ที่มี `id,name,tablesLeft,available,closed` และ `tables[]` สำหรับ client เลือกโต๊ะ. `partyBucket` ใช้คำนวณความพร้อมของโซน |
 | `GET /api/venues/{venueId}/floor-plan` | คืน `{plan}` เป็นผังที่ร้านเผยแพร่แล้วเท่านั้น (`null` เมื่อยังไม่เคยเผยแพร่ ให้ใช้ผังมาตรฐานของแอป). `plan` คือ `{zones:[{zoneId,points[{x,y}]}], markers:[{id,kind:entrance\|stage,label,x,y,width,height}]}` บนผ้าใบ 600×420 |
 | `GET /api/venues/{venueId}/releases` | ช่วงเปิดรับที่ตั้งไว้รายคืน |
 | `POST /api/session/line` | รับ `{venueSlug,idToken}` และตั้ง cookie `bookie_session` สำหรับร้าน. โหมดทดสอบรับ `mock:<id>:<name>` |
 | `GET /api/me`, `POST /api/session/logout` | อ่าน `{user:{userId,displayName}}` หรือลบ session |
-| `POST /api/venues/{venueId}/queue-tickets` | รับ `{name,phone}`. คืน `201` สำหรับ ticket ใหม่ หรือ `200` สำหรับ ticket เดิมที่ยังใช้งานได้. ก่อนเปิดจองคืน `403 NOT_OPEN` |
-| `GET /api/me/queue-tickets/{id}` | คืน `{requestId,status,position,ready,bookingRequestId,bookingId}` เฉพาะเจ้าของ ticket. สถานะ `waiting`, `ready`, `used`, `expired` |
-| `POST /api/booking-requests` | รับ `{venueId,ticketId,serviceDate,zoneId,partyBucket}` และ `Idempotency-Key`. ต้องมี queue ticket ที่ถึงคิว (`ready`); payload เลือกโต๊ะแบบเดิมที่ไม่มี `ticketId` ได้ `403 QUEUE_TICKET_REQUIRED` เว้นแต่ตั้ง `DIRECT_BOOKING_ENABLED=true` ในเครื่อง (production ไม่อนุญาต). คืน `202 {requestId}` เมื่อคำขอเข้าคิว (`QUEUE_DRIVER=db` ค่าเริ่มต้น: บันทึกลงตารางแล้ว, `sqs`: broker รับแล้ว) |
+| `POST /api/booking-requests` | รับ `{venueId,zoneId,serviceDate,partyBucket,contactName,contactPhone}` พร้อม `Idempotency-Key`. คืน `202 {requestId}` เมื่อรับคำขอแล้ว (`db`: commit ลงฐานข้อมูล, `sqs`: broker รับแล้ว) |
 | `GET /api/me/booking-requests/{requestId}` | คืน `{requestId,status,resultCode,bookingId}`. สถานะ `pending_publish` (เฉพาะ `sqs`), `queued`, `confirmed`, `rejected` |
 | `GET /api/me/bookings`, `GET /api/me/bookings/{bookingId}` | คืนรายการแบบ `{bookings,nextOffset}` หรือ booking เดี่ยว. รองรับ `date`, `limit` 1–100 (ค่าเริ่มต้น 50), `offset` |
 | `POST /api/me/bookings/{bookingId}/cancel` | ยกเลิกตาม cutoff ของร้าน. การจองที่เช็กอินแล้วคืน `409 ALREADY_CHECKED_IN` |
 
-- ตำแหน่งคิวเริ่มจาก 1 ตามลำดับรับ ticket. ค่าเริ่มต้นเรียกทีละ 1 คน มีเวลาเลือก 120 วินาทีหลังถึงคิว. Ticket ที่ใช้หรือหมดอายุแสดงตำแหน่ง 0.
 - `partyBucket` แปลง `1-4` เป็น 4, `5-8` เป็น 8, `9-12` เป็น 12 และ `12+` เป็น 15. การรับ `12+` เป็นค่าตั้งของร้าน (`largePartyMode`): `staff_review` (ค่าเริ่มต้น) รับคำขอเป็น `pending_allocation` เมื่อโต๊ะว่างรวมกันในโซนนั่งพอ แล้วพนักงานยืนยันและระบบจองหลายโต๊ะในโซนเดียวกันให้; `disabled` ปฏิเสธด้วย `409 LARGE_PARTY_DISABLED`. ข้อมูลร้านสาธารณะมี `largePartyMode`.
-- การรับคำขอต้องใช้ ticket สถานะ `ready` ของลูกค้าในร้านนั้น. ส่งก่อนเปิดคืนบริการได้ `409 NIGHT_NOT_OPEN`. คิวที่หมดอายุหรือใช้แล้วได้ `409 TICKET_NOT_READY`. ปิดโซนได้ `409 ZONE_CLOSED`.
+- ส่งได้หลัง LINE login และเมื่อคืนนั้นเปิดรับ. ก่อนเปิดได้ `409 NIGHT_NOT_OPEN`, นอกช่วงจองได้ `422 DATE_OUT_OF_RANGE`, ร้านปิดได้ `409 CLOSED` และโซนปิดได้ `409 ZONE_CLOSED`. Rate limit นับตามลูกค้าต่อร้าน.
 - Worker โหมด `auto` เลือกโต๊ะว่างขนาดเล็กสุดที่รองรับกลุ่มในโซน. โต๊ะไม่พอได้ `rejected/ZONE_FULL`. โหมด `manual` สร้าง booking สถานะ `pending_allocation` และเริ่มถือโต๊ะเมื่อร้านจัดสรรสำเร็จ. ค่า `confirmed` ใน **booking request** หมายถึงสร้าง booking แล้ว ให้ดูสถานะการจัดสรรจาก **booking**.
 - Booking คืน `reference` รูปแบบ `BL-YYYY-NNNN` (เลขรันอาจยาวเกิน 4 หลัก), `name`, `phone`, `zoneName`, `party`, `source`, `status` และ `checkedInAt`. สถานะ booking คือ `pending_allocation`, `confirmed`, `checked_in`, `cancelled`. รายการเก่าที่บันทึกเพียงเลขท้ายเบอร์โทรคืน `phone: ""`.
 - โหมด `sqs` อาจได้ `503 QUEUE_UNAVAILABLE` ให้ส่ง payload เดิมด้วย key เดิม. โหมด `db` ไม่มีขั้น publish จึงไม่มี error นี้. Key เดิมกับ payload ต่างได้ `422 IDEMPOTENCY_CONFLICT`.
-- API เลือกโต๊ะเดิมยังรองรับ `{venueId,serviceDate,partySize,tableId}` สำหรับ `customer_picks` หรือ `zoneId` สำหรับ `auto_assign`. ส่ง `serviceAt` แบบ ISO พร้อม offset และ `contactPhone` ได้. กรณีแย่งโต๊ะใน flow นี้ใช้ `TABLE_UNAVAILABLE`.
 
 ## ระบบ
 
@@ -46,7 +42,7 @@ JSON ใช้ camelCase. ส่ง `Content-Type: application/json` เมื�
 | `GET/PATCH /bookings/{bookingId}` | GET คืน booking กับ `canCheckIn`. PATCH รับ `{"status":"cancelled"}` |
 | `POST /bookings/{bookingId}/check-in` | เช็กอิน booking ที่ยืนยันแล้วครั้งเดียวในคืนบริการตามเวลา Bangkok. การเช็กอินซ้ำคืน `409 ALREADY_CHECKED_IN` และผิดคืนคืน `409 NOT_SERVICE_DATE` |
 | `GET /availability?date=&partyBucket=` | คืน `{zones}` สำหรับ staff-assisted booking โดยใช้ความจุและกฎการให้บริการ |
-| `POST /booking-requests`, `GET /booking-requests/{requestId}` | POST รับ `{name,phone,serviceDate,party,zoneId}` กับ `Idempotency-Key`. ใช้ FIFO และโหมดจัดสรรของร้าน ข้ามคิวลูกค้าและเวลาเปิดจอง. อัปเดต contact ฝั่งร้านตามเบอร์เต็มและบันทึก `source=staff_assisted`. API เดิมยังรับ `customerId` กับ payload เลือกโต๊ะ |
+| `POST /booking-requests`, `GET /booking-requests/{requestId}` | POST รับ `{name,phone,serviceDate,party,zoneId}` กับ `Idempotency-Key`. ใช้ FIFO และโหมดจัดสรรของร้าน ข้ามเวลาเปิดจอง. อัปเดต contact ฝั่งร้านตามเบอร์เต็มและบันทึก `source=staff_assisted`. API เดิมยังรับ `customerId` กับ payload เลือกโต๊ะ |
 | `GET /queue?date=&status=` | คำขอที่สร้าง booking แล้ว เรียง `queueNo` ตามคืนบริการ พร้อม `requestedAt`. สถานะ `pending`, `allocated` หรือ filter `all` |
 | `GET /queue/{bookingId}`, `POST /queue/{bookingId}/allocate` | GET คืน `{request,phone,zones}`. POST รับ `{zoneId?}` เพื่อยืนยันในโซนเดิมหรือย้ายโซน. ได้ `ZONE_FULL` เมื่อโต๊ะไม่พอ และ `ALREADY_ALLOCATED` เมื่อจัดสรรไปแล้ว |
 | `GET/POST /zones`, `GET/PATCH/DELETE /zones/{zoneId}` | GET รองรับ `date` สำหรับจำนวนที่จอง. POST และ PATCH รับ `seats` สำหรับโซนที่จัดการโต๊ะอัตโนมัติ 12 ที่นั่งต่อโต๊ะ จำนวน `ceil(seats/12)`. คงโต๊ะที่มีจองล่วงหน้า. ชื่อซ้ำได้ `ZONE_NAME_TAKEN` และลดต่ำกว่าที่จองได้ `CAPACITY_BELOW_BOOKED`. DELETE ปิดรับจอง. Payload เดิมที่ใช้ `capacity` ยังรองรับ |
@@ -87,6 +83,6 @@ Staff `GET /api/staff/venues/{venueId}/audit?date=YYYY-MM-DD&limit=50&offset=0&q
 
 `GET .../audit/verify?from=&to=` verifies an optional inclusive audit-sequence range; omitted bounds verify the whole venue. Returns `valid`, `checked`, `firstBadSeq`, `firstBadId`, `lastSeq`, `headHash`. Range verification uses the preceding stored hash as its boundary. `checkpoints: {configured, checked, firstInvalidSeq, latestSeq}` reports signed checkpoints; `valid` is false when the chain or any checkpoint fails. A checkpoint fails when its Ed25519 signature does not verify or the row at its `seq` no longer has the signed hash. Owner `GET .../audit/checkpoint` returns the latest signed checkpoint with its signed `message` and `publicKeyPem` for offline storage. `POST /api/internal/audit/checkpoint` (Cron, `Bearer <CRON_SECRET>`) signs each venue head that moved; it returns 503 without `AUDIT_SIGNING_KEY`. `GET .../audit/export.csv?date=&q=` is owner-only and exports all matching rows with masked phone numbers and spreadsheet formula escaping. `GET .../bookings/{bookingId}/timeline` is tenant-scoped and returns booking-related entries.
 
-Booking views include nullable `receipt: {reference,ticketSeq,receivedAt,decidedAt,verifyCode}`. `verifyCode` is the first 16 hex characters of the immutable confirmation/allocation-pending audit row hash. It remains stable after cancellation. Positions displayed on the customer queue screen are transient; staff compare receipt/reference with stored evidence. Hash-chain limitations and pre-migration timestamp limitations are documented in README.md. Mock audit responses explicitly mark `simulated: true`.
+Booking views include nullable `receipt: {reference,queueSeq,receivedAt,decidedAt,verifyCode}`. `verifyCode` is the first 16 hex characters of the immutable confirmation/allocation-pending audit row hash. It remains stable after cancellation. Staff compare the request sequence, receipt and reference with stored evidence. Historical tickets remain in the audit log. Hash-chain limitations and pre-migration timestamp limitations are documented in README.md. Mock audit responses explicitly mark `simulated: true`.
 
 `GET /api/health` also includes `backlog: {pending,oldestAgeSeconds}` for queued/unpublished requests (null when DB check fails), without exposing venue/customer identifiers.

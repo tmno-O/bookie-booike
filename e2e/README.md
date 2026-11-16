@@ -35,22 +35,22 @@ e2e/2026-11-11_03-24-07/
   01-customer-open-login.png
   02-customer-login-line-account.png
   ...
-  32-admin-logout.png
+  29-admin-logout.png
   report.md       # table of steps: PASS/FAIL, seconds, notes, screenshot name
   results.json    # same data for tools
 ```
 A failing step is saved as `NN-<flow>-<step>-FAILED.png` and the rest of that flow is skipped.
 The exit code is 0 when everything passes and 1 otherwise.
 
-## What it covers (32 steps)
-- **Customer (390×844 phone):** mock LINE login → booker details → waiting → queue → pick night, party and zone →
+## What it covers (29 steps)
+- **Customer (390×844 phone):** mock LINE login → booker details → pick night, party and zone →
   confirmation (reads the booking reference) → my bookings.
 - **Admin (1440×900):** redirect to login → owner login → dashboard shows the customer's booking → pending filter →
   booking list and search → details and check-in → add booking → queue and zone allocation → zones (add) →
   open times (edit dialog) → settings and team → logout.
 
 ## Notes
-- The run resets the mock database first (fast queue) and again at the end, so it always starts from the same seed data.
+- The run resets the mock database first and again at the end, so it always starts from the same seed data.
 - Needs Python 3 and the packages in `requirements.txt` (already installed in `.venv`). To set up elsewhere:
   `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/playwright install chromium`
 - Text locators use the Thai labels in the app, so a renamed button needs a one-line change in `run_tests.py`.
