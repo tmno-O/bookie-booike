@@ -1,6 +1,7 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { DEFAULT_REMINDER_HOURS, type LineReminderSettings } from "@/contracts/venue";
 import type { FloorPlan } from "@/lib/floor-plan";
 
 // Mock JSON "database" for local end-to-end testing. Single-process only:
@@ -46,6 +47,7 @@ export type Db = {
   lineUsers: LineUser[];
   profile: ShopProfile;
   cancellation: { customerCancelEnabled: boolean; cancelCutoffMinutes: number };
+  lineReminders: LineReminderSettings;
   largePartyMode: "staff_review" | "disabled";
   announcements: { id: string; serviceDate: string; title: string; opensAt: string; recipients: string[] }[];
   announcementOptOut: string[];
@@ -98,6 +100,7 @@ export function seed(opts: { opensInSeconds?: number; queueStepSeconds?: number 
     lineUsers: [],
     profile: { ...DEFAULT_PROFILE },
     cancellation: { customerCancelEnabled: true, cancelCutoffMinutes: 120 },
+    lineReminders: { bookingReminderHours: DEFAULT_REMINDER_HOURS, specialReminderHours: DEFAULT_REMINDER_HOURS },
     largePartyMode: "staff_review",
     announcements: [], announcementOptOut: [],
     invites: [],
@@ -126,6 +129,7 @@ async function load(): Promise<Db> {
     db.lineUsers ??= []; // databases saved before LINE login existed
     db.profile ??= { ...DEFAULT_PROFILE };
     db.cancellation ??= { customerCancelEnabled: true, cancelCutoffMinutes: 120 };
+    db.lineReminders ??= { bookingReminderHours: DEFAULT_REMINDER_HOURS, specialReminderHours: DEFAULT_REMINDER_HOURS };
     db.largePartyMode ??= "staff_review";
     db.announcements ??= []; db.announcementOptOut ??= [];
     db.invites ??= [];

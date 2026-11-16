@@ -23,8 +23,12 @@ export function setAnnouncementOptOut(customer: Customer, optOut: boolean) {
   return db().begin(async (tx) => {
     await tx`update venue_customers set announcements_opt_out = ${optOut}
       where venue_id = ${customer.venueId} and customer_id = ${customer.customerId}`;
-    if (optOut) await tx`update announcement_outbox set status = 'skipped', last_error = 'OPTED_OUT'
-      where venue_id = ${customer.venueId} and customer_id = ${customer.customerId} and status = 'pending'`;
+    if (optOut) {
+      for (const outbox of ["announcement_outbox", "announcement_reminder_outbox"]) {
+        await tx`update ${tx(outbox)} set status = 'skipped', last_error = 'OPTED_OUT'
+          where venue_id = ${customer.venueId} and customer_id = ${customer.customerId} and status = 'pending'`;
+      }
+    }
     return { optedOut: optOut };
   });
 }

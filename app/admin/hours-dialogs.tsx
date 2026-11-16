@@ -120,7 +120,7 @@ export function SpecialDayDialog({ today, onClose, onSaved }: { today: string; o
         <input className={styles.input} type="date" min={today} max={serviceDate || undefined} value={opensOn} onChange={(e) => setOpensOn(e.target.value)} /></label>
       <label className={styles.field} style={{ gridTemplateColumns: "1fr" }}><span className={styles.fieldLabel} style={label}>เวลาเปิดรับจอง</span>
         <input className={styles.input} type="time" value={time} onChange={(e) => setTime(e.target.value)} /></label>
-      <label style={{ display: "flex", alignItems: "center", gap: 12, minHeight: 44 }}><input type="checkbox" checked={announce} onChange={(e) => setAnnounce(e.target.checked)} />แจ้งลูกค้าที่เคยจองผ่าน LINE และในแอป</label>
+      <label style={{ display: "flex", alignItems: "center", gap: 12, minHeight: 44 }}><input type="checkbox" checked={announce} onChange={(e) => setAnnounce(e.target.checked)} />ประกาศให้ลูกค้าที่เคยจอง และส่ง LINE เตือนก่อนวันพิเศษ</label>
     </Frame>
   );
 }

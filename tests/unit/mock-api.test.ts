@@ -652,6 +652,19 @@ describe("mock admin opening hours", () => {
     expect(await (await call(settingsGet, "/api/mock/admin/settings", { cookie })).json()).toMatchObject({ cancelCutoffMinutes: 4320 });
   });
 
+  it("saves LINE reminder hours and off settings independently, owner only", async () => {
+    const cookie = await owner();
+    const path = "/api/mock/admin/settings";
+    const patch = (who: string, body: object) => call(settingsPatch, path, { method: "PATCH", cookie: who, body });
+    expect((await patch(await staffOnly(), { bookingReminderHours: null })).status).toBe(403);
+    for (const bad of [0, 1.5, 8761]) {
+      expect((await patch(cookie, { bookingReminderHours: bad })).status).toBe(400);
+    }
+    expect((await patch(cookie, { bookingReminderHours: 3, specialReminderHours: null })).status).toBe(200);
+    expect((await patch(cookie, { bookingReminderHours: 6 })).status).toBe(200);
+    expect(await (await call(settingsGet, path, { cookie })).json()).toMatchObject({ bookingReminderHours: 6, specialReminderHours: null });
+  });
+
   it("validates and saves the standard hours", async () => {
     const cookie = await owner();
     for (const bad of [{ daysBefore: 31, time: "20:00" }, { daysBefore: -1, time: "20:00" }, { daysBefore: 1, time: "25:00" },
@@ -735,6 +748,7 @@ describe("mock admin shop settings and team", () => {
     expect(asOwner).toEqual({
       profile: { name: "ร้านตัวอย่าง", phone: "02 123 4567", address: "เชียงใหม่ ประเทศไทย", entryPolicy: "กรุณามาถึงตามเวลาที่ร้านกำหนด" },
       canEdit: true, customerCancelEnabled: true, cancelCutoffMinutes: 120, largePartyMode: "staff_review",
+      bookingReminderHours: 24, specialReminderHours: 24,
     });
     expect((await (await call(settingsGet, "/api/mock/admin/settings", { cookie: await staffOnly() })).json()).canEdit).toBe(false);
     expect((await call(settingsGet, "/api/mock/admin/settings")).status).toBe(401);

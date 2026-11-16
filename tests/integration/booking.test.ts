@@ -630,6 +630,7 @@ afterAll(async () => {
   const sql = db();
   try {
     await sql.begin(async (tx) => {
+      await tx`delete from announcement_reminder_outbox where venue_id in ${tx(venues)}`;
       await tx`delete from announcement_outbox where venue_id in ${tx(venues)}`;
       await tx`delete from release_announcements where venue_id in ${tx(venues)}`;
       await tx`delete from notification_outbox where venue_id in ${tx(venues)}`;

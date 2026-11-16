@@ -110,7 +110,11 @@ select cron.schedule('bookie-notifications', '* * * * *', $job$
 $job$);
 ```
 
-The endpoint reserves roughly 20 seconds for bounded deliveries, uses row locks to avoid overlapping workers, and retains stable LINE retry IDs. Check `net._http_response`, Cron run history, and both outboxes (`pending`, `sent`, `skipped`, `dead`). Missing cron configuration returns 503; invalid credentials return 401; disabled push preserves pending jobs. No cloud job or secret is provisioned by the migration.
+The endpoint reserves roughly 20 seconds for bounded deliveries, uses row locks to avoid overlapping workers, and retains stable LINE retry IDs. Check `net._http_response`, Cron run history, and `notification_outbox`, `announcement_outbox`, and `announcement_reminder_outbox`. Missing cron configuration returns 503, invalid credentials return 401, and disabled push preserves queued jobs. Apply `20261116000100_line_notification_scenarios.sql` before deploying the new worker code.
+
+Final booking decisions enqueue a LINE confirmation or a rejection with a customer-facing reason. Owners set the lead time for confirmed bookings and special days separately in `/admin/settings/notifications`. Both default to 24 hours. Booking reminders count back from the reservation time. Special-day reminders count back from the venue's local opening time and use the audience of the published announcement. Each reminder can be disabled. Changing a setting updates upcoming reminders that have yet to be attempted. Special-day announcements are sent when published and can also appear in the booking app.
+
+Run `npm run test:scenarios` against a migrated local Supabase database to exercise these flows with mocked LINE responses.
 
 ### Signed audit checkpoints
 

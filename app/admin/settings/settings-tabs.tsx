@@ -5,6 +5,7 @@ import tabStyles from "./settings-pages.module.css";
 const TABS = [
   { id: "hours", href: "/admin/settings/hours", label: "เวลาเปิด–ปิดร้าน" },
   { id: "cancellation", href: "/admin/settings/cancellation", label: "เงื่อนไขการยกเลิก" },
+  { id: "notifications", href: "/admin/settings/notifications", label: "แจ้งเตือน LINE" },
 ] as const;
 
 // Shared header for the shop-settings sub pages (Figma "Admin · 06a / 06b / 06c").

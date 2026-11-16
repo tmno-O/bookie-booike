@@ -9,15 +9,20 @@ import { profileInput } from "@/mock/validation";
 export const GET = route<Record<string, string>>(async (request) => {
   assertMockEnabled();
   const staff = requireStaff(request);
-  return json(await withDb((db) => ({ profile: db.profile, ...db.cancellation, largePartyMode: db.largePartyMode, canEdit: staff.role === "owner" })));
+  return json(await withDb((db) => ({ profile: db.profile, ...db.cancellation, ...db.lineReminders,
+    largePartyMode: db.largePartyMode, canEdit: staff.role === "owner" })));
 });
 
 export const PATCH = route(async (request) => {
   assertMockEnabled(); requireOwner(request);
-  const { largePartyMode, ...patch } = await body(request, settingsPatch.pick({ customerCancelEnabled: true, cancelCutoffMinutes: true, largePartyMode: true }));
+  const { largePartyMode, bookingReminderHours, specialReminderHours, ...cancellation } = await body(request, settingsPatch.pick({
+    customerCancelEnabled: true, cancelCutoffMinutes: true, largePartyMode: true, bookingReminderHours: true, specialReminderHours: true,
+  }));
   return json(await withDb((db) => {
     if (largePartyMode) db.largePartyMode = largePartyMode;
-    return { ...Object.assign(db.cancellation, patch), largePartyMode: db.largePartyMode };
+    if (bookingReminderHours !== undefined) db.lineReminders.bookingReminderHours = bookingReminderHours;
+    if (specialReminderHours !== undefined) db.lineReminders.specialReminderHours = specialReminderHours;
+    return { ...Object.assign(db.cancellation, cancellation), ...db.lineReminders, largePartyMode: db.largePartyMode };
   }));
 });
 

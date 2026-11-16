@@ -132,6 +132,7 @@ export default function SettingsScreen() {
       <nav className={page.links} aria-label="การตั้งค่าเพิ่มเติม">
         <Link href="/admin/settings/hours" className={page.linkBtn}>เวลาเปิด–ปิดร้าน ›</Link>
         <Link href="/admin/settings/cancellation" className={page.linkBtn}>เงื่อนไขการยกเลิก ›</Link>
+        <Link href="/admin/settings/notifications" className={page.linkBtn}>แจ้งเตือน LINE ›</Link>
       </nav>
 
       {team && <TeamDialog onClose={() => setTeam(false)} onInvited={(m) => { setTeam(false); setNotice(m); }} />}

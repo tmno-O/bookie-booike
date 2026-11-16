@@ -27,12 +27,22 @@ export const shopProfileInput = z.strictObject({
   address: z.string().trim().max(200),
   entryPolicy: z.string().trim().max(300),
 });
+export const DEFAULT_REMINDER_HOURS = 24;
+export const MAX_REMINDER_HOURS = 365 * 24;
+const reminderHours = z.number().int().min(1).max(MAX_REMINDER_HOURS).nullable();
+export const lineReminderSettings = z.strictObject({
+  bookingReminderHours: reminderHours,
+  specialReminderHours: reminderHours,
+});
+export type LineReminderSettings = z.infer<typeof lineReminderSettings>;
+
 export const settingsPatch = z.strictObject({
   tableSelectionMode: selectionMode.optional(),
   allocationMode: z.enum(["auto", "manual"]).optional(),
   cancelCutoffMinutes: z.number().int().min(0).max(525600).optional(),
   customerCancelEnabled: z.boolean().optional(),
   largePartyMode: z.enum(["staff_review", "disabled"]).optional(),
+  ...lineReminderSettings.partial().shape,
 });
 const zoneStatus = z.enum(["active", "open", "closed"]);
 const legacyZone = z.strictObject({ name: label, capacity, status: status.default("active") });

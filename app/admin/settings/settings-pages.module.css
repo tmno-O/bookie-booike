@@ -46,6 +46,8 @@
 .amountRow { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
 .amount { width: 170px; height: 42px; box-sizing: border-box; padding: 0 12px; border: 1px solid #e8e5e1; border-radius: 8px; font: inherit; font-size: 14px; color: #25211f; }
 .amount:focus-visible { outline: 2px solid #b94e29; outline-offset: 1px; }
+.reminderToggle { display: flex; align-items: center; gap: 10px; min-height: 44px; margin-top: 12px; }
+.reminderAmount { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
 .unit { height: 42px; padding: 0 17px; border: 1px solid #e8e5e1; border-radius: 8px; background: #fff; font: inherit; font-size: 14px; font-weight: 600; color: #25211f; cursor: pointer; }
 .unitOn { border-color: #b94e29; background: #b94e29; color: #fff; }
 .unit:focus-visible { outline: 2px solid #b94e29; outline-offset: 2px; }

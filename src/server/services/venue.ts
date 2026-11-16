@@ -1,7 +1,7 @@
 import postgres from "postgres";
 import type { z } from "zod";
 import {
-  lineIntegrationPatch, profilePatch, releaseInput, ruleInput, settingsPatch, shopProfileInput,
+  lineIntegrationPatch, profilePatch, releaseInput, ruleInput, settingsPatch, shopProfileInput, type LineReminderSettings,
 } from "@/contracts/venue";
 import { db } from "@/lib/db";
 import { ApiError, notFound } from "@/lib/errors";
@@ -27,16 +27,17 @@ export function columns(value: Record<string, string | number | boolean | null>)
 
 export async function getVenue(lookup: { venueId: string } | { slug: string }, sql: postgres.ISql = db()) {
   const predicate = "venueId" in lookup ? sql`v.id = ${lookup.venueId}` : sql`v.slug = ${lookup.slug}`;
-  const [venue] = await sql<{
+  const [venue] = await sql<(LineReminderSettings & {
     id: string; slug: string; name: string; description: string | null; contact: string | null;
     mapUrl: string | null; imageUrl: string | null; timezone: string; phone: string; address: string;
     entryPolicy: string; tableSelectionMode: "customer_picks" | "auto_assign";
     cancelCutoffMinutes: number; customerCancelEnabled: boolean; largePartyMode: "staff_review" | "disabled"; liffId: string | null; allocationMode: "auto" | "manual";
-  }[]>`
+  })[]>`
     select v.id, v.slug, v.name, v.description, v.contact, v.map_url, v.image_url, v.timezone,
            v.phone, v.address, v.entry_policy,
            v.table_selection_mode, v.cancel_cutoff_minutes, v.customer_cancel_enabled, l.liff_id, coalesce(s.allocation_mode, 'auto') as allocation_mode,
-           coalesce(s.large_party_mode, 'staff_review') as large_party_mode
+           coalesce(s.large_party_mode, 'staff_review') as large_party_mode,
+           v.booking_reminder_hours, v.special_reminder_hours
     from venues v left join venue_line_integrations l on l.venue_id = v.id
     left join venue_settings s on s.venue_id = v.id
     where ${predicate}
