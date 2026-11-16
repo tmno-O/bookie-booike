@@ -1,4 +1,6 @@
-# Audit trail burst verification — 15 November 2026
+# Bookie Bookie audit burst verification — 15 November 2026
+
+Historical local run before the FCFS change. See [current CI evidence](../README.md#ผล-ci-บน-main) for the tests after PR #22.
 
 Executed the existing `tests/load/booking-burst.js` against Next.js dev and local Supabase, `QUEUE_DRIVER=db`, using 5,000 requests and 250 in flight. k6 ran in Docker via `host.docker.internal`; API used mock LINE verification. This is test traffic only; no LINE messages were sent.
 

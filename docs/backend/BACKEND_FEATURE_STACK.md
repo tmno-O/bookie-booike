@@ -1,10 +1,10 @@
-# Backend รายฟีเจอร์: Feature 1–4
+# Backend รายฟีเจอร์ ของ Bookie Bookie · Feature 1–4
 
-5 พฤศจิกายน 2569 · ฉบับ Feature 1–4 + LIFF/FIFO | ผู้รับบทบาท: คุณ (Backend) | เอกสารออกแบบ ยังไม่มีระบบเปิดใช้งาน ไม่มีผล pilot/load test หรือธุรกรรมจริงที่ยืนยันแล้ว
+5 พฤศจิกายน 2569 · ฉบับ Feature 1–4 + LIFF/FIFO | ผู้รับบทบาท: คุณ (Backend) | แผนก่อนพัฒนา
 
-> **อัปเดต 13 พ.ย. 2569:** ระบบจริงเลือก **DB queue** (`QUEUE_DRIVER=db`) เป็นคิวหลักหลังวัดผลเทียบกับ SQS FIFO. `sqs` ตามเอกสารนี้ (SQS FIFO + worker) ยังคงไว้เป็นทางเลือก. `db` เก็บคิวในตาราง Postgres แล้วตัดสินด้วย `drain_booking_requests()` ลำดับคิวจึงเป็นลำดับที่คำขอ commit ลงฐานข้อมูลแทนลำดับที่ broker รับ ใช้สำหรับ Vercel ที่รัน worker ไม่ได้. ดู [README](../../README.md) และ [DEPLOY](../DEPLOY.md).
+> **บันทึกแผนเดิม 5 พฤศจิกายน 2569** เนื้อหาด้านล่างเก็บข้อเสนอของช่วงออกแบบ. ระบบปัจจุบันใช้คิว Postgres, FCFS และจองตรงจากหน้าเลือกโซน. ใช้ [Tech Stack](../TECH_STACK_PLAN.md), [สัญญา API](../API_CONTRACT.md) และ [Deploy](../DEPLOY.md) สำหรับโค้ดหลัง PR #22.
 
-ธุรกิจมี 4 ฟีเจอร์ตามไฟล์ใหม่ ส่วน 15 รายการในเอกสารก่อนเป็นความสามารถทางเทคนิคประกอบ ไม่ใช่การเพิ่ม scope ธุรกิจใหม่ อ่าน [FEATURE_REQUIREMENTS.md](./FEATURE_REQUIREMENTS.md) และ [OPEN_DECISIONS.md](./OPEN_DECISIONS.md) ควบคู่
+ธุรกิจมี 4 ฟีเจอร์ตามไฟล์ใหม่ ส่วน 15 รายการในเอกสารก่อนเป็นความสามารถทางเทคนิคประกอบ ไม่ใช่การเพิ่ม scope ธุรกิจใหม่ ดู [ข้อกำหนดและประเด็นค้างฉบับปัจจุบัน](../SRS_Bookie_Bookie.md)
 
 ## F1. LINE integration / onboarding
 
@@ -96,6 +96,6 @@ payment hold expiry ใช้กับ pending_payment เท่านั้น 
 
 ## อ้างอิงและต้นทุน
 
-[COST_PLAN.md](./COST_PLAN.md) มีราคา SQS/free tier/ตัวอย่างจำนวน requests และต้นทุน worker ที่แยกกัน [LINE_ONBOARDING_GUIDE.md](./LINE_ONBOARDING_GUIDE.md) มีข้อจำกัดเมนูและ provider ที่ตรวจแล้ว
+ดู [ผลเปรียบเทียบคิวในเครื่อง](../evidence/README.md#ผลย้อนหลังของ-k6) และ [คู่มือเชื่อม LINE ปัจจุบัน](../DEPLOY.md#3-line-login--liff).
 
 [SQS FIFO](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/FIFO-queues-understanding-logic.html), [LINE user IDs](https://developers.line.biz/en/docs/messaging-api/getting-user-ids/), [Rich Menu](https://developers.line.biz/en/docs/messaging-api/rich-menus-overview/), [Omise](https://docs.omise.co/promptpay), [Stripe](https://docs.stripe.com/payments/promptpay) ตรวจ 5 พฤศจิกายน 2569

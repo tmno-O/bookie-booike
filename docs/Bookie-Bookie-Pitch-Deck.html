@@ -1016,7 +1016,7 @@ p,li{line-height:1.55}
     <ul class="gain">
       <li>เพิ่มลิงก์หรือ QR ใน LINE OA เดิม ลูกค้าไม่ต้องโหลดแอป</li>
       <li>ลูกค้าเลือกคืน จำนวนคน และโซนที่ต้องการ</li>
-      <li>ยืนยันการจองส่งเป็นการ์ดจาก LINE ของร้านเอง</li>
+      <li>ดูผลใน LIFF และรับการ์ดเมื่อร้านเปิด LINE push</li>
     </ul>
   </div>
   <div class="gpanel rings" id="f1p" style="left:960px;top:150px;width:840px;height:830px">
@@ -1025,7 +1025,7 @@ p,li{line-height:1.55}
     <div class="pf-steps">
       <p class="pf-g">ฝั่งร้าน · ตั้งค่าครั้งเดียว</p>
       <div class="pf-s" data-n="1"><b>1</b><span>เชื่อม LINE OA ของร้าน</span></div>
-      <div class="pf-s" data-n="2"><b>2</b><span>ตกแต่ง Rich Menu</span></div>
+      <div class="pf-s" data-n="2"><b>2</b><span>ร้านตั้ง Rich Menu จากลิงก์จอง</span></div>
       <p class="pf-g c">ฝั่งลูกค้า</p>
       <div class="pf-s" data-n="3"><b>3</b><span>กดเพิ่มเพื่อน LINE ของร้าน</span></div>
       <div class="pf-s" data-n="4"><b>4</b><span>เปิดแชต กดเมนูจองที่นั่ง</span></div>
@@ -1101,9 +1101,9 @@ p,li{line-height:1.55}
       </div>
     </div>
   </div>
-  <aside class="notes">(35 วินาที) สไลด์นี้เล่นวนเอง
-"ฟีเจอร์แรก ไม่ต้องเปลี่ยนช่องทาง ร้านเชื่อม LINE OA เดิมครั้งเดียว ตกแต่ง Rich Menu แล้วได้ QR ไปแปะหน้าร้าน ลูกค้าสแกน กดเพิ่มเพื่อน เข้าแชต กดเมนูจองที่นั่ง หน้าจองเปิดในแชตเลย ไม่ต้องโหลดแอป เลือกคืน จำนวนคน และโซน แล้วกดยืนยัน ระบบจัดโต๊ะที่เหมาะสมให้"
-(7 จาก 8 ร้านเลือกฟีเจอร์ ลูกค้าจองเองได้ เป็นข้อสำคัญที่สุด ภาพเป็นภาพร่าง ชื่อเมนูใน Rich Menu เป็นตัวอย่าง)</aside>
+  <aside class="notes">(20 วินาที)
+"เจ้าของคัดลอกลิงก์หรือ QR จากหน้าแอดมิน แล้วนำลิงก์ไปตั้ง Rich Menu ใน LINE เอง ลูกค้าเปิด LIFF เพื่อกรอกข้อมูลและเลือกคืนกับโซน ข้อความยืนยันเข้าแชตเมื่อเปิด LINE push และตั้ง Cron"
+(ภาพเคลื่อนไหวส่วนตั้ง Rich Menu เป็นตัวอย่างประกอบ)</aside>
 </section>
 
 <!-- 7 ฟีเจอร์ 2 -->
@@ -1258,7 +1258,7 @@ p,li{line-height:1.55}
     <ul class="gain">
       <li>ระบบเรียงคำขอตามลำดับที่รับ ใครส่งก่อนได้ก่อน</li>
       <li>โต๊ะที่ถูกจองแล้ว คนถัดไปจองซ้ำไม่ได้ ทั้งผ่าน LINE และพนักงานจองแทน</li>
-      <li>คนที่จองไม่ทันรู้ผลทันที กดส่งซ้ำก็ไม่เกิดการจองซ้ำ</li>
+      <li>คนที่จองไม่ทันดูผลจากหน้าจอง ส่งคำขอเดิมซ้ำไม่เกิดการจองซ้ำ</li>
     </ul>
   </div>
   <div class="gpanel rings" id="f4p" style="left:1060px;top:150px;width:740px;height:830px;padding:44px">
@@ -1417,10 +1417,10 @@ p,li{line-height:1.55}
     <div class="bf-box bxb"><p class="bf-k">ก่อน</p><p class="bf-b">รับจองทั้งแชต โทรศัพท์ และหน้าร้าน แล้วต้องจดมือ</p></div>
     <div class="bf-box bxa"><p class="bf-k">หลัง</p><p class="bf-a">จองผ่าน LINE และจองแทนทางโทรศัพท์ อยู่ในรายการเดียว</p></div>
   </div>
-  <p class="abs muted m-fade" style="left:120px;bottom:52px;width:1680px;font-size:24px;line-height:1.5">ยังไม่ครอบคลุม: ลูกค้ายกเลิกกะทันหันและจองแล้วไม่มา · ผลลัพธ์ข้างต้นเป็นสิ่งที่ออกแบบไว้ ยังไม่ได้ทดสอบกับร้านจริง</p>
+  <p class="abs muted m-fade" style="left:120px;bottom:52px;width:1680px;font-size:24px;line-height:1.5">ร้านตั้งเงื่อนไขการยกเลิกได้ · การคืนโต๊ะอัตโนมัติเมื่อไม่มายังอยู่ในแผน</p>
   <aside class="notes">(15 วินาที)
-"ร้านได้สี่อย่าง ประหยัดเวลาแอดมิน ไม่จดผิดไม่จองซ้อน รับจองได้ตลอดเวลา และเห็นทุกการจองในที่เดียว ส่วนลูกค้ายกเลิกกะทันหัน ยังไม่ครอบคลุม อยู่ในแผนถัดไป"
-(ผลลัพธ์ฝั่งหลังเป็นสิ่งที่ออกแบบไว้ ยังไม่ได้ทดสอบกับร้านจริง)</aside>
+"ร้านได้สี่อย่าง ประหยัดเวลาแอดมิน ไม่จดผิดไม่จองซ้อน รับจองได้ตลอดเวลา และเห็นทุกการจองในที่เดียว ร้านตั้งเวลาตัดการยกเลิกได้ ส่วนคืนโต๊ะอัตโนมัติเมื่อไม่มายังอยู่ในแผน"
+(ผลด้านเวลาทำงานของร้านต้องวัดจากการใช้งานจริง)</aside>
 </section>
 
 <!-- 10 เทคโนโลยี -->
@@ -1436,21 +1436,20 @@ p,li{line-height:1.55}
       <li>ฐานข้อมูลกันจองเกินจำนวนที่ร้านรับ</li>
       <li>ข้อมูลและสิทธิ์แยกตามร้าน เจ้าของกับพนักงานเห็นไม่เท่ากัน</li>
     </ul>
-    <p class="en muted" style="margin-top:34px;font-size:28px;line-height:1.6">Next.js · TypeScript · Supabase · AWS SQS · Node.js</p>
+    <p class="en muted" style="margin-top:34px;font-size:28px;line-height:1.6">Vercel · Next.js · Supabase Postgres · LINE</p>
   </div>
   <div class="gpanel" style="left:1060px;top:150px;width:740px;height:830px;padding:34px 44px">
-    <div style="background:rgba(20,19,18,.86);border-radius:22px;padding:16px 28px;display:flex;justify-content:space-between;align-items:center;gap:20px"><span class="en" style="font-size:34px;font-weight:700;color:#fff">LINE OA + LIFF</span><span style="font-size:25px;color:#E9DED6;text-align:right;line-height:1.35">ลูกค้าจองในแชตของร้าน<br><span style="color:#FF9A52">ไม่ต้องโหลดแอป</span></span></div><p class="en" style="text-align:center;font-size:30px;line-height:1;color:#fff;margin:8px 0">↓</p><div style="background:rgba(20,19,18,.86);border-radius:22px;padding:16px 28px;display:flex;justify-content:space-between;align-items:center;gap:20px"><span class="en" style="font-size:34px;font-weight:700;color:#fff">Next.js API</span><span style="font-size:25px;color:#E9DED6;text-align:right;line-height:1.35">ตรวจข้อมูลและสิทธิ์<br><span style="color:#FF9A52">รับคำขอ ตอบทันที</span></span></div><p class="en" style="text-align:center;font-size:30px;line-height:1;color:#fff;margin:8px 0">↓</p><div style="background:rgba(20,19,18,.86);border-radius:22px;padding:16px 28px;display:flex;justify-content:space-between;align-items:center;gap:20px"><span class="en" style="font-size:34px;font-weight:700;color:#fff">SQS FIFO</span><span style="font-size:25px;color:#E9DED6;text-align:right;line-height:1.35">เรียงตามลำดับที่รับ<br><span style="color:#FF9A52">แยกตามร้านและคืน</span></span></div><p class="en" style="text-align:center;font-size:30px;line-height:1;color:#fff;margin:8px 0">↓</p><div style="background:rgba(20,19,18,.86);border-radius:22px;padding:16px 28px;display:flex;justify-content:space-between;align-items:center;gap:20px"><span class="en" style="font-size:34px;font-weight:700;color:#fff">Node.js Worker</span><span style="font-size:25px;color:#E9DED6;text-align:right;line-height:1.35">ทำทีละคำขอ<br><span style="color:#FF9A52">ในกลุ่มเดียวกัน</span></span></div><p class="en" style="text-align:center;font-size:30px;line-height:1;color:#fff;margin:8px 0">↓</p><div style="background:rgba(20,19,18,.86);border-radius:22px;padding:16px 28px;display:flex;justify-content:space-between;align-items:center;gap:20px"><span class="en" style="font-size:34px;font-weight:700;color:#fff">Supabase PostgreSQL</span><span style="font-size:25px;color:#E9DED6;text-align:right;line-height:1.35">กันจองเกินที่ร้านรับ<br><span style="color:#FF9A52">แยกข้อมูลรายร้าน</span></span></div>
-    <p style="position:absolute;left:44px;bottom:22px;font-size:23px;color:#fff">แผนออกแบบ ยังไม่ได้ทดสอบรับคนพร้อมกัน</p>
+    <div style="background:rgba(20,19,18,.86);border-radius:22px;padding:16px 28px;display:flex;justify-content:space-between;align-items:center;gap:20px"><span class="en" style="font-size:34px;font-weight:700;color:#fff">LINE OA + LIFF</span><span style="font-size:25px;color:#E9DED6;text-align:right;line-height:1.35">เปิดหน้าจองใน LINE<br><span style="color:#FF9A52">ไม่ต้องโหลดแอป</span></span></div><p class="en" style="text-align:center;font-size:30px;line-height:1;color:#fff;margin:8px 0">↓</p><div style="background:rgba(20,19,18,.86);border-radius:22px;padding:16px 28px;display:flex;justify-content:space-between;align-items:center;gap:20px"><span class="en" style="font-size:34px;font-weight:700;color:#fff">Next.js API</span><span style="font-size:25px;color:#E9DED6;text-align:right;line-height:1.35">ตรวจข้อมูลและสิทธิ์<br><span style="color:#FF9A52">รับคำขอ ตอบทันที</span></span></div><p class="en" style="text-align:center;font-size:30px;line-height:1;color:#fff;margin:8px 0">↓</p><div style="background:rgba(20,19,18,.86);border-radius:22px;padding:16px 28px;display:flex;justify-content:space-between;align-items:center;gap:20px"><span class="en" style="font-size:34px;font-weight:700;color:#fff">Postgres queue</span><span style="font-size:25px;color:#E9DED6;text-align:right;line-height:1.35">เรียงตามลำดับที่รับ<br><span style="color:#FF9A52">แยกตามร้านและคืน</span></span></div><p class="en" style="text-align:center;font-size:30px;line-height:1;color:#fff;margin:8px 0">↓</p><div style="background:rgba(20,19,18,.86);border-radius:22px;padding:16px 28px;display:flex;justify-content:space-between;align-items:center;gap:20px"><span class="en" style="font-size:34px;font-weight:700;color:#fff">SQL drain + Cron</span><span style="font-size:25px;color:#E9DED6;text-align:right;line-height:1.35">ทำทีละคำขอ<br><span style="color:#FF9A52">ในกลุ่มเดียวกัน</span></span></div><p class="en" style="text-align:center;font-size:30px;line-height:1;color:#fff;margin:8px 0">↓</p><div style="background:rgba(20,19,18,.86);border-radius:22px;padding:16px 28px;display:flex;justify-content:space-between;align-items:center;gap:20px"><span class="en" style="font-size:34px;font-weight:700;color:#fff">Supabase PostgreSQL</span><span style="font-size:25px;color:#E9DED6;text-align:right;line-height:1.35">กันจองเกินที่ร้านรับ<br><span style="color:#FF9A52">แยกข้อมูลรายร้าน</span></span></div>
+    <p style="position:absolute;left:44px;bottom:22px;font-size:23px;color:#fff">CI ผ่าน 51 integration tests · ทดสอบแข่งจอง 50 คำขอ</p>
   </div>
   <aside class="notes">(20 วินาที)
-"เบื้องหลังสั้น ๆ ลูกค้าเปิดหน้าจองใน LINE ผ่าน LIFF ส่งเข้าคิว SQS FIFO เรียงตามลำดับที่รับ Worker ทำทีละคำขอ บันทึกลง Supabase PostgreSQL ที่กันจองเกิน ตอนนี้เป็นแผนออกแบบ ยังไม่มีผลทดสอบรับคนพร้อมกัน"
-(ตอนนี้เป็นแผนออกแบบ ยังไม่มีผลทดสอบรับคนพร้อมกัน ถ้าถูกถามให้ตอบตามนี้)</aside>
+"ลูกค้าเปิด LIFF และส่งคำขอจากหน้าเลือกโซน Postgres ตัดสินตามลำดับ commit ต่อร้านและคืน CI ทดสอบ 50 คำขอแย่งโต๊ะเดียว ยืนยันได้หนึ่งรายการ"</aside>
 </section>
 
 <!-- 11 ราคา -->
 <section class="slide mo" aria-label="ราคา">
   <div class="top"><span class="brand">Bookie Bookie</span><div class="nav"><span>ปัญหา</span><span>ฟีเจอร์</span><span>เทคโนโลยี</span><span class="on">ราคา</span></div></div>
-  <p class="abs h2" style="left:120px;top:150px;width:1680px">แพ็กเกจเดียว ครบทุกฟีเจอร์ ราคาคงที่</p>
+  <p class="abs h2" style="left:120px;top:150px;width:1680px">แพ็กเกจรายเดือนที่เสนอ</p>
   <p class="abs lead" style="left:120px;top:232px;width:1680px;font-size:32px">ไม่มีแพ็กเกจฟรีที่ฟีเจอร์ไม่ครบ และไม่มีแพ็กเกจแพงที่ปลดล็อกเพิ่ม</p>
   <div class="plan g" style="left:120px">
     <p class="name">ค่าสมาชิกรายเดือน</p>
@@ -1829,7 +1828,7 @@ p,li{line-height:1.55}
         var rb=sc.pb.querySelectorAll('.pf-rb');
         for(var i=0;i<rb.length;i++){rb[i].classList.add('show');await sleep(280)}
         await sleep(600);
-        await tapOn($('pb-b'),800);$('pb-b').textContent='เผยแพร่แล้ว';$('pb-b').classList.add('ok');await sleep(1500);
+        await tapOn($('pb-b'),800);$('pb-b').textContent='ตัวอย่างเมนูพร้อม';$('pb-b').classList.add('ok');await sleep(1500);
         setStep(3);scene('pc');await sleep(800);
         await tapOn($('pc-b'),800);$('pc-b').textContent='เป็นเพื่อนแล้ว';$('pc-b').classList.add('ok');await sleep(1400);
         setStep(4);scene('pd');await sleep(500);

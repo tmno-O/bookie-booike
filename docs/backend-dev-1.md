@@ -1,6 +1,6 @@
-# แผน Backend: Bookie Bookie (Bookie Lyon)
+# แผน Backend ระยะแรกของ Bookie Bookie
 
-> **สถานะ 13 พ.ย. 2569:** แผนเริ่มต้นของ backend ทำครบแล้ว (เก็บไว้เป็นบันทึก). ต่อด้วย [backend-dev-2.md](backend-dev-2.md) และ [DEPLOY.md](DEPLOY.md).
+> **สถานะ 13 พ.ย. 2569:** แผนเริ่มต้นของ backend ทำครบแล้ว (เก็บไว้เป็นบันทึก). ต่อด้วย [Backend ระยะสอง](backend-dev-2.md). สำหรับระบบหลัง PR #22 ใช้ [สรุปโปรเจกต์](PROJECT_SUMMARY.md) และ [คู่มือ deploy](DEPLOY.md).
 
 ## Context
 โฟลเดอร์ `Hackathon-Final` มีแต่เอกสาร ไม่มีโค้ด ไม่ใช่ git repo; remote `https://github.com/tmno-O/bookie-booike.git` ว่าง

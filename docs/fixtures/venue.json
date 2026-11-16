@@ -9,5 +9,39 @@
   "timezone": "Asia/Bangkok",
   "tableSelectionMode": "customer_picks",
   "cancelCutoffMinutes": 120,
-  "liffId": "1234567890-BookieDemo"
+  "liffId": "1234567890-BookieDemo",
+  "customerCancelEnabled": true,
+  "largePartyMode": "staff_review",
+  "allocationMode": "auto",
+  "opensAt": "2026-11-16T13:00:00.000Z",
+  "open": true,
+  "secondsUntilOpen": 0,
+  "openWeekdays": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "closedDates": [],
+  "today": "2026-11-17",
+  "maxAdvanceDays": 1,
+  "openNights": [
+    "2026-11-17"
+  ],
+  "upcomingNights": [
+    {
+      "serviceDate": "2026-11-18",
+      "opensAt": "2026-11-17T13:00:00.000Z"
+    }
+  ],
+  "nextDateAt": "2026-11-17T17:00:00.000Z",
+  "shop": {
+    "name": "Bookie Demo",
+    "phone": "",
+    "address": "",
+    "entryPolicy": ""
+  }
 }

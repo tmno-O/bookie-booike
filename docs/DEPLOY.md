@@ -1,13 +1,14 @@
-# Deploy: Vercel + Supabase
+# Deploy Bookie Bookie บน Vercel และ Supabase
 
-อัปเดต 16 พฤศจิกายน 2569 · production ที่แนะนำใช้ Vercel (เว็บ + API) กับ Supabase cloud (ฐานข้อมูล, Auth, คิว และ Cron) ด้วย `QUEUE_DRIVER=db` จึงไม่ต้องใช้ AWS SQS และไม่ต้องมี worker server
+อัปเดต 17 พฤศจิกายน 2569 · production ที่แนะนำใช้ Vercel (เว็บ + API) กับ Supabase cloud (ฐานข้อมูล, Auth, คิว และ Cron) ด้วย `QUEUE_DRIVER=db` จึงไม่ต้องใช้ AWS SQS และไม่ต้องมี worker server
 
 ## สถานะ
 
 | งาน | สถานะ |
 | --- | --- |
 | โค้ดรองรับ deploy: pooler (`DATABASE_PREPARE`, `DATABASE_POOL_MAX`), คิวใน Postgres (`QUEUE_DRIVER=db`), `vercel.json` region `sin1` | อยู่ใน `main` แล้ว (PR #3) |
-| หลักฐาน k6 เทียบสองโหมด | [docs/evidence](evidence/README.md) |
+| FCFS, LINE outbox และ CI | รวมเข้า `main` ใน PR #22 และ [CI ผ่าน](https://github.com/tmno-O/bookie-booike/actions/runs/43920496169) |
+| Migrations ล่าสุดและ LINE drain บน production | ตรวจ schema, cron และทดสอบส่งจริงตามขั้นตอนด้านล่าง |
 | Supabase cloud, Vercel project, LINE Login + LIFF | เปิดใช้งานแล้วตามข้อมูลทีม (16 พ.ย. 2569) |
 
 ## ทำไมใช้คิวใน Postgres บน Vercel
@@ -20,7 +21,7 @@
 ## 1. Supabase cloud
 
 1. สร้าง project region **Singapore** แล้วจดรหัสผ่าน DB ไว้
-2. ลง schema จาก root ของ repo (ลงเฉพาะ migration ไม่รัน seed):
+2. ลง schema จาก root ของ repo สำหรับระบบที่มีอยู่ ให้ตรวจ project ที่ link และรายการ migration ก่อนรันคำสั่ง
 
    ```bash
    npx supabase login
@@ -37,7 +38,7 @@
 
 4. Authentication → Sign In / Providers → Email: ปิด "Allow new users to sign up"
 5. Authentication → Users → Add user (Auto Confirm) สำหรับ owner และ staff ตั้งรหัสผ่านจริงเอง
-6. ใส่ข้อมูลร้านใน SQL Editor ตามรูปแบบใน `supabase/seed.sql`: `venues`, `venue_settings`, `zones`, `venue_tables`, `venue_members` (หา `user_id` จาก `auth.users` ตาม email) ตั้งเวลาเปิดจองใน `venue_settings` เช่น 1 วัน 20:00 เพราะค่าเริ่มต้นคือเปิดล่วงหน้า 365 วัน
+6. สร้างข้อมูลร้านและสมาชิกตามโครงสร้างใน `supabase/seed.sql` ด้วยข้อมูลจริง จากนั้นให้ owner บันทึกค่ามาตรฐานใน `/admin/hours` เพื่อให้เวลาเปิดจองและช่วงวันล่วงหน้าสอดคล้องกัน.
 7. Project Settings → Database → Connection string: เก็บ **Transaction pooler** (พอร์ต 6543) ไว้ใช้กับ Vercel
 
 **ห้ามรัน `supabase/seed.sql` บน cloud** เพราะมีบัญชีและรหัสผ่านทดสอบ
@@ -58,7 +59,8 @@
    | `NEXT_PUBLIC_API_MODE` | `real` (ฝังตอน build แก้แล้วต้อง Redeploy) |
    | `LINE_VERIFY_MODE` | `real` |
    | `LINE_SECRET_KEY` | hex 64 ตัว สร้างใหม่ด้วย `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"` |
-   | `LINE_NOTIFICATIONS_ENABLED` | `false` |
+   | `DEFAULT_VENUE_SLUG` | slug ร้านเริ่มต้นสำหรับ `/` |
+   | `LINE_NOTIFICATIONS_ENABLED` | `true` เมื่อพร้อมส่ง LINE ตามขั้นที่ 5 (ค่าเริ่มต้น `false`) |
    | `BOOKING_RATE_LIMIT_PER_MINUTE` | `30` |
    | `BOOKING_MAX_RECEIVES` | `5` |
 
@@ -73,7 +75,7 @@ Production ปฏิเสธ `LINE_VERIFY_MODE=mock` ลูกค้าจึ�
 1. [LINE Developers Console](https://developers.line.biz/console/) → Provider → สร้าง channel แบบ **LINE Login**
 2. LIFF → Add: Endpoint URL `https://<domain>/book/<slug>/login`, Scope `openid` และ `profile`, Size Full
 3. ผูกกับร้าน: owner เรียก `PATCH /api/staff/venues/{venueId}/line-integration` ด้วย channel ID, LIFF ID และ provider ID หรือใส่ตาราง `venue_line_integrations` ใน SQL Editor
-4. Publish channel ไม่อย่างนั้น login ได้เฉพาะบัญชี tester
+4. Publish channel ตามขอบเขตที่ต้องการให้ลูกค้าเข้าถึง. ถ้าเปลี่ยน slug ให้ปรับทั้ง LIFF Endpoint URL, Rich Menu และ `DEFAULT_VENUE_SLUG` สำหรับร้านเริ่มต้น.
 
 ## 4. ตรวจบน cloud
 
@@ -91,7 +93,7 @@ Production ปฏิเสธ `LINE_VERIFY_MODE=mock` ลูกค้าจึ�
 
 ## 5. Booking and release notifications on Vercel
 
-Apply all pending migrations before deploying this branch. Configure a Messaging API access token under the same LINE provider, `LINE_NOTIFICATIONS_ENABLED=true`, `LINE_VERIFY_MODE=real`, and a random `CRON_SECRET` of at least 32 characters in Vercel. Set `BOOKING_PUBLIC_ORIGIN` to the public HTTPS site origin if the default Vercel production domain is unsuitable for links. In-app announcements work when push is disabled.
+Apply all pending migrations before deploying the current app. PR #22 introduced `20261117000100_fcfs_booking.sql`, `20261117000200_one_active_booking.sql`, `20261117000300_booking_opening.sql`, and `20261117000400_line_outbox_leases.sql`. Configure a Messaging API access token under the same LINE provider, `LINE_NOTIFICATIONS_ENABLED=true`, `LINE_VERIFY_MODE=real`, and a random `CRON_SECRET` of at least 32 characters in Vercel. Set `BOOKING_PUBLIC_ORIGIN` to the public HTTPS site origin if the default Vercel production domain is unsuitable for links. In-app announcements work when push is disabled.
 
 Use one scheduler. Supabase Cron can call the existing POST endpoint every minute. Vercel Cron calls GET with `Authorization: Bearer $CRON_SECRET` and needs a plan that supports minute scheduling. Vercel Hobby supports daily jobs. See [Vercel Cron limits](https://vercel.com/docs/schedules/cron-jobs/usage-and-pricing).
 
@@ -121,7 +123,7 @@ $job$);
 
 The endpoint reserves roughly 20 seconds for deliveries. The worker commits an outbox lease before calling LINE and uses the same retry ID after a failure. Check Cron run history, the HTTP status from `pg_net`, and `GET /api/health` for aggregate outbox counts. Missing cron configuration returns 503, invalid credentials return 401, and disabled push preserves queued jobs. See [LINE notification audit](LINE_NOTIFICATIONS.md) for the rollout and smoke checks.
 
-Final booking decisions enqueue a LINE confirmation or a rejection with a customer-facing reason. Owners set the lead time for confirmed bookings and special days separately in `/admin/settings/notifications`. Both default to 24 hours. Booking reminders count back from the reservation time. Special-day reminders count back from the venue's local opening time and use the audience of the published announcement. Each reminder can be disabled. Changing a setting updates upcoming reminders that have yet to be attempted. Special-day announcements are sent when published and can also appear in the booking app.
+LINE customers waiting for allocation can receive a received message. Automatic or staff confirmation, cancellation, and queued rejection each have separate notifications. Owners set the lead time for confirmed bookings and special days separately in `/admin/settings/notifications`. Both default to 24 hours. Booking reminders count back from the reservation time. Special-day reminders count back from the venue's local opening time and use the audience of the published announcement. Each reminder can be disabled. Changing a setting updates upcoming reminders that have yet to be attempted. Special-day announcements are sent when published and can also appear in the booking app.
 
 Run `npm run test:scenarios` against a migrated local Supabase database to exercise these flows with mocked LINE responses.
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Bookie Lyon อธิบายระบบ</title>
+<title>Bookie Bookie อธิบายระบบ</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
@@ -154,16 +154,16 @@ section{scroll-margin-top:80px}.print-only{display:none}
 <div class="wrap">
 
 <header class="hero">
-  <span class="logo">BOOKIE LYON</span>
+  <span class="logo">BOOKIE BOOKIE</span>
   <h1>ระบบจองโต๊ะร้านเหล้า<br>อธิบายให้เห็นภาพ</h1>
-  <p class="sub">สรุปว่าเรากำลังสร้างอะไร ใครใช้ ใช้ยังไง และเรื่องไหนที่ทีมยังต้องตัดสินใจ</p>
+  <p class="sub">ระบบจองโต๊ะ Bookie Bookie หลัง PR #22 · อัปเดต 17 พฤศจิกายน 2569</p>
   <p style="margin:10px 0 0"><span class="tag t-brand">โฟกัสร้านเหล้าเท่านั้น</span></p>
 </header>
 
 <nav class="toc" aria-label="สารบัญ">
   <a href="#problem">ปัญหา</a>
   <a href="#actors">ใครใช้</a>
-  <a href="#f1">ฟีเจอร์ 1 LINE</a>
+  <a href="#f1">LINE และการจอง</a>
   <a href="#f2">ฟีเจอร์ 2 ตั้งค่าร้าน</a>
   <a href="#f3">ฟีเจอร์ 3 พนักงานจอง</a>
   <a href="#time">เวลานั่ง</a>
@@ -196,7 +196,7 @@ section{scroll-margin-top:80px}.print-only{display:none}
         <div class="s"><b>2</b>เห็นโต๊ะว่างทันที</div>
         <div class="s"><b>3</b>เลือกวัน เวลา โต๊ะ</div>
         <div class="s"><b>4</b>ระบบกันจองซ้อนให้อัตโนมัติ</div>
-        <div class="s"><b>5</b>ได้บัตรยืนยันในแชท ไม่ต้องรอใคร</div>
+        <div class="s"><b>5</b>ดูผลจองใน LIFF และรับข้อความเมื่อเปิด LINE push</div>
       </div>
     </div>
   </div>
@@ -229,7 +229,7 @@ section{scroll-margin-top:80px}.print-only{display:none}
   </div>
 
   <h3 style="margin-top:28px">ถ้าร้านมีเมนูไลน์อยู่แล้วล่ะ?</h3>
-  <p class="lead">เราไม่ทับเมนูเดิมของร้าน ถามร้านก่อนว่าอยากได้แบบไหน</p>
+  <p class="lead">เจ้าของร้านคัดลอกลิงก์หรือ QR จากหน้าตั้งค่าร้าน แล้วตั้ง Rich Menu ใน LINE เอง</p>
 
   <div class="tabs" role="tablist" aria-label="เลือกสถานการณ์ของร้าน">
     <button role="tab" aria-selected="true" data-p="p1">ยังไม่มีเมนู</button>
@@ -240,7 +240,7 @@ section{scroll-margin-top:80px}.print-only{display:none}
   <div class="panel on" id="p1" data-print-label="ยังไม่มีเมนู">
     <div class="card">
       <span class="tag t-green">ปลอดภัย ไม่กระทบอะไร</span>
-      <p>เราให้เมนูสำเร็จรูป 3 ปุ่ม ร้านเลือกสีและใส่โลโก้ แล้วระบบตั้งให้เลย</p>
+      <p>ตัวอย่างเมนู 3 ปุ่มที่ร้านสร้างเองใน LINE Official Account Manager โดยใช้ลิงก์จองจาก Bookie Bookie</p>
       <div class="phones">
         <div>
           <div class="phone"><div class="top">ร้านตัวอย่าง</div>
@@ -263,31 +263,26 @@ section{scroll-margin-top:80px}.print-only{display:none}
   <div class="panel" id="p3" data-print-label="เปลี่ยนเมนูใหม่">
     <div class="card">
       <span class="tag t-amber">ต้องเตือนร้านก่อน</span>
-      <p>เราตั้งเมนูใหม่ให้ แต่ <b>เมนูเดิมจะถูกแทนที่</b> ระบบต้องเตือนและให้ร้านเซฟรูปเมนูเดิมไว้ก่อน</p>
-      <div class="callout c-amber"><b>ทำไมต้องระวัง</b>เมนูหนึ่งอันใช้ได้แค่เครื่องมือเดียว ถ้าเราตั้งผ่านระบบ ร้านจะแก้ในแอป LINE Official Account Manager ไม่ได้อีก</div>
+      <p>ร้านดูแลการเปลี่ยนเมนูใน LINE Official Account Manager และตรวจให้ลิงก์จองตรงกับ slug ล่าสุด</p>
+      <div class="callout c-amber"><b>เมื่อเปลี่ยน slug</b>อัปเดต LIFF Endpoint URL และปุ่มใน Rich Menu พร้อมกัน</div>
     </div>
   </div>
 
   <h3 style="margin-top:28px">หลังลูกค้ากดปุ่ม "จองโต๊ะ"</h3>
   <div class="steps">
-    <div class="step"><div><b>เข้าสู่ระบบด้วยไลน์อัตโนมัติ</b><span>ระบบรู้ว่าลูกค้าคือใคร ไม่ต้องสมัครสมาชิก</span></div></div>
-    <div class="step"><div><b>เลือกวันที่และเวลา</b><span>เห็นเฉพาะช่วงที่ร้านเปิดรับจอง</span></div></div>
-    <div class="step"><div><b>เลือกจำนวนคนและโซน</b><span>เช่น VIP, โซนใน, โซนนอก ตามที่ร้านตั้งไว้</span></div></div>
-    <div class="step"><div><b>เลือกโต๊ะจากปุ่มชื่อโต๊ะ</b><span>ปุ่มชื่อโต๊ะเรียงอยู่ใต้โซนที่เลือก โต๊ะที่ถูกจองแล้วกดไม่ได้</span></div></div>
-    <div class="step"><div><b>กรอกชื่อ เบอร์ และหมายเหตุ</b><span>แล้วตรวจสอบก่อนกดยืนยัน</span></div></div>
-    <div class="step"><div><b>ยืนยัน แล้วได้บัตรยืนยันในแชท</b><span>ดูย้อนหลังได้ที่ปุ่ม "การจองของฉัน"</span></div></div>
+    <div class="step"><div><b>เข้าสู่ระบบด้วย LINE</b><span>เปิดหน้า LIFF ของร้านแล้วกรอกชื่อและเบอร์</span></div></div>
+    <div class="step"><div><b>เลือกคืน จำนวนคน และโซน</b><span>เห็นคืนที่เปิดรับและการนับถอยหลังสำหรับคืนที่ยังไม่เปิด</span></div></div>
+    <div class="step"><div><b>กดยืนยันการจอง</b><span>ระบบรับคำขอเข้าคิว Postgres ตามลำดับที่บันทึกสำเร็จ</span></div></div>
+    <div class="step"><div><b>ดูผลและเลขอ้างอิง</b><span>ถ้ารอจัดสรร ร้านจะยืนยันทีหลัง ดูหรือยกเลิกตามนโยบายจากการจองของฉัน</span></div></div>
   </div>
 
   <div class="phones" style="margin-top:20px">
     <div>
-      <div class="phone"><div class="top">เลือกโต๊ะ</div>
+      <div class="phone"><div class="top">เลือกคืนและโซน</div>
         <div class="body">
           <div class="row"><span>วันที่</span><b>ศ. 7 พ.ย.</b></div>
-          <div class="row"><span>เวลา</span><b>20:00</b></div>
+          <div class="row"><span>จำนวนคน</span><b>1–4 คน</b></div>
           <div class="zones"><span class="on">VIP</span><span>โซนใน</span><span>โซนนอก</span></div>
-          <div style="margin-top:8px">
-            <span class="tbtn free">VIP1</span><span class="tbtn taken">VIP2</span><span class="tbtn pick">VIP3</span><span class="tbtn free">VIP4</span>
-          </div>
           <span class="btnfake">ยืนยันการจอง</span>
         </div></div>
       <div class="pcap">หน้าจอง (ตัวอย่าง)</div>
@@ -298,11 +293,11 @@ section{scroll-margin-top:80px}.print-only{display:none}
           <div class="bub"><b>✅ จองสำเร็จ</b>
             <div class="row"><span>วัน</span><b>ศ. 7 พ.ย.</b></div>
             <div class="row"><span>เวลา</span><b>20:00</b></div>
-            <div class="row"><span>โต๊ะ</span><b>VIP3</b></div>
+            <div class="row"><span>โซน</span><b>VIP</b></div>
             <span class="btnfake" style="background:#ede9fe;color:#5b21b6">ดู / ยกเลิกการจอง</span>
           </div>
         </div></div>
-      <div class="pcap">บัตรยืนยันในแชท</div>
+      <div class="pcap">ตัวอย่างข้อความเมื่อเปิด LINE push</div>
     </div>
   </div>
 </section>
@@ -315,7 +310,7 @@ section{scroll-margin-top:80px}.print-only{display:none}
     <div class="card">
       <b>โครงของร้าน</b>
       <div class="tree">
-        <div class="lvl"><span class="name">🏪 ร้าน</span> <small>ชื่อร้าน + ลิงก์ Google Maps (+ รูปผังร้าน ไม่บังคับ ใช้เป็นภาพประกอบ)</small>
+        <div class="lvl"><span class="name">🏪 ร้าน</span> <small>ข้อมูลร้านและผังโซนที่เจ้าของเผยแพร่</small>
           <div class="lvl"><span class="name">📂 โซน / ประเภทโต๊ะ</span> <small>เพิ่มได้ไม่จำกัด เช่น VIP, โซนนอก, โซนใน</small>
             <div class="lvl"><span class="name">🪑 โต๊ะ</span> <small>ตั้งชื่อเอง</small>
               <div class="chips"><span class="chip">VIP1</span><span class="chip">VIP2</span><span class="chip">VIP3</span></div>
@@ -341,8 +336,8 @@ section{scroll-margin-top:80px}.print-only{display:none}
     </div>
   </div>
   <div class="callout c-amber">
-    <b>⚠ ยังต้องตัดสินใจ: "ต้องจองล่วงหน้ากี่วัน" หมายถึงอะไร</b>
-    (ก) จองล่วงหน้าได้ไม่เกิน X วัน หรือ (ข) ต้องจองก่อนวันมาอย่างน้อย X วัน หรือทั้งสองแบบ
+    <b>⚠ เปิดจองล่วงหน้า N วัน</b>
+    ค่ามาตรฐานกำหนดคืนสุดท้ายที่จองได้ และเปิดแต่ละคืนก่อน N วันตามเวลาร้าน วันพิเศษตั้งเวลาเปิดต่างกันได้
   </div>
 </section>
 
@@ -352,24 +347,24 @@ section{scroll-margin-top:80px}.print-only{display:none}
   <p class="lead">สำหรับลูกค้าที่โทรมาจอง หรือเดินเข้าร้าน พนักงานจองให้ผ่านระบบหลังบ้าน</p>
   <div class="card">
     <div class="chain">
-      <div class="b">1. เลือกโต๊ะ</div><div class="a">→</div>
-      <div class="b">2. เลือกลูกค้า<br><small>จากชื่อไลน์</small></div><div class="a">→</div>
-      <div class="b">3. เลือกวัน<br>และเวลา</div><div class="a">→</div>
-      <div class="b">4. กดจอง</div><div class="a">→</div>
-      <div class="b" style="border-color:var(--line-green)">5. บัตรยืนยัน<br>เด้งเข้าไลน์ลูกค้า</div>
+      <div class="b">1. กรอกชื่อและเบอร์</div><div class="a">→</div>
+      <div class="b">2. เลือกคืนและโซน</div><div class="a">→</div>
+      <div class="b">3. เลือกจำนวนคน</div><div class="a">→</div>
+      <div class="b">4. ส่งคำขอ</div><div class="a">→</div>
+      <div class="b" style="border-color:var(--line-green)">5. ดูผลจากหน้าร้าน</div>
     </div>
     <p style="margin:0;color:var(--muted);font-size:15px">การจองของพนักงานใช้ระบบกันจองซ้อนเดียวกับลูกค้า โต๊ะที่ถูกจองแล้วเลือกซ้ำไม่ได้</p>
   </div>
   <div class="grid g2" style="margin-top:14px">
     <div class="callout c-blue" style="margin:0"><b>ข้อจำกัดของไลน์</b>ส่งหาได้เฉพาะลูกค้าที่ <u>เพิ่มเพื่อนกับไลน์ร้านแล้ว</u> และไม่ได้บล็อก ค้นหาจากชื่อไลน์ทั่วโลกไม่ได้ ระบบรู้จักเฉพาะคนที่เคยเข้ามาแล้ว</div>
-    <div class="callout c-amber" style="margin:0"><b>ลูกค้า walk-in ที่ไม่เคยเพิ่มเพื่อน</b>จะไม่มีชื่อให้เลือก ทีมต้องตัดสินใจว่าจะรองรับ (เช่น กรอกชื่อกับเบอร์เอง) หรือไม่</div>
+    <div class="callout c-amber" style="margin:0"><b>ลูกค้าโทรมาหรือ walk-in</b>พนักงานกรอกชื่อกับเบอร์เพื่อจองแทนได้</div>
   </div>
 </section>
 
 <!-- 7 TIME -->
 <section id="time">
-  <h2><span class="n">6</span>เวลานั่งต่อโต๊ะ <span class="tag t-amber" style="vertical-align:middle">ข้อเสนอ ยังไม่ตัดสินใจ</span></h2>
-  <p class="lead">ร้านเลือกได้ว่าจะจำกัดเวลานั่งหรือไม่ ลองกดดูว่าต่างกันอย่างไร</p>
+  <h2><span class="n">6</span>แนวคิดเวลานั่งหลายรอบ <span class="tag t-amber" style="vertical-align:middle">ข้อเสนอ ยังไม่ตัดสินใจ</span></h2>
+  <p class="lead">ระบบปัจจุบันจัดสรรหนึ่งครั้งต่อโต๊ะต่อคืน ตัวอย่างด้านล่างเปรียบเทียบแนวคิดการนั่งหลายรอบ</p>
   <div class="card">
     <div class="seg" role="group" aria-label="โหมดเวลานั่ง">
       <button type="button" id="m-free" aria-pressed="true">ไม่กำหนดเวลา</button>
@@ -388,15 +383,15 @@ section{scroll-margin-top:80px}.print-only{display:none}
 
 <!-- 7 OPEN -->
 <section id="tech-stack">
-  <h2><span class="n">7</span>Tech Stack ที่เสนอ</h2>
+  <h2><span class="n">7</span>Tech Stack ปัจจุบัน</h2>
   <p class="lead">เลือกบริการดูแลโครงสร้างหลักให้ ทีมเน้นกฎจองและความถูกต้อง เหมาะกับเวลา Hackathon</p>
   <div class="grid g2">
     <div class="card"><h3>LINE LIFF + Messaging API</h3><p>LIFF เป็นหน้าจองใน LINE ส่วน Messaging API ส่งบัตรยืนยันจาก OA ร้าน ลูกค้าไม่ต้องติดตั้งแอปเพิ่ม</p><p class="note">Backend ตรวจ token และผูก user ID กับ provider/channel ของร้านให้ตรง ก่อนเปิดส่งข้อความ</p></div>
-    <div class="card"><h3>Next.js API + TypeScript + Zod</h3><p>สร้าง API ร้าน โซน โต๊ะ และการจอง ใช้ TypeScript ลดชนิดข้อมูลผิด Zod ตรวจข้อมูลที่รับจริงก่อนทำงาน</p><p class="note">API รับคำขอและตอบรหัสติดตามเร็ว งานคิวประมวลผลด้วย Worker แยก</p></div>
-    <div class="card"><h3>Supabase PostgreSQL + Storage</h3><p>PostgreSQL เก็บข้อมูลหลัก ใช้ transaction และ constraint กันโต๊ะซ้ำ Storage เก็บโลโก้และรูปผังร้าน</p><p class="note">DB เป็นหลักฐานสุดท้ายของการครองโต๊ะ ไม่เชื่อสถานะว่างจากหน้าจอเพียงอย่างเดียว</p></div>
-    <div class="card"><h3>Amazon SQS FIFO + Node.js Worker</h3><p>SQS พักคำขอช่วงคนกดพร้อมกัน Worker ทำตามลำดับภายในร้าน/คืน ช่วยควบคุมงานที่เข้า DB</p><p class="note">Worker รันเป็นบริการแยก ไม่ใช้ request ของ Next.js เป็น consumer ที่รอคิวตลอดเวลา</p></div>
+    <div class="card"><h3>Next.js API + TypeScript + Zod</h3><p>สร้าง API ร้าน โซน โต๊ะ และการจอง ใช้ TypeScript ลดชนิดข้อมูลผิด Zod ตรวจข้อมูลที่รับจริงก่อนทำงาน</p><p class="note">API รับคำขอและตอบรหัสติดตามเร็ว ตัวประมวลผลเริ่มหลังตอบ และ Supabase Cron ช่วยเก็บคำขอที่ค้าง</p></div>
+    <div class="card"><h3>Supabase PostgreSQL + Auth</h3><p>PostgreSQL เก็บข้อมูลหลัก คิว และผังโซน ใช้ transaction และ constraint กันโต๊ะซ้ำ Supabase Auth ใช้กับบัญชีพนักงาน</p><p class="note">DB เป็นหลักฐานสุดท้ายของการครองโต๊ะ ไม่เชื่อสถานะว่างจากหน้าจอเพียงอย่างเดียว</p></div>
+    <div class="card"><h3>Postgres queue + Supabase Cron</h3><p>คิวเรียงตามลำดับที่คำขอ commit ภายในร้านและคืนเดียวกัน</p><p class="note">Vercel รับคำขอและส่งผลติดตาม ส่วนการจัดโต๊ะตัดสินใน Postgres</p></div>
     <div class="card"><h3>DB idempotency + notification outbox</h3><p>จำผลคำขอเดิม กดซ้ำหรือ retry ไม่สร้างจองใหม่ บันทึกงานแจ้งเตือนพร้อม booking แล้วส่ง LINE ภายหลัง</p><p class="note">ส่ง LINE ไม่สำเร็จยังดู booking ใน LIFF ได้ การส่งข้อความไม่ขวางคิวกันโต๊ะ</p></div>
-    <div class="card"><h3>CloudWatch / logs + k6</h3><p>ติดตาม queue age, backlog, latency และ error ใช้ k6 จำลองคนกดพร้อมกันก่อนเปิดจองจริง</p><p class="note">เลือกขนาด API/Worker/DB จากผลทดสอบ ยังไม่อ้างจำนวนคนรองรับหรือรับประกันไม่ล่ม</p></div>
+    <div class="card"><h3>GitHub Actions + k6</h3><p>ติดตาม queue age, backlog, latency และ error ใช้ k6 จำลองคนกดพร้อมกันก่อนเปิดจองจริง</p><p class="note">CI ผ่าน 106 unit tests, 51 integration tests และ 38 ขั้นตอน Playwright ผลโหลด k6 เป็นรอบ local ก่อน FCFS</p></div>
   </div>
 </section>
 
@@ -410,29 +405,28 @@ section{scroll-margin-top:80px}.print-only{display:none}
   <h3>เมื่อถึงเวลาเปิดจอง</h3>
   <div class="steps">
     <div class="step"><div><b>เตรียมรายการใน LIFF</b><span>เลือกไว้ล่วงหน้า ยังไม่กันโต๊ะและยังไม่ได้ลำดับคิว ใช้เวลา server ตัดสินว่าเปิดรับแล้วหรือยัง</span></div></div>
-    <div class="step"><div><b>กดยืนยัน API รับเข้าคิว</b><span>ตรวจตัวตน เวลา และข้อมูล ใช้ Idempotency-Key เดิมเมื่อ retry เมื่อ SQS รับสำเร็จจึงตอบ 202 พร้อมรหัสติดตาม ยังไม่ได้โต๊ะ</span></div></div>
-    <div class="step"><div><b>Worker กันโต๊ะใน PostgreSQL</b><span>MessageGroupId แยกตามร้าน/คืน ประมวลผลกลุ่มเดียวตามลำดับ ใช้ transaction ตรวจและกันโต๊ะสำเร็จ บันทึกผลก่อนลบข้อความจากคิว</span></div></div>
+    <div class="step"><div><b>กดยืนยัน API รับเข้าคิว</b><span>ตรวจตัวตน เวลา และข้อมูล ใช้ Idempotency-Key เดิมเมื่อ retry เมื่อบันทึกคำขอลง Postgres สำเร็จจึงตอบ 202 พร้อมรหัสติดตามผล</span></div></div>
+    <div class="step"><div><b>Postgres จัดสรรโต๊ะ</b><span>ตัดสินตามลำดับในร้านและคืนเดียวกัน ใช้ transaction และ constraint กันจองโต๊ะซ้ำ</span></div></div>
     <div class="step"><div><b>ลูกค้าดูผลและรับข้อความ</b><span>โต๊ะว่างจึงยืนยัน หากเต็มแจ้งผลตามจริง ใช้ outbox ส่งจาก OA ร้าน ตรวจ provider/user mapping และ retry แยกจากงานจอง</span></div></div>
   </div>
-  <div class="callout c-blue"><b>เกณฑ์ความยุติธรรมและการกู้ระบบ</b>ลำดับนับเมื่อ SQS รับคำขอสำเร็จ ไม่ใช่เวลานิ้วกดหรือเวลามือถือ Worker ต้องมี visibility timeout/lease และ DB idempotency พร้อมกู้ช่องว่างระหว่าง broker กับ DB ไม่พึ่ง SQS dedup เพียงอย่างเดียว</div>
-  <div class="callout c-green"><b>SQS เหมาะกับ Hackathon ไหม?</b>เหมาะเมื่อคิวเปิดจองเป็นแกน ฟรี 1 ล้าน requests/เดือนตามเงื่อนไข รวม send/receive/delete และ polling ไม่ใช่ 1 ล้าน booking ราคา Singapore FIFO หลังส่วนฟรี USD 0.50 ต่อ 1 ล้าน requests ที่คิดเงิน ไม่รวม Worker/logs/transfer/ภาษี</div>
-  <p class="note">ตรวจราคา 5 พฤศจิกายน 2569 · <a href="https://aws.amazon.com/sqs/pricing/">AWS SQS pricing</a> · <a href="https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AWSQueueService/current/ap-southeast-1/index.json">Singapore Price List</a></p>
+  <div class="callout c-blue"><b>ลำดับและการกู้คำขอ</b>ระบบให้ลำดับเมื่อคำขอ commit ลง Postgres หากยังค้าง Supabase Cron จะเรียกตัวประมวลผลซ้ำ</div>
+  <p class="note"><a href="evidence/README.md">หลักฐาน CI และ k6</a> · <a href="TECH_STACK_PLAN.md">Tech Stack</a></p>
 </section>
 
 <section id="open">
-  <h2><span class="n">9</span>เรื่องที่ทีมต้องตัดสินใจ</h2>
-  <p class="lead">จากที่อาจารย์ท้วงและจากที่เราคุยกัน เก็บไว้ก่อนวันพิทช์</p>
+  <h2><span class="n">9</span>สถานะและงานต่อยอด</h2>
+  <p class="lead">ขอบเขตที่ใช้งานได้และงานที่อยู่ในแผน</p>
   <div class="grid g2">
     <div class="card"><span class="tag t-green">ตัดสินใจแล้ว</span><h3 style="margin:8px 0 4px">โฟกัสร้านเหล้าอย่างเดียว</h3><p style="margin:0;color:var(--muted);font-size:15px">ตอนนี้ทำเฉพาะร้านเหล้าก่อน ขยายไปร้านประเภทอื่นเป็นขั้นต่อไป</p></div>
-    <div class="card"><span class="tag t-green">ตัดสินใจแล้ว</span><h3 style="margin:8px 0 4px">เลือกโต๊ะแบบโซน + ปุ่มชื่อโต๊ะ</h3><p style="margin:0;color:var(--muted);font-size:15px">เลือกโซน (เช่น VIP) แล้วมีปุ่มชื่อโต๊ะเรียงลงมาด้านล่าง ไม่ได้จิ้มบนรูปผัง รูปผังร้านเป็นภาพประกอบ (ไม่บังคับ)</p></div>
-    <div class="card"><span class="tag t-amber">ยังไม่ตัด</span><h3 style="margin:8px 0 4px">เช็กอิน + รายการประจำวัน</h3><p style="margin:0;color:var(--muted);font-size:15px">พนักงานกดว่าลูกค้ามาแล้ว ช่วยให้ปล่อยโต๊ะที่ไม่มีคนมาได้ แต่อาจารย์ยังสงสัยว่าจำเป็นแค่ไหน</p></div>
+    <div class="card"><span class="tag t-green">ตัดสินใจแล้ว</span><h3 style="margin:8px 0 4px">ลูกค้าเลือกโซน</h3><p style="margin:0;color:var(--muted);font-size:15px">ลูกค้าเลือกโซนที่รองรับจำนวนคน ระบบหรือพนักงานจัดโต๊ะในโซนตามโหมดของร้าน</p></div>
+    <div class="card"><span class="tag t-green">ใช้งานได้</span><h3 style="margin:8px 0 4px">เช็กอินและรายการประจำวัน</h3><p style="margin:0;color:var(--muted);font-size:15px">พนักงานเช็กอินจากรายละเอียดการจอง ระบบคืนโต๊ะอัตโนมัติเมื่อ no-show ยังอยู่ในแผน</p></div>
   </div>
-  <div class="callout c-green" style="margin-top:16px"><b>🎤 สิ่งที่อาจารย์อยากเห็นพรุ่งนี้</b>
-    เด็คที่เล่าเป็นเรื่อง: ร้านทำอย่างไรตอนนี้ → ปัญหา → ผู้ใช้เป็นใคร → ฟีเจอร์ไหนแก้ปัญหาข้อไหน → Price Model
+  <div class="callout c-green" style="margin-top:16px"><b>งานต่อยอด</b>
+    มัดจำ ชำระเงิน คืนเงิน และเผยแพร่ Rich Menu ผ่านระบบอยู่ในแผน
   </div>
 </section>
 
-<footer>เอกสารอธิบายประกอบ Feature.md · ทีม Bookie Lyon</footer>
+<footer><a href="PROJECT_SUMMARY.md">สรุปโปรเจกต์ Bookie Bookie</a></footer>
 </div>
 
 <script>

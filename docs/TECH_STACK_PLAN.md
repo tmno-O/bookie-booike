@@ -1,4 +1,4 @@
-# Tech Stack ของ Bookie Lyon
+# Tech Stack ของ Bookie Bookie
 
 อัปเดต 17 พฤศจิกายน 2569 · อ้างอิง `main` หลัง merge PR #22
 
@@ -46,6 +46,6 @@
 
 `NEXT_PUBLIC_API_MODE=mock` ใช้ข้อมูล JSON สำหรับทดสอบหน้าจอ `real` เรียก API ที่ใช้ Postgres ส่วน `LINE_VERIFY_MODE=mock` ใช้กับการทดสอบในเครื่องและ CI โดย production ใช้ `real` [คู่มือทดสอบ](MOCK_TESTING.md)
 
-GitHub Actions ทำงานทุก push และ pull request มี `check` สำหรับ typecheck, lint, unit และ build, `integration` ใช้ Supabase local ทดสอบ API, migrations และกฎจอง และ `e2e` ใช้ Chromium บน mock production build CI บน `main` ที่ `b709442` ผ่าน 106 unit tests, 51 integration tests และ 38 ขั้นตอน Playwright [คู่มือ Playwright](../e2e/README.md) · [ผล CI](https://github.com/tmno-O/bookie-booike/actions/runs/43918174305)
+GitHub Actions ทำงานทุก push และ pull request มี `check` สำหรับ typecheck, lint, unit และ build, `integration` ใช้ Supabase local ทดสอบ API, migrations และกฎจอง และ `e2e` ใช้ Chromium บน mock production build CI บน `main` ที่ `44b8c61` ผ่าน 106 unit tests, 51 integration tests และ 38 ขั้นตอน Playwright [คู่มือ Playwright](../e2e/README.md) · [ผล CI](https://github.com/tmno-O/bookie-booike/actions/runs/43920496169)
 
 งานชำระเงิน มัดจำ คืนเงิน และ payout ยังอยู่ในแผน รวมถึง LINE webhook และการเผยแพร่ Rich Menu ผ่านระบบ ตอนเลือกระบบชำระเงิน ให้ทดสอบช่องทางจ่าย คืนเงิน และกรณีจ่ายหลังหมดเวลากันโต๊ะใน sandbox ก่อนเชื่อมเงินจริง

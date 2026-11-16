@@ -2,6 +2,10 @@
 
 ระบบจองโต๊ะผ่าน LINE OA และ LIFF ใช้ Next.js และ Supabase Postgres. คิวจองหลักคือ **DB queue** (`QUEUE_DRIVER=db` ค่าเริ่มต้น): เก็บคิวในตาราง Postgres แล้วตัดสินด้วย procedure ไม่ต้องมี worker ใช้ทั้งในเครื่องและบน Vercel. SQS FIFO กับ booking worker (`QUEUE_DRIVER=sqs`) ยังคงไว้เป็นทางเลือกสำหรับขยายระบบ และใช้ทำซ้ำผลเปรียบเทียบ k6. ระบบออกแบบด้วย SQS FIFO ก่อน แล้ววัดผลเทียบ ([หลักฐาน](docs/evidence/README.md)) พบว่า DB queue รับคำขอเร็วกว่าและไม่ต้องมี server แยก จึงเลือกเป็นตัวหลัก. ดู [API contract](docs/API_CONTRACT.md), [คู่มือทดสอบ mock และ real](docs/MOCK_TESTING.md), [คู่มือ deploy](docs/DEPLOY.md), [หลักฐานทดสอบโหลด](docs/evidence/README.md) และ [แผน backend](docs/backend/BACKEND_PLAN.md).
 
+## เอกสาร
+
+[สรุปโปรเจกต์](docs/PROJECT_SUMMARY.md) · [Tech Stack](docs/TECH_STACK_PLAN.md) · [ข้อกำหนด](docs/SRS_Bookie_Bookie.md) · [หลักฐานสำหรับนำเสนอ](docs/evidence/README.md)
+
 ## รันในเครื่อง
 
 ใช้ Node.js 22 ขึ้นไปและ Docker. รันจาก root ของ repo.
@@ -26,7 +30,7 @@ npm run dev -- --port 3100
 
 - [หน้าจองของลูกค้า](http://localhost:3100/book/bookie-demo) เข้าสู่ระบบ LINE กรอกข้อมูลติดต่อ เลือกคืนและโซน แล้วยืนยันการจอง. ใช้สองโปรไฟล์เบราว์เซอร์เพื่อทดสอบลูกค้าสองคนกดจองโต๊ะสุดท้ายพร้อมกัน.
 - [หน้าแอดมิน](http://localhost:3100/admin/login) ใช้ `owner@bookie.test` หรือ `staff@bookie.test` กับรหัส local `BookieDemo123!`. เจ้าของจัดการเวลาเปิดจอง ข้อมูลร้าน และคำเชิญ. ทั้งสอง role จัดการจอง คิว เช็กอิน และโซน.
-- [สถานะ DB กับคิว](http://localhost:3100/api/health) ใช้ตรวจการเชื่อมต่อและคำขอค้าง.
+- [สถานะ DB กับคิว](http://localhost:3100/api/health) ใช้ตรวจการเชื่อมต่อ คำขอค้าง และ LINE outbox.
 
 `NEXT_PUBLIC_API_MODE=mock` ใช้ JSON mock สำหรับทั้งสองหน้าจอและเป็นค่าเริ่มต้น. รีสตาร์ต Next.js เมื่อเปลี่ยนโหมด. ตัวอย่างขั้นตอนทั้งสองแบบอยู่ใน [คู่มือทดสอบ](docs/MOCK_TESTING.md).
 
@@ -39,7 +43,7 @@ npm test
 npm run test:integration
 ```
 
-GitHub Actions รันตรวจโค้ด, Playwright และ integration tests ทุก push และ pull request. เปิด artifact `playwright-report` เพื่อดูรายงานและภาพแต่ละขั้นตอน.
+GitHub Actions รัน `check`, `e2e` และ `integration` ทุก push และ pull request. ผลบน `main` ที่ `44b8c61` ผ่าน 106 unit tests, 51 integration tests และ 38 ขั้นตอน Playwright. ดูผลและวิธีเลือกหลักฐานใน [หลักฐานการทดสอบ](docs/evidence/README.md).
 
 - Playwright ใช้ Chromium และ mock backend ครอบคลุมการจอง FCFS, countdown, ยกเลิกแล้วจองใหม่ และงานแอดมิน. ดูคำสั่งใน [e2e/README.md](e2e/README.md).
 - Integration tests ใช้ Supabase local (`supabase start`) และ ElasticMQ (`docker compose up -d elasticmq`). ตั้ง `.env.local` ตาม [.env.example](.env.example) ใช้ URL จาก `supabase status` และ `LINE_VERIFY_MODE=mock`. ชุดทดสอบครอบคลุมทั้ง Postgres queue และ SQS FIFO รวมถึง LINE outbox ด้วยตัวส่งจำลอง. พัก booking worker ของเดโมระหว่างทดสอบถ้าเปิดอยู่.
@@ -108,7 +112,7 @@ docker exec supabase_db_Hackathon-Final psql -U postgres -d postgres -c "select 
 
 - ตั้ง `NEXT_PUBLIC_API_MODE=real` และ `LINE_VERIFY_MODE=real`. ตั้ง LIFF Endpoint URL เป็น `https://<host>/book/<slug>/login` พร้อม scope `openid`. เจ้าของตั้ง LINE Login channel ID, LIFF ID และ provider ID ผ่าน staff API. ใช้ HTTPS สำหรับ session cookie ใน production.
 - ถ้าใช้ `QUEUE_DRIVER=sqs` บน cloud ให้ตั้ง `SQS_QUEUE_URL` ไปที่ FIFO queue นำ `SQS_ENDPOINT` ออก และรัน `npm run worker` บน host ที่รันค้างได้. ให้ AWS credentials ของ workload มีสิทธิ์ส่ง รับ ลบ ต่อ visibility และอ่าน queue attributes.
-- เปิด LINE push โดยตั้ง access token ของ Messaging API channel ที่ใช้ provider เดียวกับ LINE Login แล้วตั้ง `LINE_NOTIFICATIONS_ENABLED=true` และรัน `npm run worker:notifications`. เก็บ `LINE_SECRET_KEY` ใน secret store ของ environment.
+- เปิด LINE push โดยใช้ Messaging API access token จาก provider เดียวกับ LINE Login, ตั้ง `LINE_NOTIFICATIONS_ENABLED=true` และให้ scheduler เรียก `/api/internal/notifications/drain` ด้วย `CRON_SECRET`. เก็บ `LINE_SECRET_KEY` ใน secret store. ดู [วิธีตั้งและตรวจ LINE drain](docs/DEPLOY.md#5-booking-and-release-notifications-on-vercel).
 - การทดสอบ local ใช้ LINE mock กับ ElasticMQ. งานนอกขอบเขตเดโมคือการชำระเงิน มัดจำ คืนเงิน, rich menu publish, LINE webhook, ส่งอีเมลคำเชิญ และคืนโต๊ะเมื่อ no-show.
 .
 
