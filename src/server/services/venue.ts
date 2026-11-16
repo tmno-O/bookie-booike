@@ -53,7 +53,12 @@ export async function getPublicVenue(slug: string) {
   const closedDates = await db()`select to_char(service_date, 'YYYY-MM-DD') as service_date, reason
     from venue_closures where venue_id = ${venue.id}
       and service_date between ${opening.today}::date and ${opening.today}::date + ${opening.maxAdvanceDays}::int order by service_date`;
-  return { ...venue, ...opening, openWeekdays: rule?.closed ? [] : rule?.openWeekdays ?? [0,1,2,3,4,5,6], closedDates, shop: shopProfile(venue) };
+  // Nights whose release time (the owner's "open N days before") has already passed.
+  const openNights = (await db()<{ night: string }[]>`
+    select to_char(d::date, 'YYYY-MM-DD') as night
+    from generate_series(${opening.today}::date, ${opening.today}::date + ${opening.maxAdvanceDays}::int, interval '1 day') d
+    where opens_at_for(${venue.id}, d::date) <= now() order by d`).map((row) => row.night);
+  return { ...venue, ...opening, openNights, openWeekdays: rule?.closed ? [] : rule?.openWeekdays ?? [0,1,2,3,4,5,6], closedDates, shop: shopProfile(venue) };
 }
 
 export function shopProfile({ name, phone, address, entryPolicy }: z.infer<typeof shopProfileInput>) {

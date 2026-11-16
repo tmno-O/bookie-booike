@@ -25,3 +25,13 @@ export const isServiceNightOpen = (db: Db, date: string) =>
   && !db.venue.schedule.closures.some((c) => c.serviceDate === date);
 export const isNightOpen = (db: Db, serviceDate: string, now = Date.now()) =>
   isServiceNightOpen(db, serviceDate) && now >= opensAtFor(db, serviceDate);
+
+/** Nights inside the booking window whose release time has already passed. */
+export function openNights(db: Db, now = Date.now()): string[] {
+  const nights: string[] = [];
+  for (let i = 0; i <= db.venue.maxAdvanceDays; i++) {
+    const date = addDays(today(), i);
+    if (now >= opensAtFor(db, date)) nights.push(date);
+  }
+  return nights;
+}

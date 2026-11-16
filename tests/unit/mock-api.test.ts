@@ -611,6 +611,21 @@ describe("mock admin opening hours", () => {
   const nightInfo = async (date: string) =>
     (await call(availability, `/api/mock/availability?date=${date}`)).json();
 
+  it("lists only the nights the owner has opened for the date dropdown", async () => {
+    const cookie = await owner();
+    const count = async () => (await venueNow()).openNights.length as number;
+    const first = await count();
+    expect(first).toBeGreaterThanOrEqual(1);
+    expect((await venueNow()).openNights[0]).toBe(today());
+    // Opening 0 days before the night at midnight → only tonight; 3 days before → today + 3 more nights.
+    expect((await putStandard(cookie, { daysBefore: 0, time: "00:00" })).status).toBe(200);
+    expect(await count()).toBe(1);
+    expect((await putStandard(cookie, { daysBefore: 3, time: "00:00" })).status).toBe(200);
+    const nights = (await venueNow()).openNights as string[];
+    expect(nights).toHaveLength(4);
+    expect(nights[3]).toBe(new Date(Date.parse(`${today()}T00:00:00Z`) + 3 * 86400000).toISOString().slice(0, 10));
+  });
+
   it("shows the default schedule; only the owner can edit", async () => {
     const asOwner = await (await call(hoursGet, "/api/mock/admin/hours", { cookie: await owner() })).json();
     expect(asOwner).toMatchObject({ standard: { daysBefore: 1, time: "20:00" }, specials: [], canEdit: true });
