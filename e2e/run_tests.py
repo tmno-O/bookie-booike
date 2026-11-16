@@ -10,7 +10,8 @@ Usage:
     .venv/bin/python run_tests.py                 # headless, app at http://localhost:3100
     .venv/bin/python run_tests.py --headed        # watch the browser
     .venv/bin/python run_tests.py --slow 400      # slow every action by 400 ms
-    .venv/bin/python run_tests.py --start-server  # start `npm run dev` if nothing is listening
+    .venv/bin/python run_tests.py --start-server               # start a mock dev server
+    .venv/bin/python run_tests.py --start-server --production  # run a mock production build
 
 The app must be running with the mock backend (see docs/MOCK_TESTING.md in the repo).
 The run resets the mock database first, so it always starts from the same seed data.
@@ -25,11 +26,14 @@ import re
 import subprocess
 import sys
 import time
+from tempfile import TemporaryDirectory
 import urllib.error
 import urllib.request
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import date, datetime, timedelta
+from html import unescape
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from playwright.sync_api import Browser, BrowserContext, Page, TimeoutError as PlaywrightTimeout, expect, sync_playwright
 
@@ -127,20 +131,38 @@ def server_up(base: str) -> bool:
         return False
 
 
-def ensure_server(base: str, start: bool, repo: Path) -> subprocess.Popen | None:
+def ensure_server(base: str, args, mock_db: Path) -> subprocess.Popen | None:
     if server_up(base):
         return None
-    if not start:
-        sys.exit(f"The app is not running at {base}.\nStart it with `npm run dev -- --port 3100` in {repo}, or re-run with --start-server.")
-    port = base.rsplit(":", 1)[-1]
-    print(f"Starting the app in {repo} on port {port} ...")
-    process = subprocess.Popen(["npm", "run", "dev", "--", "--port", port], cwd=repo, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if not args.start_server:
+        sys.exit(f"No mock server at {base}. Use --start-server or start the app in mock mode.")
+    address = urlsplit(base)
+    if address.hostname not in ("localhost", "127.0.0.1") or address.port is None:
+        sys.exit("--start-server requires a local base URL with an explicit port.")
+    command = "start" if args.production else "dev"
+    env = {**os.environ, "MOCK_API": "1", "NEXT_PUBLIC_API_MODE": "mock", "MOCK_DB_PATH": str(mock_db)}
+    print(f"Starting Next.js ({command}) in {args.repo} on port {address.port}")
+    process = subprocess.Popen(
+        ["node", "node_modules/next/dist/bin/next", command, "--port", str(address.port)],
+        cwd=args.repo, env=env,
+    )
     for _ in range(90):
+        if process.poll() is not None:
+            sys.exit(f"Next.js exited with code {process.returncode}.")
         if server_up(base):
             return process
         time.sleep(1)
-    process.terminate()
-    sys.exit("The app did not start within 90 seconds.")
+    stop_server(process)
+    sys.exit("The mock server did not start within 90 seconds.")
+
+
+def stop_server(server: subprocess.Popen) -> None:
+    server.terminate()
+    try:
+        server.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        server.kill()
+        server.wait()
 
 
 # ----------------------------------------------------------------------------- customer flow
@@ -166,7 +188,7 @@ def open_browser(p, args, width: int, height: int):
 def warm_up(base: str) -> None:
     """Compile every page once so Next dev does not hot-reload the page under the browser mid-test."""
     paths = ["/book/bookie-demo/login", "/book/bookie-demo/details", "/book/bookie-demo/select",
-             "/book/demo/confirmed", "/book/demo/bookings", "/admin", "/admin/login", "/admin/queue", "/admin/zones",
+             "/book/bookie-demo/confirmed", "/book/bookie-demo/bookings", "/admin", "/admin/login", "/admin/queue", "/admin/zones",
              "/admin/hours", "/admin/settings", "/admin/bookings", "/admin/bookings/new"]
     for path in paths:
         try:
@@ -175,7 +197,7 @@ def warm_up(base: str) -> None:
             pass
 
 
-def customer_flow(run: Run, browser: Browser, base: str, slow: int) -> dict:
+def customer_flow(run: Run, browser: Browser, base: str) -> dict:
     context: BrowserContext = browser.new_context(**view(390, 844, 2))
     context.set_default_timeout(TIMEOUT_MS)
     context.add_init_script(HIDE_DEV_BADGE)
@@ -184,7 +206,16 @@ def customer_flow(run: Run, browser: Browser, base: str, slow: int) -> dict:
     shared: dict = {}
     book = f"{base}/book/{SLUG}"
 
-    flow.step("open-login", lambda: (page.goto(f"{book}/login"), expect(page.get_by_role("heading", name="เข้าสู่ระบบด้วย LINE")).to_be_visible()))
+    def root_redirect():
+        response = context.request.get(f"{base}/", max_redirects=0)
+        assert response.status == 307, response.status
+        assert response.headers["location"] == f"/book/{SLUG}/login", response.headers["location"]
+        page.goto(base)
+        expect(page).to_have_url(f"{book}/login")
+        expect(page.get_by_role("heading", name="เข้าสู่ระบบด้วย LINE")).to_be_visible()
+        expect(page).to_have_title("เข้าสู่ระบบ · Bookie lyon.")
+
+    flow.step("root-redirect", root_redirect)
     flow.step("login-line-account", lambda: (
         page.get_by_role("button", name=re.compile("พี่แมว")).click(),
         page.wait_for_url(re.compile(r"/details$")),
@@ -217,6 +248,7 @@ def customer_flow(run: Run, browser: Browser, base: str, slow: int) -> dict:
         page.get_by_role("button", name="ยืนยันการจอง").click()
         page.wait_for_url(re.compile(r"/confirmed\?b="))
         expect(page.get_by_role("heading", name="ยืนยันการจองแล้ว")).to_be_visible()
+        expect(page).to_have_title("จองสำเร็จ · Bookie lyon.")
         reference = page.get_by_text(re.compile(r"BL-\d{4}-\d{4}")).first
         expect(reference).to_be_visible()
         shared["reference"] = reference.inner_text().strip()
@@ -315,6 +347,16 @@ def admin_flow(run: Run, browser: Browser, base: str, reference: str) -> None:
         expect(page.get_by_role("row", name=re.compile("คุณทดสอบ"))).to_be_visible(),
     ), "staff booking appears with channel จองโดยร้าน")
 
+    def cancel_staff_booking():
+        page.get_by_role("row", name=re.compile("คุณทดสอบ")).get_by_role("link", name=re.compile("ดูรายละเอียด")).click()
+        dialog = page.get_by_role("dialog")
+        dialog.get_by_role("button", name="ยกเลิกการจอง", exact=True).click()
+        dialog.get_by_role("button", name="ยืนยันยกเลิก", exact=True).click()
+        expect(dialog.get_by_text("ยกเลิกแล้ว", exact=True)).to_be_visible()
+        dialog.get_by_role("button", name="กลับ", exact=True).click()
+
+    flow.step("staff-cancel-booking", cancel_staff_booking)
+
     def queue_page():
         nav("คิวการจอง").click()
         page.wait_for_url(re.compile(r"/admin/queue"))
@@ -352,9 +394,27 @@ def admin_flow(run: Run, browser: Browser, base: str, reference: str) -> None:
         page.get_by_role("button", name="แก้ไขค่าเริ่มต้น").click()
         dialog = page.get_by_role("dialog")
         expect(dialog.get_by_role("heading", name="แก้ไขเวลามาตรฐาน")).to_be_visible()
-        dialog.get_by_role("button", name="ยกเลิก").click()
+        dialog.get_by_role("spinbutton").fill("3")
+        dialog.get_by_label("เวลาเปิดรับจอง").fill("00:00")
+        dialog.get_by_role("button", name="บันทึก", exact=True).click()
+        expect(page.get_by_text("เปิดจองล่วงหน้า 3 วัน · เวลา 00:00 น.", exact=True)).to_be_visible()
+        assert api(base, "/venue")["maxAdvanceDays"] == 3
 
-    flow.step("open-times-edit-dialog", edit_standard, "dialog opened and cancelled (no change saved)")
+    flow.step("save-standard-hours", edit_standard)
+
+    def add_special():
+        service_date = date.fromisoformat(api(base, "/venue")["today"]) + timedelta(days=2)
+        page.get_by_role("button", name="+ เพิ่มวันพิเศษ").click()
+        dialog = page.get_by_role("dialog")
+        dialog.get_by_label("ชื่อวันพิเศษ").fill("ทดสอบคืนพิเศษ")
+        dialog.get_by_label("คืนที่ต้องการ").fill(service_date.isoformat())
+        dialog.get_by_label("เวลาเปิดรับจอง").fill("12:30")
+        dialog.get_by_role("checkbox", name=re.compile("ประกาศให้ลูกค้า")).check()
+        dialog.get_by_role("button", name="บันทึก", exact=True).click()
+        expect(page.get_by_role("button", name=re.compile("ลบวันพิเศษ"))).to_be_visible()
+        expect(page.get_by_text("ทดสอบคืนพิเศษ")).to_be_visible()
+
+    flow.step("add-special-opening", add_special)
 
     def settings():
         nav("ตั้งค่าร้าน").click()
@@ -363,11 +423,135 @@ def admin_flow(run: Run, browser: Browser, base: str, reference: str) -> None:
         expect(page.get_by_role("dialog").get_by_role("heading", name="ทีมและสิทธิ์")).to_be_visible()
 
     flow.step("settings-team", settings)
+    def save_slug():
+        page.get_by_role("dialog").get_by_role("button", name="กลับ").click()
+        new_url = f"{base}/book/bookie-test-cafe"
+        context.grant_permissions(["clipboard-read", "clipboard-write"], origin=base)
+        page.locator("#venue-slug").fill("bookie-test-cafe")
+        page.get_by_role("button", name="บันทึกรหัสร้าน").click()
+        expect(page.get_by_text("บันทึกรหัสร้านแล้ว")).to_be_visible()
+        expect(page.locator("#venue-booking-url")).to_have_value(new_url)
+        expect(page.get_by_role("img", name="QR สำหรับเปิดหน้าจอง")).to_be_visible()
+        page.get_by_role("button", name="คัดลอกลิงก์").click()
+        expect(page.get_by_text("คัดลอกลิงก์แล้ว")).to_be_visible()
+        assert page.evaluate("navigator.clipboard.readText()") == new_url
+
+    flow.step("save-slug-and-copy-booking-link", save_slug)
     flow.step("logout", lambda: (
-        page.get_by_role("dialog").get_by_role("button", name="กลับ").click(),
         page.get_by_role("button", name="ออกจากระบบ").click(),
         page.wait_for_url(re.compile(r"/admin/login$")),
     ))
+    context.close()
+
+
+def landing_and_titles(run: Run, browser: Browser, base: str) -> None:
+    context = browser.new_context(**view(390, 844, 2))
+    page = context.new_page()
+    flow = Flow(run, "routing", page)
+    book = f"/book/{SLUG}"
+
+    def check_titles():
+        titles = {
+            f"{book}/login": "เข้าสู่ระบบ",
+            f"{book}/details": "ข้อมูลผู้จอง",
+            f"{book}/select": "เลือกคืนและโซน",
+            f"{book}/confirmed": "จองสำเร็จ",
+            f"{book}/bookings": "การจองของฉัน",
+            "/admin/login": "เข้าสู่ระบบร้าน",
+            "/admin": "แอดมิน: แดชบอร์ด",
+            "/admin/bookings": "แอดมิน: การจอง",
+            "/admin/bookings/new": "แอดมิน: เพิ่มการจอง",
+            "/admin/bookings/seed-1": "แอดมิน: รายละเอียดการจอง",
+            "/admin/queue": "แอดมิน: คิวจัดโต๊ะ",
+            "/admin/queue/seed-2": "แอดมิน: จัดสรรโต๊ะ",
+            "/admin/hours": "แอดมิน: เวลาเปิดจอง",
+            "/admin/zones": "แอดมิน: โซน",
+            "/admin/zones/plan": "แอดมิน: ผังร้าน",
+            "/admin/audit": "แอดมิน: Audit",
+            "/admin/settings": "แอดมิน: ตั้งค่า",
+            "/admin/settings/hours": "แอดมิน: เวลาเปิดร้าน",
+            "/admin/settings/cancellation": "แอดมิน: เงื่อนไขการยกเลิก",
+            "/admin/settings/notifications": "แอดมิน: แจ้งเตือน LINE",
+            "/admin/example-section": "แอดมิน: กำลังพัฒนา",
+        }
+        page.goto(base)
+        for path, title in titles.items():
+            response = context.request.get(base + path, timeout=60_000)
+            assert response.ok, f"{path}: {response.status}"
+            match = re.search(r"<title>(.*?)</title>", response.text())
+            actual = unescape(match.group(1)) if match else None
+            assert actual == f"{title} · Bookie lyon.", f"{path}: {actual!r}"
+
+    flow.step("customer-and-admin-page-titles", check_titles)
+    context.close()
+
+
+def countdown_and_rebook(run: Run, browser: Browser, base: str) -> None:
+    context = browser.new_context(**view(390, 844, 2))
+    context.set_default_timeout(TIMEOUT_MS)
+    context.add_init_script(HIDE_DEV_BADGE)
+    page = context.new_page()
+    flow = Flow(run, "rebook", page)
+    book = f"{base}/book/{SLUG}"
+    picker = page.locator("#date")
+    selection = {}
+
+    def begin():
+        api(base, "/reset", {"opensInSeconds": 25})
+        staff = browser.new_context()
+        try:
+            assert staff.request.post(f"{base}/api/mock/admin/login", data={"email": "owner@bookie.test"}).ok
+            assert staff.request.put(f"{base}/api/mock/admin/hours/standard", data={"daysBefore": 3, "time": "00:00"}).ok
+        finally:
+            staff.close()
+        page.goto(f"{book}/login")
+        page.get_by_role("button", name=re.compile("พี่แมว")).click()
+        expect(page).to_have_url(f"{book}/details")
+        page.get_by_role("button", name="ดำเนินการต่อ").click()
+        expect(page).to_have_url(f"{book}/select")
+        expect(page.get_by_role("timer")).to_be_visible()
+        expect(picker).to_be_disabled()
+
+    flow.step("countdown-blocks-selection", begin)
+
+    def opens():
+        expect(picker).to_be_enabled(timeout=35_000)
+        selection["date"] = picker.locator("option").last.get_attribute("value")
+        assert selection["date"] > api(base, "/venue")["today"], selection["date"]
+
+    flow.step("countdown-opens-automatically", opens)
+
+    def confirm_date():
+        picker.select_option(selection["date"])
+        page.get_by_role("button", name="Indoor", exact=True).click()
+        page.get_by_role("button", name="ยืนยันการจอง").click()
+        expect(page.get_by_role("heading", name="ยืนยันการจองแล้ว")).to_be_visible()
+
+    def first_booking():
+        confirm_date()
+        selection["first_booking"] = page.url
+
+    flow.step("confirm-future-booking", first_booking)
+
+    def cancel_booking():
+        page.goto(f"{book}/details")
+        expect(page.get_by_role("button", name="ดำเนินการต่อ")).to_be_disabled()
+        page.get_by_role("link", name="ไปที่การยกเลิก").click()
+        page.get_by_role("button", name="ยกเลิกการจอง", exact=True).click()
+        page.get_by_role("button", name="ยืนยันยกเลิก", exact=True).click()
+        expect(page.get_by_role("heading", name="ยกเลิกการจองแล้ว")).to_be_visible()
+
+    flow.step("cancel-from-active-booking-banner", cancel_booking)
+
+    def rebook():
+        page.goto(f"{book}/details")
+        page.get_by_role("button", name="ดำเนินการต่อ").click()
+        expect(page).to_have_url(f"{book}/select")
+        expect(picker).to_be_enabled()
+        confirm_date()
+        assert page.url != selection["first_booking"], "Rebooking must produce a new booking"
+
+    flow.step("rebook-after-cancellation", rebook)
     context.close()
 
 
@@ -394,12 +578,19 @@ def main() -> int:
     parser.add_argument("--headed", action="store_true", help="show the browser window")
     parser.add_argument("--chrome", action="store_true", help="use the installed Google Chrome (implies --headed)")
     parser.add_argument("--slow", type=int, default=0, metavar="MS", help="slow down every action (ms)")
-    parser.add_argument("--start-server", action="store_true", help="run `npm run dev` if the app is not running")
+    parser.add_argument("--start-server", action="store_true", help="start a local mock Next.js server if needed")
+    parser.add_argument("--production", action="store_true", help="start from an existing mock production build")
     parser.add_argument("--repo", type=Path, default=DEFAULT_REPO, help="app folder used by --start-server")
     args = parser.parse_args()
-    base = args.base_url.rstrip("/")
+    if args.production and not args.start_server:
+        parser.error("--production requires --start-server")
+    with TemporaryDirectory(prefix="bookie-e2e-") as temp:
+        return run_tests(args, Path(temp) / "db.json")
 
-    server = ensure_server(base, args.start_server, args.repo)
+
+def run_tests(args, mock_db: Path) -> int:
+    base = args.base_url.rstrip("/")
+    server = ensure_server(base, args, mock_db)
     started = datetime.now()
     out_dir = HERE / started.strftime("%Y-%m-%d_%H-%M-%S")
     out_dir.mkdir(parents=True)
@@ -410,19 +601,24 @@ def main() -> int:
     HEADED = args.headed or args.chrome
     if args.chrome and args.slow == 0:
         args.slow = 900  # visible runs default to a calm pace
-    api(base, "/reset", {})  # fresh seed data
     began = time.time()
     try:
+        api(base, "/reset", {})  # fresh seed data
         with sync_playwright() as p:
             customer_browser = open_browser(p, args, 390, 844)
             print("Customer flow")
             warm_up(base)
-            shared = customer_flow(run, customer_browser, base, args.slow)
+            landing_and_titles(run, customer_browser, base)
+            shared = customer_flow(run, customer_browser, base)
             customer_browser.close()
             admin_browser = open_browser(p, args, 1440, 900)
             print("Admin flow")
             admin_flow(run, admin_browser, base, shared.get("reference", ""))
             admin_browser.close()
+            print("Countdown and rebooking")
+            customer_browser = open_browser(p, args, 390, 844)
+            countdown_and_rebook(run, customer_browser, base)
+            customer_browser.close()
     finally:
         try:
             api(base, "/reset", {})  # leave the app on clean seed data
@@ -430,7 +626,7 @@ def main() -> int:
             pass
         write_report(run, base, started, time.time() - began)
         if server:
-            server.terminate()
+            stop_server(server)
 
     failed = [r for r in run.results if r.status == "FAIL"]
     print(f"\n{len(run.results) - len(failed)} passed, {len(failed)} failed — report: {out_dir / 'report.md'}")
@@ -438,4 +634,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    sys.stdout.reconfigure(encoding="utf-8")
     sys.exit(main())

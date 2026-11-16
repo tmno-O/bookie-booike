@@ -39,7 +39,10 @@ npm test
 npm run test:integration
 ```
 
-Integration tests ใช้ Supabase, ElasticMQ (`docker compose up -d`) และ LINE mock. `tests/integration/booking.test.ts` ทดสอบฟีเจอร์ทั้งหมดผ่านโหมด `sqs` จึงต้องพัก booking worker ของเดโม (ถ้าเปิดอยู่) ระหว่างรัน. Tests สร้างร้านกับคิวแยกชั่วคราวและล้างข้อมูลร้านทดสอบเมื่อจบ. `tests/integration/db-queue.test.ts` ทดสอบโหมด `QUEUE_DRIVER=db` (ลำดับคิว, drain พร้อมกัน, idempotency, retry แล้ว `SYSTEM_ERROR`, health).
+GitHub Actions รันตรวจโค้ด, Playwright และ integration tests ทุก push และ pull request. เปิด artifact `playwright-report` เพื่อดูรายงานและภาพแต่ละขั้นตอน.
+
+- Playwright ใช้ Chromium และ mock backend ครอบคลุมการจอง FCFS, countdown, ยกเลิกแล้วจองใหม่ และงานแอดมิน. ดูคำสั่งใน [e2e/README.md](e2e/README.md).
+- Integration tests ใช้ Supabase local (`supabase start`) และ ElasticMQ (`docker compose up -d elasticmq`). ตั้ง `.env.local` ตาม [.env.example](.env.example) ใช้ URL จาก `supabase status` และ `LINE_VERIFY_MODE=mock`. ชุดทดสอบครอบคลุมทั้ง Postgres queue และ SQS FIFO รวมถึง LINE outbox ด้วยตัวส่งจำลอง. พัก booking worker ของเดโมระหว่างทดสอบถ้าเปิดอยู่.
 
 ### k6 spike และ burst
 

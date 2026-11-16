@@ -44,7 +44,8 @@ import { DELETE as revokeInvite } from "../../app/api/staff/venues/[venueId]/tea
 import { teamData } from "@/contracts/staff";
 import { GET as staffBookingDetails } from "../../app/api/staff/venues/[venueId]/bookings/[bookingId]/route";
 import { dashboardData } from "@/contracts/staff";
-import { GET as staffVenue } from "../../app/api/staff/venues/[venueId]/route";
+import { GET as staffVenue, PATCH as patchVenue } from "../../app/api/staff/venues/[venueId]/route";
+import { GET as bookingLink } from "../../app/api/staff/venues/[venueId]/booking-link/route";
 import { GET as settings, PATCH as patchSettings, PUT as putSettings } from "../../app/api/staff/venues/[venueId]/settings/route";
 import { PATCH as patchRules } from "../../app/api/staff/venues/[venueId]/rules/route";
 import { PATCH as patchLine } from "../../app/api/staff/venues/[venueId]/line-integration/route";
@@ -445,6 +446,31 @@ it("lets only owners edit hours and applies Bangkok special releases to customer
   } finally {
     await putHours(request("PUT", { ...owner, data: initial.standard }), params);
     await db()`delete from booking_releases where venue_id = ${venueId} and service_date = ${date}`;
+  }
+});
+
+it("renames the venue slug for owners and retains the LIFF link", async () => {
+  const params = context({ venueId });
+  const rename = (slug: string, token = ownerToken) => patchVenue(request("PATCH", { token, data: { slug } }), params);
+  const denied = await rename("new-venue-slug", staffToken);
+  expect(denied.status).toBe(403);
+  const duplicate = await rename(otherSlug);
+  expect(duplicate.status).toBe(409);
+  expect(await duplicate.json()).toMatchObject({ error: { code: "SLUG_TAKEN" } });
+
+  const nextSlug = `renamed-${venueId}`;
+  try {
+    const saved = await rename(nextSlug);
+    expect(saved.status, await saved.clone().text()).toBe(200);
+    const link = await bookingLink(request("GET", { token: staffToken }), params);
+    expect(await link.json()).toMatchObject({
+      slug: nextSlug, webUrl: `http://localhost/book/${nextSlug}`, webQrSvg: expect.stringContaining("<svg"),
+      url: "https://liff.line.me/123-abc", qrSvg: expect.stringContaining("<svg"),
+    });
+    expect((await publicVenue(request("GET"), context({ slug: venueSlug }))).status).toBe(404);
+    expect(await (await publicVenue(request("GET"), context({ slug: nextSlug }))).json()).toMatchObject({ id: venueId });
+  } finally {
+    expect((await rename(venueSlug)).status).toBe(200);
   }
 });
 

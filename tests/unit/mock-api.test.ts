@@ -25,6 +25,7 @@ import { GET as hoursGet } from "../../app/api/mock/admin/hours/route";
 import { PUT as hoursStandard } from "../../app/api/mock/admin/hours/standard/route";
 import { POST as specialCreate } from "../../app/api/mock/admin/hours/special/route";
 import { DELETE as specialDelete } from "../../app/api/mock/admin/hours/special/[id]/route";
+import { GET as mockBookingLink } from "../../app/api/mock/admin/booking-link/route";
 import { GET as settingsGet, PATCH as settingsPatch, PUT as settingsPut } from "../../app/api/mock/admin/settings/route";
 import { PUT as serviceHoursSave } from "../../app/api/mock/admin/hours/service/route";
 import { GET as teamGet } from "../../app/api/mock/admin/team/route";
@@ -574,6 +575,28 @@ describe("mock admin zones", () => {
   });
 });
 
+
+describe("mock booking slug", () => {
+  beforeEach(() => call(resetDb, "/api/mock/reset", { method: "POST", body: {} }));
+
+  it("validates owner-only changes and reflects the new slug in the public venue and booking link", async () => {
+    const loginAs = async (email: string) => cookieOf(await call(staffLogin, "/api/mock/admin/login", { method: "POST", body: { email } }));
+    const owner = await loginAs("owner@bookie.test");
+    const staff = await loginAs("staff@bookie.test");
+    const patch = (cookie: string | undefined, slug: string) =>
+      call(settingsPatch, "/api/mock/admin/settings", { method: "PATCH", cookie, body: { slug } });
+    const slug = "renamed-bookie";
+    expect((await patch(undefined, slug)).status).toBe(401);
+    expect((await patch(staff, slug)).status).toBe(403);
+    expect((await patch(owner, "Invalid Slug")).status).toBe(400);
+    expect(await (await patch(owner, slug)).json()).toEqual({ slug });
+
+    expect((await call(venue, "/api/mock/venue?slug=bookie-demo")).status).toBe(404);
+    expect(await (await call(venue, `/api/mock/venue?slug=${slug}`)).json()).toMatchObject({ slug });
+    const link = await call(mockBookingLink, "/api/mock/admin/booking-link", { cookie: staff });
+    expect(await link.json()).toMatchObject({ slug, webUrl: `http://t/book/${slug}`, webQrSvg: expect.stringContaining("<svg") });
+  });
+});
 
 describe("mock admin opening hours", () => {
   // Fixed clock: 2026-11-11 12:00 in Bangkok (05:00 UTC). Only Date is faked so file I/O keeps working.

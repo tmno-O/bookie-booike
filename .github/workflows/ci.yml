@@ -1,0 +1,94 @@
+name: CI
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      MOCK_API: '1'
+      NEXT_PUBLIC_API_MODE: mock
+      PYTHONUTF8: '1'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: e2e/requirements.txt
+      - run: npm ci
+      - run: npm run build
+      - run: pip install -r e2e/requirements.txt
+      - run: python -m playwright install --with-deps chromium
+      - run: python e2e/run_tests.py --start-server --production
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: playwright-report
+          path: e2e/20*/
+
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - uses: supabase/setup-cli@v3
+        with:
+          version: '^2'
+      - run: npm ci
+      - name: Start local Supabase and ElasticMQ
+        run: |
+          supabase start
+          docker compose up -d elasticmq
+          curl --silent --show-error --retry 20 --retry-connrefused --retry-delay 1 --max-time 5 -o /dev/null http://127.0.0.1:9324/
+      - name: Configure local integration tests
+        run: |
+          supabase status -o env | node --input-type=module -e '
+            import { parseEnv } from "node:util";
+            import { readFileSync, writeFileSync } from "node:fs";
+            import { randomBytes } from "node:crypto";
+            const status = parseEnv(readFileSync(0, "utf8"));
+            for (const url of [status.DB_URL, status.API_URL]) {
+              if (new URL(url).hostname !== "127.0.0.1") throw new Error("Expected a local Supabase URL");
+            }
+            const settings = {
+              DATABASE_URL: status.DB_URL,
+              SUPABASE_URL: status.API_URL,
+              SUPABASE_PUBLISHABLE_KEY: status.PUBLISHABLE_KEY ?? status.ANON_KEY,
+              LINE_VERIFY_MODE: "mock",
+              LINE_SECRET_KEY: randomBytes(32).toString("hex"),
+              QUEUE_DRIVER: "db",
+              SQS_ENDPOINT: "http://127.0.0.1:9324",
+              SQS_QUEUE_URL: "http://127.0.0.1:9324/000000000000/booking-requests.fifo",
+            };
+            if (!settings.SUPABASE_PUBLISHABLE_KEY) throw new Error("Missing local Supabase publishable key");
+            writeFileSync(".env.local", Object.entries(settings).map(([key, value]) => `${key}=${value}\n`).join(""));
+          '
+      - run: npm run test:integration

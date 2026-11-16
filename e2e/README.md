@@ -1,56 +1,41 @@
-# e2e — Bookie Lyon automated UI test
+# Bookie Lyon Playwright tests
 
-Drives a real Chromium browser with Playwright (Python), clicks through the customer booking flow
-and the admin pages like a macro, and saves a screenshot of every step.
+Run customer and admin flows in Chromium against a disposable mock database. Each step records a screenshot.
 
-## Setup (once)
+## Setup
+
+From the repository root:
+
 ```bash
-cd e2e
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-.venv/bin/playwright install chromium
+npm ci
+python -m pip install -r e2e/requirements.txt
+python -m playwright install chromium
 ```
-
-## Before you run
-1. Start the app (mock backend) from the repo root:
-   ```bash
-   npm run dev -- --port 3100
-   ```
-   Or let the script start it for you with `--start-server`.
 
 ## Run
+
 ```bash
-cd e2e
-.venv/bin/python run_tests.py              # headless (no window)
-.venv/bin/python run_tests.py --headed     # watch the browser
-.venv/bin/python run_tests.py --headed --slow 400   # slower, easier to follow
-.venv/bin/python run_tests.py --start-server        # start `npm run dev` if nothing is running
-.venv/bin/python run_tests.py --base-url http://localhost:3000
+python e2e/run_tests.py --start-server
+python e2e/run_tests.py --start-server --headed
+python e2e/run_tests.py --start-server --headed --slow 400
 ```
 
-## Output
-Every run creates a new folder named with the start time, next to the script:
+`--start-server` launches a mock dev server on port 3100 with an isolated database. Use `--base-url http://localhost:3115` to select a different port. When pointed to a running server, the suite resets that server's mock DB at the start and end. Use an instance dedicated to testing.
 
+To use the same production build as CI, set `MOCK_API=1` and `NEXT_PUBLIC_API_MODE=mock` in the shell, then run:
+
+```bash
+npm run build
+python e2e/run_tests.py --start-server --production
 ```
-e2e/2026-11-11_03-24-07/
-  01-customer-open-login.png
-  02-customer-login-line-account.png
-  ...
-  29-admin-logout.png
-  report.md       # table of steps: PASS/FAIL, seconds, notes, screenshot name
-  results.json    # same data for tools
-```
-A failing step is saved as `NN-<flow>-<step>-FAILED.png` and the rest of that flow is skipped.
-The exit code is 0 when everything passes and 1 otherwise.
 
-## What it covers (29 steps)
-- **Customer (390×844 phone):** mock LINE login → booker details → pick night, party and zone →
-  confirmation (reads the booking reference) → my bookings.
-- **Admin (1440×900):** redirect to login → owner login → dashboard shows the customer's booking → pending filter →
-  booking list and search → details and check-in → add booking → queue and zone allocation → zones (add) →
-  open times (edit dialog) → settings and team → logout.
+## Coverage
 
-## Notes
-- The run resets the mock database first and again at the end, so it always starts from the same seed data.
-- Needs Python 3 and the packages in `requirements.txt` (already installed in `.venv`). To set up elsewhere:
-  `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/playwright install chromium`
-- Text locators use the Thai labels in the app, so a renamed button needs a one-line change in `run_tests.py`.
+- Root redirect, legacy booking redirects, and customer and admin page titles.
+- Mock LINE login, FCFS booking, booking reference, and active-booking banner.
+- Opening countdown, automatic availability, cancellation, and a fresh booking for the same night.
+- Admin list and search, check-in, staff booking and cancellation, queue allocation, zone management, standard hours, special opening, and updating the slug, QR, and clipboard link.
+
+## Results
+
+Each run saves screenshots, `report.md`, and `results.json` under `e2e/YYYY-MM-DD_HH-MM-SS/`. GitHub Actions uploads the folder as `playwright-report`. A failing step has a `-FAILED.png` screenshot. The script exits with code 1 when a step fails.
