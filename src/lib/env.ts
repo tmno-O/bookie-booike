@@ -1,8 +1,10 @@
 import { z } from "zod";
+import { slug } from "@/contracts/common";
 
 const httpUrl = z.url({ protocol: /^https?$/ });
 const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  DEFAULT_VENUE_SLUG: z.preprocess((value) => value === "" ? undefined : value, slug.default("bookie-demo")),
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
   DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(50).default(10),
   DATABASE_PREPARE: z.enum(["true", "false"]).default("true").transform((value) => value === "true"),
