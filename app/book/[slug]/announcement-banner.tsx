@@ -1,31 +1,56 @@
 "use client";
 
-import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { customerApi } from "@/client/customer-api";
 import { apiRequest, realApiMode } from "@/client/transport";
 import { deadlineText } from "./cancel-booking";
+import styles from "./announcement-banner.module.css";
 
-type Data = { announcements: { id: string; title: string; serviceDate: string; opensAt: string }[]; optedOut: boolean };
-const call = <T,>(path: string, init?: Parameters<typeof apiRequest>[1]) =>
-  realApiMode ? customerApi<T>(path, init) : apiRequest<T>(`/api/mock${path}`, init);
+type Announcement = { id: string; title: string; serviceDate: string; opensAt: string };
+type Data = { announcements: Announcement[] };
+const serviceMonth = new Intl.DateTimeFormat("th-TH-u-ca-gregory", {
+  month: "short", year: "numeric", timeZone: "UTC",
+});
 
-export function AnnouncementBanner({ slug }: { slug: string }) {
-  const [data, setData] = useState<Data>();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const load = useCallback(() => call<Data>("/announcements").then(setData).catch(() => undefined), []);
-  useEffect(() => { void load(); const timer = setInterval(load, 30_000); return () => clearInterval(timer); }, [load]);
-  async function toggle() {
-    if (!data) return;
-    setBusy(true); setError("");
-    try { await call("/announcements/opt-out", { method: "POST", body: { optOut: !data.optedOut } }); await load(); }
-    catch { setError("บันทึกการรับข่าวไม่สำเร็จ กรุณาลองใหม่"); } finally { setBusy(false); }
-  }
-  if (!data) return null;
-  return <aside aria-label="ข่าวรอบจองใหม่" style={{ paddingBlock: 16, borderBottom: "1px solid #ded8d1" }}>
-    {data.announcements.map((a) => <p key={a.id} role="status"><Link href={`/book/${slug}/waiting`}>รอบใหม่: {a.title} · คืน {a.serviceDate} · เปิดจอง {deadlineText(a.opensAt)} น.</Link></p>)}
-    <button type="button" disabled={busy} onClick={toggle} style={{ minHeight: 44 }}>{data.optedOut ? "เปิดรับข่าวรอบใหม่" : "ปิดรับข่าวรอบใหม่"}</button>
-    {error && <p role="alert">{error}</p>}
-  </aside>;
+export function AnnouncementBanner() {
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+
+  useEffect(() => {
+    const load = () => {
+      const request = realApiMode
+        ? customerApi<Data>("/announcements")
+        : apiRequest<Data>("/api/mock/announcements");
+      return request.then((data) => setAnnouncements(data.announcements)).catch(() => undefined);
+    };
+    void load();
+    const timer = setInterval(load, 30_000);
+    return () => clearInterval(timer);
+  }, []);
+
+  if (announcements.length === 0) return null;
+  return (
+    <aside aria-label="ข่าวรอบจองใหม่">
+      <ul className={styles.list} aria-live="polite">
+        {announcements.map(({ id, title, serviceDate, opensAt }) => {
+          const date = new Date(serviceDate);
+          return (
+            <li className={styles.ticket} key={id}>
+              <div className={styles.content}>
+                <p className={styles.label}>รอบจองพิเศษ</p>
+                <p className={styles.title}>{title}</p>
+                <p className={styles.opens}>เปิดจอง <time dateTime={opensAt}>{deadlineText(opensAt)} น.</time></p>
+              </div>
+              <div className={styles.stub}>
+                <span>คืนบริการ</span>
+                <time dateTime={serviceDate}>
+                  <span className={styles.day}>{date.getUTCDate()}</span>
+                  <span>{serviceMonth.format(date)}</span>
+                </time>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </aside>
+  );
 }

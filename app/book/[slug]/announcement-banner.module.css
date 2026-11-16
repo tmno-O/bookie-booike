@@ -1,0 +1,80 @@
+.list {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 24px;
+  padding: 0;
+  list-style: none;
+}
+
+.ticket {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 76px;
+  overflow: hidden;
+  border: 1px solid #e9c5b0;
+  border-radius: 12px;
+  background: #fff7f1;
+  color: #302019;
+}
+
+.content {
+  padding: 12px 14px 14px;
+  overflow-wrap: anywhere;
+}
+
+.label {
+  margin: 0;
+  color: #9e3b1f;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.title {
+  margin: 2px 0 6px;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.opens {
+  margin: 0;
+  color: #6e4535;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.stub {
+  position: relative;
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  padding: 10px 6px;
+  border-inline-start: 1px dashed #d9a889;
+  background: #fce7da;
+  color: #6e4535;
+  font-size: 11px;
+  text-align: center;
+}
+
+.stub::before,
+.stub::after {
+  position: absolute;
+  inset-inline-start: -6px;
+  width: 10px;
+  height: 10px;
+  border: 1px solid #e9c5b0;
+  border-radius: 50%;
+  background: #fff;
+  content: "";
+}
+
+.stub::before { top: -7px; }
+.stub::after { bottom: -7px; }
+
+.stub time { display: grid; line-height: 1.2; }
+
+.day {
+  color: #9e3b1f;
+  font-size: 27px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
