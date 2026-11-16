@@ -1,5 +1,5 @@
 import type { z } from "zod";
-import type { closureInput, specialHours, standardHours } from "@/contracts/hours";
+import type { closureInput, serviceHoursInput, specialHours, standardHours } from "@/contracts/hours";
 import type { Staff } from "@/lib/auth/staff-auth";
 import { db } from "@/lib/db";
 import { ApiError, notFound } from "@/lib/errors";
@@ -22,12 +22,17 @@ export function getBookingHours(venueId: string) {
         to_char(opens_at at time zone 'Asia/Bangkok', 'HH24:MI') as time, opens_at
       from booking_releases r where venue_id = ${venueId} order by r.service_date
     `;
-    const [rule] = await tx<{ openWeekdays: number[] }[]>`
-      select coalesce(open_weekdays, array[0,1,2,3,4,5,6]::smallint[]) as open_weekdays
+    const [rule] = await tx<{ openWeekdays: number[]; start: string | null; end: string | null }[]>`
+      select coalesce(open_weekdays, array[0,1,2,3,4,5,6]::smallint[]) as open_weekdays,
+        left(service_start::text, 5) as start, left(service_end::text, 5) as "end"
       from booking_rules where venue_id = ${venueId} and scope = 'venue' order by version desc limit 1
     `;
     const closures = await closureRows(tx, venueId);
-    return { standard, specials, openWeekdays: rule?.openWeekdays ?? [0,1,2,3,4,5,6], closures, canEdit: true };
+    return {
+      standard, specials, openWeekdays: rule?.openWeekdays ?? [0,1,2,3,4,5,6], closures, canEdit: true,
+      // Same defaults as effective_rule() when the venue has not set its own service window.
+      service: { start: rule?.start ?? "18:00", end: rule?.end ?? "02:00" },
+    };
   });
 }
 
@@ -48,6 +53,9 @@ export async function closureImpact(venueId: string, date: string) {
 }
 export function saveOpenWeekdays(staff: Staff, openWeekdays: number[]) {
   return changeRule(staff, { scope: "venue", openWeekdays, closed: false });
+}
+export function saveServiceHours(staff: Staff, hours: z.infer<typeof serviceHoursInput>) {
+  return changeRule(staff, { scope: "venue", ...hours, closed: false });
 }
 export function addClosure(staff: Staff, closure: z.infer<typeof closureInput>) {
   return staffChange(staff, async (tx) => {
