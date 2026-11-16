@@ -20,6 +20,21 @@ const DAYS = [
 // The venue has one service window, so it runs past midnight whenever it ends at or before it starts.
 const nextDay = (start: string, end: string) => end <= start;
 
+/** 24-hour HH:MM field (a native time input follows the OS locale and shows AM/PM). */
+function TimeField({ value, label, disabled, onCommit }: { value: string; label: string; disabled: boolean; onCommit: (v: string) => void }) {
+  const [draft, setDraft] = useState<string>();
+  const commit = () => {
+    const m = /^(\d{1,2})[:.](\d{2})$/.exec((draft ?? value).trim());
+    if (m && +m[1] < 24 && +m[2] < 60) onCommit(`${m[1].padStart(2, "0")}:${m[2]}`);
+    setDraft(undefined);
+  };
+  return (
+    <input className={page.time} inputMode="numeric" maxLength={5} placeholder="HH:MM" aria-label={label} disabled={disabled}
+      value={draft ?? value} onChange={(e) => setDraft(e.target.value)} onBlur={commit}
+      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), commit())} />
+  );
+}
+
 /** Consecutive open days as "จ.–พฤ." / "ศ." for the customer preview. */
 function dayRanges(open: number[]) {
   const runs: string[] = [];
@@ -103,7 +118,7 @@ export default function HoursSettingsScreen() {
           <div className={page.week} role="table" aria-label="เวลาเปิด–ปิดร้านแต่ละวัน">
             <div className={page.weekHead} role="row">
               <span role="columnheader">วันให้บริการ</span><span role="columnheader">สถานะ</span>
-              <span role="columnheader">เวลาเปิด</span><span role="columnheader">เวลาปิด</span><span />
+              <span role="columnheader">เวลาเปิด</span><span /><span role="columnheader">เวลาปิด</span><span />
             </div>
             {!loaded && !error && <p className={styles.hintLine} style={{ paddingBlock: 20 }}>กำลังโหลด…</p>}
             {loaded && DAYS.map(({ dow, name }) => {
@@ -118,10 +133,9 @@ export default function HoursSettingsScreen() {
                   </span>
                   {on ? (
                     <>
-                      <input type="time" className={page.time} value={start} aria-label={`${name} เวลาเปิด`}
-                        disabled={!canEdit || busy} onChange={(e) => setStart(e.target.value)} />
-                      <input type="time" className={page.time} value={end} aria-label={`${name} เวลาปิด`}
-                        disabled={!canEdit || busy} onChange={(e) => setEnd(e.target.value)} />
+                      <TimeField value={start} label={`${name} เวลาเปิด`} disabled={!canEdit || busy} onCommit={setStart} />
+                      <span className={page.dash} aria-hidden="true">–</span>
+                      <TimeField value={end} label={`${name} เวลาปิด`} disabled={!canEdit || busy} onCommit={setEnd} />
                       <span className={page.nextDay}>{wraps ? "วันถัดไป" : ""}</span>
                     </>
                   ) : <span className={page.closedText} role="cell">ไม่เปิดให้บริการ</span>}
