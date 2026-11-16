@@ -1,0 +1,30 @@
+name: Scheduled redeploy
+
+# Triggers a Vercel redeploy through a Deploy Hook. No commit is made.
+# Needs the repository secret VERCEL_DEPLOY_HOOK_URL (Vercel > Project > Settings > Git > Deploy Hooks).
+on:
+  schedule:
+    - cron: "0 20 * * *" # 03:00 Asia/Bangkok, every day
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: scheduled-redeploy
+  cancel-in-progress: false
+
+jobs:
+  redeploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Call the Vercel Deploy Hook
+        env:
+          HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$HOOK_URL" ]; then
+            echo "VERCEL_DEPLOY_HOOK_URL is not set" >&2
+            exit 1
+          fi
+          curl --fail --silent --show-error --retry 3 --max-time 30 -X POST "$HOOK_URL" > /dev/null
+          echo "Redeploy requested"
