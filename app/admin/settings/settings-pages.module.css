@@ -67,3 +67,7 @@
 .links { display: flex; gap: 12px; margin-top: 40px; flex-wrap: wrap; }
 .linkBtn { display: inline-grid; place-items: center; height: 41px; padding: 0 16px; border: 1px solid #e8e5e1; border-radius: 8px; background: #fff; font-size: 14px; font-weight: 600; color: #25211f; text-decoration: none; }
 .linkBtn:focus-visible { outline: 2px solid #b94e29; outline-offset: 2px; }
+
+.bookingLink { margin-top: 24px; }
+.bookingLinkFields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 16px; }
+.bookingQr { display: block; margin-top: 16px; }

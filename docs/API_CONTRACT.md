@@ -59,7 +59,9 @@ JSON ใช้ camelCase. ส่ง `Content-Type: application/json` เมื�
 | `GET /team` | คืน `{members,invites,canEdit}`. เจ้าของเห็นคำเชิญที่บันทึกไว้ |
 | `POST /team/invites`, `DELETE /team/invites/{id}` | เจ้าของบันทึกหรือยกเลิกคำเชิญ `{email,role:"staff"}`. อีเมลซ้ำได้ `INVITE_EXISTS` และสมาชิกเดิมได้ `ALREADY_MEMBER` |
 | `GET/PATCH /`, `GET/PATCH /rules`, `GET/PUT /releases` | อ่านข้อมูลร้าน กฎบริการ และเวลาเปิดรับรายคืน. การแก้ไขต้องเป็นเจ้าของ. กฎระดับโต๊ะมาก่อนโซนและร้าน ค่าที่เป็น null สืบทอดจาก scope ถัดไป |
-| `GET/PATCH /line-integration`, `GET /booking-link` | ค่า LINE integration และลิงก์ LIFF กับ QR SVG. API ส่งเพียงสถานะว่าตั้งค่า secret แล้ว |
+| `GET/PATCH /line-integration`, `GET /booking-link` | ค่า LINE integration และลิงก์เว็บ `{slug,webUrl,webQrSvg}` กับลิงก์ LIFF `{url,qrSvg}` (เป็น `null` ถ้าไม่ได้ตั้ง LIFF). API ส่งเพียงสถานะว่าตั้งค่า secret แล้ว |
+
+เจ้าของร้านเปลี่ยน `slug` ด้วย `PATCH /api/staff/venues/{venueId}` หรือ `PATCH .../settings` โดยส่ง `{slug}`. รหัสซ้ำคืน `409 SLUG_TAKEN`. ถ้าเปลี่ยนรหัสร้านที่เชื่อม LINE แล้ว ให้ตั้ง LIFF Endpoint URL เป็น `<webUrl>/login` และอัปเดต Rich Menu. ถ้าเป็นร้านเริ่มต้น ให้ตั้ง `DEFAULT_VENUE_SLUG` ให้ตรงก่อน deploy ครั้งถัดไป.
 | `GET /customers?q=` | ค้น contact ภายในร้านจากชื่อ เลขท้ายเบอร์ หรือเบอร์เต็มที่ร้านบันทึก |
 
 Route เวลาเปิดจอง, โปรไฟล์ร้าน และการจัดการคำเชิญคืน `403 FORBIDDEN` เมื่อ role เป็น staff. เวลามาตรฐานกับวันพิเศษตีความตาม `Asia/Bangkok`. วันพิเศษมีผลเหนือค่ามาตรฐานต่อคืนบริการ.

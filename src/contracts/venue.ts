@@ -14,6 +14,7 @@ function ianaZone(value: string) {
 const httpsUrl = z.url({ protocol: /^https$/ });
 const capacity = z.number().int().min(1).max(1000);
 export const profilePatch = z.strictObject({
+  slug,
   name: label,
   description: z.string().trim().max(2000).nullable(),
   contact: z.string().trim().max(250).nullable(),
@@ -21,6 +22,7 @@ export const profilePatch = z.strictObject({
   imageUrl: httpsUrl.nullable(),
   timezone: z.string().refine(ianaZone),
 }).partial();
+export const venueSlugPatch = profilePatch.pick({ slug: true }).required();
 export const shopProfileInput = z.strictObject({
   name: label,
   phone: z.string().trim().regex(/^(?:[0-9 +()-]{6,20})?$/),

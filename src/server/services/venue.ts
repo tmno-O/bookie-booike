@@ -73,7 +73,16 @@ export async function changeVenue(
     const { allocationMode, largePartyMode, ...fields } = patch as typeof patch & {
       allocationMode?: "auto" | "manual"; largePartyMode?: "staff_review" | "disabled";
     };
-    if (Object.keys(fields).length) await tx`update venues set ${tx(columns(fields))} where id = ${staff.venueId}`;
+    if (Object.keys(fields).length) {
+      try {
+        await tx`update venues set ${tx(columns(fields))} where id = ${staff.venueId}`;
+      } catch (error) {
+        if (error instanceof postgres.PostgresError && error.code === "23505" && error.constraint_name === "venues_slug_key") {
+          throw new ApiError(409, "SLUG_TAKEN", "รหัสร้านนี้ถูกใช้แล้ว");
+        }
+        throw error;
+      }
+    }
     if (allocationMode) {
       await tx`insert into venue_settings (venue_id, allocation_mode) values (${staff.venueId}, ${allocationMode})
         on conflict (venue_id) do update set allocation_mode = excluded.allocation_mode`;
