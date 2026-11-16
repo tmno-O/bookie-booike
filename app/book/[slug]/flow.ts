@@ -19,6 +19,8 @@ export async function api<T>(path: string, init?: ApiInit): Promise<T> {
 export type Booking = {
   id: string; reference: string; name: string; phone: string;
   serviceDate: string; party: string; zoneName: string;
+  cancellableUntil: string | null; canCancel: boolean;
+  receipt: { reference: string; ticketSeq: string | null; receivedAt: string; decidedAt: string | null; verifyCode: string } | null;
   status?: "confirmed" | "pending_allocation" | "pending" | "checked_in" | "cancelled";
 };
 

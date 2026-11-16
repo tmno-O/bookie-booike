@@ -13,6 +13,7 @@ export const NAV = [
   { href: "/admin", label: "ภาพรวม" },
   { href: "/admin/bookings", label: "รายการจอง" },
   { href: "/admin/queue", label: "คิวการจอง" },
+  { href: "/admin/audit", label: "หลักฐานคิว" },
   { href: "/admin/zones", label: "โซนและความจุ" },
   { href: "/admin/hours", label: "เวลาเปิดจอง" },
   { href: "/admin/settings", label: "ตั้งค่าร้าน" },

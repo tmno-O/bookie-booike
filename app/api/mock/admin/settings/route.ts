@@ -9,7 +9,16 @@ import { profileInput } from "@/mock/validation";
 export const GET = route<Record<string, string>>(async (request) => {
   assertMockEnabled();
   const staff = requireStaff(request);
-  return json(await withDb((db) => ({ profile: db.profile, cancelCutoffMinutes: db.venue.cancelCutoffMinutes, canEdit: staff.role === "owner" })));
+  return json(await withDb((db) => ({ profile: db.profile, ...db.cancellation, largePartyMode: db.largePartyMode, canEdit: staff.role === "owner" })));
+});
+
+export const PATCH = route(async (request) => {
+  assertMockEnabled(); requireOwner(request);
+  const { largePartyMode, ...patch } = await body(request, settingsPatch.pick({ customerCancelEnabled: true, cancelCutoffMinutes: true, largePartyMode: true }));
+  return json(await withDb((db) => {
+    if (largePartyMode) db.largePartyMode = largePartyMode;
+    return { ...Object.assign(db.cancellation, patch), largePartyMode: db.largePartyMode };
+  }));
 });
 
 export const PUT = route<Record<string, string>>(async (request) => {
@@ -18,14 +27,4 @@ export const PUT = route<Record<string, string>>(async (request) => {
   const profile = await body(request, profileInput);
   await withDb((db) => { db.profile = profile; });
   return json({ profile });
-});
-
-export const PATCH = route<Record<string, string>>(async (request) => {
-  assertMockEnabled();
-  requireOwner(request);
-  const { cancelCutoffMinutes } = await body(request, settingsPatch);
-  return json(await withDb((db) => {
-    if (cancelCutoffMinutes !== undefined) db.venue.cancelCutoffMinutes = cancelCutoffMinutes;
-    return { cancelCutoffMinutes: db.venue.cancelCutoffMinutes };
-  }));
 });

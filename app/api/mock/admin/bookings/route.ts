@@ -10,7 +10,7 @@ import { staffBookingInput } from "@/mock/validation";
 
 const listQuery = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  status: z.enum(["pending", "confirmed", "checked_in"]).optional(),
+  status: z.enum(["pending", "confirmed", "checked_in", "cancelled"]).optional(),
   zone: z.string().max(100).optional(),
   q: z.string().trim().max(80).optional(),
 });

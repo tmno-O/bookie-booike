@@ -5,7 +5,7 @@ import { getStaffBooking } from "./bookings";
 
 const failures = {
   ALREADY_CHECKED_IN: "การจองนี้เช็กอินแล้ว",
-  NOT_SERVICE_DATE: "เช็กอินได้เฉพาะในคืนที่จอง",
+  NOT_SERVICE_DATE: "เช็กอินได้ตั้งแต่วันที่จองจนจบคืนบริการนั้น",
   BOOKING_NOT_CONFIRMED: "เช็กอินได้เฉพาะการจองที่ยืนยันแล้ว",
 };
 

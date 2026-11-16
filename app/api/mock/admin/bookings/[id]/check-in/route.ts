@@ -13,6 +13,7 @@ export const POST = route<{ id: string }>(async (request, params) => {
     const found = db.bookings.find((b) => b.id === params.id);
     if (!found) notFound("Booking");
     if (found.status === "checked_in") throw new ApiError(409, "ALREADY_CHECKED_IN", "This booking is already checked in");
+    if (found.status === "cancelled") throw new ApiError(409, "BOOKING_NOT_CONFIRMED", "Booking is not confirmed");
     if (found.serviceDate !== today()) throw new ApiError(409, "NOT_SERVICE_DATE", "Check-in is only available on the booked night");
     found.status = "checked_in";
     found.checkedInAt = new Date().toISOString();

@@ -1,5 +1,6 @@
 import { ApiError } from "@/lib/errors";
 import { body, json, route } from "@/lib/http";
+import { customerBookingView } from "@/mock/booking-view";
 import { addBooking, checkSlot } from "@/mock/booking";
 import { queueState, withDb } from "@/mock/db";
 import { isNightOpen } from "@/mock/schedule";
@@ -11,7 +12,7 @@ export const GET = route<Record<string, string>>(async (request) => {
   const bookings = await withDb((db) => {
     const customer = requireUser(db, request).id;
     return db.bookings.filter((b) => b.customerId === customer)
-    .sort((a, b) => a.serviceDate.localeCompare(b.serviceDate) || a.createdAt.localeCompare(b.createdAt));
+    .sort((a, b) => a.serviceDate.localeCompare(b.serviceDate) || a.createdAt.localeCompare(b.createdAt)).map((b) => customerBookingView(db, b));
   });
   return json({ bookings });
 });

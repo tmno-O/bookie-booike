@@ -28,12 +28,14 @@ export default function CancellationScreen() {
   const [canEdit, setCanEdit] = useState(false);
   const [value, setValue] = useState("");
   const [unit, setUnit] = useState<Unit>("hours");
+  const [enabled, setEnabled] = useState(true);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
 
-  const load = useCallback(() => adminApi<{ cancelCutoffMinutes: number; canEdit: boolean }>("/admin/settings").then((r) => {
+  const load = useCallback(() => adminApi<{ cancelCutoffMinutes: number; customerCancelEnabled?: boolean; canEdit: boolean }>("/admin/settings").then((r) => {
     const parsed = fromMinutes(r.cancelCutoffMinutes);
+    setEnabled(r.customerCancelEnabled ?? true);
     setValue(parsed.value); setUnit(parsed.unit); setCanEdit(r.canEdit); setLoaded(true); setError("");
   }).catch((e) => {
     const failure = asFailure(e);
@@ -63,7 +65,7 @@ export default function CancellationScreen() {
     if (invalid) return setError(`กรุณากรอกจำนวน${UNIT_LABEL[unit]}ตั้งแต่ 0 ถึง ${MAX_MINUTES / MINUTES[unit]}`);
     setBusy(true); setError("");
     try {
-      const r = await adminApi<{ cancelCutoffMinutes: number }>("/admin/settings", { method: "PATCH", body: { cancelCutoffMinutes: minutes } });
+      const r = await adminApi<{ cancelCutoffMinutes: number }>("/admin/settings", { method: "PATCH", body: { customerCancelEnabled: enabled, cancelCutoffMinutes: minutes } });
       const parsed = fromMinutes(r.cancelCutoffMinutes ?? minutes);
       setValue(parsed.value); setUnit(parsed.unit);
       setNotice("บันทึกการเปลี่ยนแปลงแล้ว");
@@ -88,6 +90,11 @@ export default function CancellationScreen() {
           <p className={styles.cardSub} style={{ fontSize: 13 }}>กำหนดระยะเวลาก่อนเริ่มการจองที่ลูกค้าสามารถยกเลิกได้</p>
           <hr className={page.divider} />
 
+          <label style={{ display: "flex", gap: 12, alignItems: "center", minHeight: 44, marginBottom: 12 }}>
+            <input type="checkbox" checked={enabled} disabled={locked} onChange={(e) => setEnabled(e.target.checked)} />
+            ให้ลูกค้ายกเลิกการจองเองได้ (พนักงานยกเลิกแทนได้เสมอ)
+          </label>
+
           <label className={page.fieldTitle} htmlFor="cancel-amount" style={{ display: "block" }}>ยกเลิกก่อนเวลาเริ่มการจองอย่างน้อย</label>
           <div className={page.amountRow}>
             <input id="cancel-amount" className={page.amount} type="number" inputMode="decimal" min={0} step={unit === "hours" ? 0.5 : 1}
@@ -111,9 +118,11 @@ export default function CancellationScreen() {
 
         <aside className={styles.card} aria-labelledby="customer-title">
           <h2 id="customer-title" className={page.previewTitle}>ข้อความสำหรับลูกค้า</h2>
-          <p className={page.customerLead}>คุณสามารถยกเลิกการจองได้</p>
-          <p className={page.customerText}>ก่อนเวลาเริ่มการจองอย่างน้อย</p>
-          <p className={page.customerValue} aria-live="polite"><strong>{shown}</strong><span>{UNIT_LABEL[unit]}</span></p>
+          {enabled ? <>
+            <p className={page.customerLead}>คุณสามารถยกเลิกการจองได้</p>
+            <p className={page.customerText}>ก่อนเวลาเริ่มการจองอย่างน้อย</p>
+            <p className={page.customerValue} aria-live="polite"><strong>{shown}</strong><span>{UNIT_LABEL[unit]}</span></p>
+          </> : <p className={page.customerLead} aria-live="polite">ร้านไม่เปิดให้ยกเลิกเองในแอป</p>}
           <hr className={styles.divLine} />
           <p className={styles.cardSub} style={{ fontSize: 13, marginTop: 0 }}>หากพ้นกำหนด กรุณาติดต่อร้านโดยตรง</p>
         </aside>

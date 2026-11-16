@@ -15,6 +15,8 @@ const zoneId = randomUUID();
 const tableId = randomUUID();
 const slug = `dbq-${venueId}`;
 const customers: { cookie: string; customerId: string }[] = [];
+const ticketCustomers: string[] = [];
+let initialized = false;
 
 function request(method: string, options: { cookie?: string; data?: unknown; key?: string } = {}) {
   const headers = new Headers();
@@ -43,12 +45,14 @@ async function book(customer: (typeof customers)[number], serviceDate: string, k
 
 /** Drain until no request for the test venue is still queued (background drains may be running too). */
 async function settle() {
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < 100; i++) {
     await drainBookingQueue({ maxSeconds: 10 });
     const [{ queued }] = await db()<{ queued: number }[]>`
       select count(*)::int as queued from booking_requests where venue_id = ${venueId} and status = 'queued'
     `;
     if (queued === 0) return;
+    // Another background/concurrent drain may own the head; let it commit before polling again.
+    await new Promise((resolve) => setTimeout(resolve, 20));
   }
   throw new Error("Queue did not settle");
 }
@@ -64,6 +68,7 @@ beforeAll(async () => {
   if (process.env.LINE_VERIFY_MODE !== "mock" || new URL(process.env.DATABASE_URL!).hostname !== "127.0.0.1") {
     throw new Error("Integration tests require local Supabase and mock LINE mode");
   }
+  initialized = true;
   const sql = db();
   await sql`insert into venues (id, slug, name) values (${venueId}, ${slug}, 'DB queue venue')`;
   await sql`insert into venue_line_integrations (venue_id, provider_id, channel_id, liff_id)
@@ -79,6 +84,7 @@ beforeAll(async () => {
 }, 60_000);
 
 afterAll(async () => {
+  if (!initialized) return;
   const sql = db();
   try {
     await sql.begin(async (tx) => {
@@ -88,10 +94,14 @@ afterAll(async () => {
       await tx`update booking_requests set status = 'queued', booking_id = null, result_code = null where venue_id = ${venueId}`;
       await tx`delete from bookings where venue_id = ${venueId}`;
       await tx`delete from booking_requests where venue_id = ${venueId}`;
+      // Test-only cleanup on verified local Supabase; production history stays append-only.
+      await tx`alter table audit_logs disable trigger audit_logs_immutable`;
       await tx`delete from audit_logs where venue_id = ${venueId}`;
+      await tx`alter table audit_logs enable trigger audit_logs_immutable`;
       await tx`delete from venue_tables where venue_id = ${venueId}`;
       await tx`delete from zones where venue_id = ${venueId}`;
       await tx`delete from venue_customers where venue_id = ${venueId}`;
+      for (const id of ticketCustomers) await tx`delete from customers where id = ${id}`;
       const identities = await tx<{ customerId: string }[]>`
         delete from customer_identities where provider_id = ${slug} returning customer_id
       `;
@@ -197,7 +207,38 @@ describe.sequential("Database booking queue", () => {
 
   it("reports healthy without SQS and runs housekeeping", async () => {
     const response = await health();
-    expect(await response.json()).toEqual({ ok: true, checks: { database: true, queue: true } });
+    expect(await response.json()).toMatchObject({ ok: true, checks: { database: true, queue: true }, backlog: { pending: 0, oldestAgeSeconds: 0 } });
     await db()`select booking_housekeeping()`;
+  });
+
+  it("audits 50 simultaneous contenders, allocates once, and issues unique concurrent ticket numbers", async () => {
+    const date = day(12);
+    const ids = await Promise.all(Array.from({ length: 50 }, (_, i) => book(customers[i % customers.length], date)));
+    await Promise.all([settle(), settle(), settle()]);
+    const rows = await night(date);
+    expect(rows).toHaveLength(50);
+    expect(rows.filter((r) => r.status === "confirmed")).toHaveLength(1);
+    expect(rows.filter((r) => r.resultCode === "TABLE_UNAVAILABLE")).toHaveLength(49);
+    const [allocation] = await db()`select count(*)::int as total from booking_allocations where table_id = ${tableId} and service_date = ${date} and active`;
+    expect(allocation.total).toBe(1);
+    const events = await db()`select details from audit_logs where venue_id = ${venueId}
+      and details->>'service_date' = ${date} and action in ('booking.confirmed', 'booking.rejected')
+      order by (details->>'queue_seq')::bigint`;
+    expect(events).toHaveLength(50);
+    expect(events.map((r) => r.details.request_id).sort()).toEqual([...ids].sort());
+    expect(events.map((r) => r.details.queue_seq)).toEqual(rows.map((r) => r.queueSeq));
+    for (const { details } of events) {
+      expect(details.received_at).toBeTruthy(); expect(details.decided_at).toBeTruthy(); expect(details.result_code).toBeTruthy();
+    }
+    for (let i = 0; i < 50; i++) {
+      const id = randomUUID(); ticketCustomers.push(id);
+      await db()`insert into customers (id) values (${id})`;
+      await db()`insert into venue_customers (venue_id, customer_id, display_name) values (${venueId}, ${id}, 'Concurrent guest')`;
+    }
+    const tickets = await Promise.all(ticketCustomers.map((id) => db()`insert into queue_tickets (venue_id, customer_id, contact_name, contact_phone)
+      values (${venueId}, ${id}, 'Guest', '0812345678') returning seq`));
+    expect(new Set(tickets.map((r) => r[0].seq)).size).toBe(50);
+    const [chain] = await db()`select * from verify_audit_chain(${venueId})`;
+    expect(chain.firstBadSeq).toBeNull();
   });
 });

@@ -1,0 +1,34 @@
+time="2026-11-15T14:09:49Z" level=info msg="{\"runId\":\"audit20261115b\",\"venueId\":\"10000000-0000-4000-8000-000000000001\",\"serviceDate\":\"2026-12-05\",\"maxInFlight\":250,\"byStatus\":{\"202\":5000}}" source=console
+
+
+  █ THRESHOLDS
+
+    booking_accepted
+    ✓ 'count==5000' count=5000
+
+    booking_posts
+    ✓ 'count==5000' count=5000
+
+
+  █ TOTAL RESULTS
+
+    CUSTOM
+    booking_accepted...............: 5000   81.534188/s
+    booking_posts..................: 5000   81.534188/s
+
+    HTTP
+    http_req_duration..............: avg=2.65s  min=70.05ms  med=2.75s  max=4.41s  p(90)=2.97s  p(95)=3.06s
+      { expected_response:true }...: avg=2.65s  min=70.05ms  med=2.75s  max=4.41s  p(90)=2.97s  p(95)=3.06s
+      { phase:booking }............: avg=2.76s  min=673.82ms med=2.76s  max=4.41s  p(90)=2.98s  p(95)=3.07s
+    http_req_failed................: 0.00%  0 out of 5202
+    http_reqs......................: 5202   84.828169/s
+
+    EXECUTION
+    iteration_duration.............: avg=56.08s min=56.08s   med=56.08s max=56.08s p(90)=56.08s p(95)=56.08s
+    iterations.....................: 1      0.016307/s
+    vus............................: 1      min=0         max=1
+    vus_max........................: 1      min=1         max=1
+
+    NETWORK
+    data_received..................: 1.9 MB 31 kB/s
+    data_sent......................: 2.1 MB 34 kB/s

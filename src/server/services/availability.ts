@@ -2,10 +2,28 @@ import type { ISql } from "postgres";
 import { db } from "@/lib/db";
 import { getVenue } from "./venue";
 
+type ZoneAvailability = { id: string; name: string; tablesLeft: number; available: boolean; closed: boolean };
+
+/** Parties above one table's 12 seats are checked across the free tables of each zone. */
+function largePartyZones(sql: ISql, venueId: string, serviceDate: string, partySize: number, skipRelease: boolean) {
+  return sql<ZoneAvailability[]>`
+    select z.id, z.name, z.status = 'closed' as closed,
+      (select count(*)::int from booking_candidates_for(${venueId}, ${serviceDate}, null, z.id, 1, null, now(), ${skipRelease}) c
+        where c.result_code is null and not exists (select 1 from booking_allocations a
+          where a.table_id = c.id and a.service_date = ${serviceDate} and a.active)) as tables_left,
+      z.status = 'active' and coalesce(s.large_party_mode, 'staff_review') = 'staff_review'
+        and zone_fits_party(${venueId}, ${serviceDate}, z.id, ${partySize}, now(), ${skipRelease}) is null as available
+    from zones z left join venue_settings s on s.venue_id = z.venue_id
+    where z.venue_id = ${venueId}
+    order by z.name, z.id
+  `;
+}
+
 export function zoneAvailability(
   sql: ISql, venueId: string, serviceDate: string, partySize: number,
   { skipRelease = false, allowPending = false } = {},
 ) {
+  if (partySize > 12) return largePartyZones(sql, venueId, serviceDate, partySize, skipRelease);
   return sql<{ id: string; name: string; tablesLeft: number; available: boolean; closed: boolean }[]>`
     with candidates as (
       select c.zone_id, c.result_code,

@@ -7,7 +7,7 @@ import { ClosureDialog, SpecialDayDialog, StandardDialog, type Standard } from "
 import { adminApi, asFailure, shortThaiDate, type Staff } from "../admin-api";
 import styles from "../admin.module.css";
 
-type Special = { id: string; serviceDate: string; opensOn: string; time: string };
+type Special = { id: string; serviceDate: string; opensOn: string; time: string; title: string; recipients: number; sent: number; failed: number };
 type Hours = { standard: Standard; specials: Special[]; canEdit: boolean; openWeekdays: number[];
   closures: { serviceDate: string; reason: string; affectedBookings: number }[] };
 
@@ -55,7 +55,13 @@ export default function HoursScreen() {
   const std = hours?.standard;
   async function saveWeekdays() {
     setBusy(true); setError("");
-    try { await adminApi("/admin/hours/closures", { method: "PUT", body: { openWeekdays: weekdays } }); setNotice("บันทึกวันเปิดร้านแล้ว"); await load(); }
+    try {
+      const saved = await adminApi<{ affectedBookings?: number }>("/admin/hours/closures", { method: "PUT", body: { openWeekdays: weekdays } });
+      setNotice(saved.affectedBookings
+        ? `บันทึกวันเปิดร้านแล้ว มีการจอง ${saved.affectedBookings} รายการในวันที่ปิดใหม่ ใช้ "วันปิดพิเศษ" เพื่อยกเลิกและแจ้งลูกค้า หรือติดต่อผู้จอง`
+        : "บันทึกวันเปิดร้านแล้ว");
+      await load();
+    }
     catch (e) { setError(asFailure(e).message); } finally { setBusy(false); }
   }
   async function removeClosure(date: string) {
@@ -121,7 +127,8 @@ export default function HoursScreen() {
           <div key={s.id} className={styles.specialGrid}>
             <span className={styles.gridLabel}>คืนที่จอง</span><span className={styles.gridLabel}>วันเปิดรับจอง</span>
             <span className={styles.gridLabel}>เวลาเปิดรับจอง</span><span />
-            <span className={styles.gridValue}>{shortThaiDate(s.serviceDate)}</span>
+            <span className={styles.gridValue}>{shortThaiDate(s.serviceDate)}{s.title && <><br />{s.title}</>}
+              {s.recipients > 0 && <><br /><small>ผู้รับ {s.recipients} · ส่งแล้ว {s.sent} · ล้มเหลว {s.failed}</small></>}</span>
             <span className={styles.gridValue}>{shortThaiDate(s.opensOn)}</span>
             <span className={styles.gridValue}>{thaiTime(s.time)}</span>
             {hours.canEdit
