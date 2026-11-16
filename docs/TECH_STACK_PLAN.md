@@ -1,72 +1,52 @@
-# Tech Stack: Bookie Lyon ฉบับ Feature 1–4
+# Tech Stack ของ Bookie Lyon
 
-5 พฤศจิกายน 2569 · ฉบับ Feature 1–4 + LIFF/FIFO | เอกสารออกแบบ ยังไม่มีระบบเปิดใช้งาน ไม่มีผล pilot/load test หรือธุรกรรมจริงที่ยืนยันแล้ว
+อัปเดต 17 พฤศจิกายน 2569 · อ้างอิง branch `feat/fcfs-booking-revamp`
 
-> **อัปเดต 13 พ.ย. 2569:** ระบบจริงเลือก **DB queue** (`QUEUE_DRIVER=db`) เป็นคิวหลักหลังวัดผลเทียบกับ SQS FIFO. `sqs` ตามเอกสารนี้ (SQS FIFO + worker) ยังคงไว้เป็นทางเลือก. `db` เก็บคิวในตาราง Postgres แล้วตัดสินด้วย `drain_booking_requests()` ลำดับคิวจึงเป็นลำดับที่คำขอ commit ลงฐานข้อมูลแทนลำดับที่ broker รับ ใช้สำหรับ Vercel ที่รัน worker ไม่ได้. ดู [README](../README.md) และ [DEPLOY](DEPLOY.md).
+ทีมเปิดระบบบน Vercel และ Supabase พร้อมเชื่อม LINE Login และ LIFF แล้ว งาน FCFS, LINE outbox และ CI ในเอกสารนี้อยู่บน feature branch และผ่านการทดสอบใน CI การเปิด PR, merge, ลง migrations ใหม่ และยืนยัน LINE drain cron บน production ยังรอดำเนินการ [คู่มือ deploy](DEPLOY.md)
 
-แนะนำ LINE OA รายร้าน + LIFF, TypeScript/Next.js API, Supabase PostgreSQL/Auth/Storage, SQS FIFO และ Node.js worker แยก สำหรับ Gateway ใช้ adapter และ sandbox ก่อน ยังไม่เลือกผู้ให้บริการหรือเส้นทางเงินจริง
+## เครื่องมือและหน้าที่
 
-รายละเอียดขอบเขตที่ตัดสินใจแล้วอยู่ [FEATURE_REQUIREMENTS.md](./FEATURE_REQUIREMENTS.md) ข้อเสนอ/คำถามค้างอยู่ [OPEN_DECISIONS.md](./OPEN_DECISIONS.md) ไม่ถือว่าเครื่องมือที่แนะนำเป็นระบบที่ติดตั้งแล้ว
-
-## เครื่องมือและเหตุผล
-
-| ส่วน | ใช้ | หน้าที่และเหตุผล |
+| ส่วน | เทคโนโลยี | หน้าที่ |
 | --- | --- | --- |
-| LINE รายร้าน | LINE OA / LIFF SDK / Messaging API | ใช้แบรนด์และเมนูเดิมของร้าน เชื่อม token/provider แยกร้าน |
-| เว็บ/API | Next.js App Router + TypeScript + Node.js runtime | เว็บ LIFF และ staff ใช้ repository เดียว API สั้น รับคิวและ webhook |
-| Validation | Zod | ตรวจรูปแบบข้อมูลและ environment; สิทธิ์/โต๊ะว่างยังตรวจ server/SQL |
-| ข้อมูล | Supabase PostgreSQL + SQL migrations/RPC | transaction และ constraints ป้องกันขายโต๊ะซ้ำ รักษา schema/version |
-| บัญชีร้าน | Supabase Auth + venue_members | ตรวจ owner/staff ต่อร้าน ไม่ใช้แค่ login แล้วแก้ได้ทุก venue |
-| อัปโหลด | Supabase Storage + image processing | โลโก้/รูปผังประกอบ ตรวจชนิด/ขนาดและ ownership ไม่เก็บรูปใน booking row |
-| คิวจอง | SQS FIFO + AWS SDK | ลำดับ broker acceptance ตาม venue/service_night จองแทนไม่ลัดคิว |
-| ประมวลผล | Node.js/TypeScript worker ใน container | ทำตามลำดับในกลุ่ม เรียก SQL แล้ว ack หลัง commit จำกัดงานเข้าฐานข้อมูล |
-| มัดจำ | Payment adapter + sandbox provider | จำลอง 3 โหมดและ refund engine เลือกเงินจริงหลังตรวจ refund/merchant/payout |
-| งานตามเวลา | Supabase Cron + SQL functions | หมด hold/no-show ที่เปิดใช้/reconcile ตรวจเวลาซ้ำภายใต้ lock |
-| ส่ง LINE | Notification outbox + Edge Function | ใช้ credentials OA ร้านตาม booking ทำ retry ไม่ขวางคิวจอง |
-| หน้าจอข้อมูล | React state + fetch/TanStack Query ตามจำเป็น | Draft ไม่ hold; status polling มี backoff/jitter ไม่ยิงหนักพร้อมกัน |
-| ทดสอบ | Vitest + PostgreSQL integration + k6 | กฎหลายระดับ คืนเงิน FIFO failure และ spike; มือถือจริงแยกจาก mock |
-| Deploy | Vercel + Supabase + worker hosting ที่เลือก | แยก web/API worker และ notification runtime เพิ่ม Redis/Waiting Room เมื่อจำเป็น |
+| เว็บและ API | Next.js 16.4.6 App Router, React 19, TypeScript 5.9, CSS Modules | หน้าจองผ่าน LIFF หน้าแอดมิน และ API ใน repository เดียว ใช้ Node.js 22 ขึ้นไป |
+| Validation | Zod 4 | ตรวจ payload, query และ environment ก่อนเข้าชั้นบริการ |
+| ฐานข้อมูล | Supabase PostgreSQL, Postgres.js, SQL migrations | เก็บร้าน ลูกค้า โต๊ะ คำขอ การจอง การจัดสรร ผังร้าน และ audit ใช้ SQL transaction กับ constraints คุมความจุและการจองซ้ำ |
+| บัญชีและสิทธิ์ | LINE Login/LIFF SDK สำหรับลูกค้า, Supabase Auth สำหรับพนักงาน | ตรวจ LINE ID token ฝั่ง server และออก session รายร้าน พนักงานใช้สิทธิ์ owner หรือ staff ตาม `venue_members` |
+| คิวจองหลัก | Postgres queue (`QUEUE_DRIVER=db`) | เก็บใน `booking_requests` และตัดสินผลด้วย `drain_booking_requests()` ตามลำดับที่คำขอ commit ต่อร้านและคืน |
+| คิวทางเลือก | SQS FIFO, AWS SDK, Node.js worker, ElasticMQ ในเครื่อง | ใช้กลุ่มตามร้านและคืนบริการ ตัดสินตามลำดับที่ broker รับ และ ack หลัง DB commit |
+| แจ้งเตือน | LINE Messaging API, Postgres outbox, Supabase Cron หรือ Vercel Cron | เก็บงานส่งคู่กับการเปลี่ยนสถานะจอง ใช้ lease และ LINE retry key กู้การส่งที่ล้มเหลว |
+| Deploy | Vercel region `sin1`, Supabase cloud | เว็บและ API บน Vercel ใช้ Supabase transaction pooler พร้อม `DATABASE_PREPARE=false` ตามคู่มือ deploy |
+| ทดสอบ | Vitest, Playwright (Python/Chromium), k6, GitHub Actions | ทดสอบกฎจองและ API กับฐานข้อมูล local ทดสอบ UI กับ mock backend และเก็บหลักฐานโหลดแยก |
 
+## ทางเดินการจอง
 
-## ทางเดินระบบ
+1. `/` พาไป `/book/<slug>/login` ตาม `DEFAULT_VENUE_SLUG` ค่าเริ่มต้น `bookie-demo` เจ้าของแก้ slug และคัดลอกลิงก์หรือ QR จากหน้าแอดมินได้ เมื่อเปลี่ยน slug ให้ปรับ LIFF Endpoint URL และลิงก์ใน Rich Menu ให้ตรงกัน
+2. ลูกค้าเข้า LINE login กรอกข้อมูลติดต่อ เลือกคืนที่เปิดรับ จำนวนคน และโซน วันพิเศษใช้เวลาเปิดเฉพาะคืน และหน้าจอแสดง countdown ก่อนเปิด
+3. `POST /api/booking-requests` ตรวจสิทธิ์ ช่วงเปิดจอง และโควตา แล้วรับคำขอพร้อม `Idempotency-Key` การส่ง payload เดิมด้วย key เดิมคืน `requestId` เดิม เมื่อรับคำขอสำเร็จ API ตอบ `202` ลูกค้าติดตามผลด้วย status API
+4. `process_booking_request()` ตรวจเงื่อนไขอีกครั้งใน SQL โหมดอัตโนมัติเลือกโต๊ะว่างที่เล็กที่สุดและรองรับกลุ่ม โหมดจัดสรรโดยร้านสร้าง `pending_allocation` พนักงานจัดสรรจาก `/admin/queue`
+5. ลูกค้า LINE ถือการจองที่ยังใช้งานอยู่หรือคำขอที่กำลังตัดสินได้หนึ่งรายการต่อร้าน ยกเลิกแล้วจองใหม่ได้ตามเวลาเปิดจอง รายการที่พนักงานจองแทนได้รับการยกเว้นโควตา
 
-1. OA ร้านเปิด LIFF URL ที่ลงทะเบียน/ผูก provider ถูกต้อง ไม่แก้ Rich Menu ในโหมดเก็บเมนูเดิม
-2. LINE ID token ตรวจฝั่ง server ออก session ต่อ identity/provider/venue ที่เกี่ยวข้อง
-3. อ่านกฎเปิดรับที่คำนวณแล้ว เลือกวันเวลา โซน ปุ่มชื่อโต๊ะ จำนวนคน ข้อมูลติดต่อ Draft ไม่มีลำดับสิทธิ์
-4. กดยืนยันผ่าน API โดยตรง ตรวจ session/schema/เวลา/rate limit แล้วส่ง SQS รับสำเร็จจึงคืน 202/requestId
-5. Worker ทำตาม FIFO ต่อร้าน/คืน ตรวจ effective rule/ราคา/policy จาก server แล้วเรียก booking RPC
-6. ไม่มัดจำ: confirmed พร้อม outbox; มีมัดจำ: pending_payment + hold เริ่มตอนกันโต๊ะสำเร็จ ตรวจ provider แล้วค่อย confirmed
-7. ยกเลิก: SQL คำนวณ refund entitlement จาก snapshot แยกการคืนเงินจริงออกเป็นงานที่ตรวจสอบได้
-8. ส่งการ์ดจาก OA ร้าน การส่งไม่ได้ไม่ย้อน booking ลูกค้าดูใน LIFF ได้
+ลิงก์ห้องรอเดิมพาไปหน้าเลือกคืนและโซน ตาราง ticket และข้อมูลย้อนหลังยังเก็บอยู่ กฎเปิดจองมาตรฐานอัปเดตทั้งวันเปิดและช่วงจองล่วงหน้าใน transaction เดียว โดยใช้ timezone ของร้าน [API contract](API_CONTRACT.md) · [เวลาเปิดจอง](BOOKING_OPENING.md)
 
-## การเชื่อม OA ที่สำคัญกว่าการเปลี่ยน framework
+## ลำดับคิวและการกู้คืน
 
-Provider ของ LINE Login/LIFF กับ Messaging API ต้องจับคู่ถูกก่อนส่งข้อความ full integration เสนอ configuration รายร้านภายใต้ provider ของร้านเอง ใช้เว็บ platform เดียวร่วมกันได้ Link-only จาก OA ใดก็ได้ไม่แปลว่าใช้ platform LINE subject ส่งผ่าน OA ต่าง provider ได้ อ่าน [LINE_ONBOARDING_GUIDE.md](./LINE_ONBOARDING_GUIDE.md)
+ในโหมด `db` คำขอคืนเดียวกันได้ `queue_seq` ภายใต้ lock ที่ถือจน commit ตัว drain เลือกหัวคิวของแต่ละร้านและคืน ใช้ `FOR UPDATE SKIP LOCKED` และ commit ทีละรายการ การจัดสรรมี unique constraint ต่อโต๊ะและคืน API เริ่ม drain ผ่าน `after()` หลังตอบ และ Supabase Cron เป็นตัวสำรอง งาน `booking_housekeeping()` จัดการข้อมูลชั่วคราวตามรอบ
 
-เก็บ channel secret/access token แบบจำกัดสิทธิ์ต่อ venue ตรวจ destination/channel ใน webhook ไม่เชื่อ venue_id จาก payload อย่างเดียว ไม่เปิดเผย token ผ่าน NEXT_PUBLIC_ และไม่ทับ webhook บอทเดิมโดยไม่ประสานงาน
+ในโหมด `sqs` worker กู้คำขอ `pending_publish` และต่อ visibility ระหว่างประมวลผล ทั้งสองโหมดใช้ SQL ตัดสินผลชุดเดียวกัน เมื่อใช้ retry ครบจะบันทึก `rejected/SYSTEM_ERROR` พร้อม audit [คู่มือ deploy](DEPLOY.md) · [หลักฐาน k6 ก่อนเปลี่ยนเป็น FCFS](evidence/README.md)
 
-## SQL และ FIFO
+## LINE และการเฝ้าดูระบบ
 
-ใช้ row lock, unique active โต๊ะ/คืน และ exclusion constraint บนช่วงครองโต๊ะพร้อม foreign keys ผูก venue ให้ตรงกัน หนึ่งโต๊ะต่อคืนเป็นขอบเขตที่เสนอจากแผนเดิม รอยืนยันการนั่งหลายรอบก่อนเปลี่ยนกฎ
+- LINE Login/LIFF และ Messaging API ต้องอยู่ใต้ LINE provider เดียวกันเมื่อใช้ส่งแจ้งเตือนตามบัญชีลูกค้า ค่า credential แยกร้าน เก็บแบบเข้ารหัสฝั่ง server
+- Outbox รองรับรับคำขอรอจัดสรร ยืนยันหรือจัดสรร ยกเลิก ปฏิเสธ เตือนการจอง ประกาศและเตือนวันพิเศษ ระบบ commit lease ก่อนเรียก LINE แล้วบันทึกผลตาม lease ปัจจุบัน การส่งและการจองจึงมีผลแยกกัน
+- ใช้ scheduler เดียวเรียก `/api/internal/notifications/drain` แบบ POST จาก Supabase Cron หรือ GET จาก Vercel Cron ทั้งสองทางใช้ Bearer `CRON_SECRET` สถานะการส่งจริงขึ้นกับ token, การเปิด `LINE_NOTIFICATIONS_ENABLED` และ cron ที่ทำงาน
+- `GET /api/health` แสดงจำนวนคำขอจองค้างและสรุป outbox ได้แก่ `pending`, `dead` และ `oldestPendingAgeSeconds` ตรวจหลักฐานการรับคำขอ ผลการตัดสิน และการยกเลิกจาก audit ตามสิทธิ์ร้าน
 
-SQL RPC บันทึก booking/allocation/result/idempotency/outbox ที่เกี่ยวข้องพร้อมกัน กดซ้ำ/ส่งซ้ำกลับผลเดิม เมื่อโต๊ะไม่ว่าง worker ให้ rejected/TABLE_UNAVAILABLE; status API ตอบผลหลัง 202 ไม่ย้อน HTTP response เก่า
+[LINE audit](LINE_NOTIFICATIONS.md) · [ตั้งค่าและตรวจ Cron](DEPLOY.md#5-booking-and-release-notifications-on-vercel)
 
-SQS deduplication ช่วง 5 นาทีไม่แทน idempotency ของ DB Registry กับ broker ไม่ใช่ transaction เดียว ต้องกู้กรณี pending_publish และ broker รับแล้ว API timeout Worker อ่าน batch แล้วต้องทำเรียงในกลุ่ม มี visibility/lease/fencing และ ack หลัง DB commit งานแรกเสียต้อง pause/แก้ตามกติกา ไม่ข้ามไปท้ายแล้วอ้าง FIFO
+## ทดสอบและขอบเขตงาน
 
-ไม่เรียก payment/LINE API ค้างใน transaction หรือรอการชำระเงินก่อนเดินคิวต่อ คนละร้าน/คืนขนานได้ คนที่เข้าหน้าจอก่อนยังไม่ได้สิทธิ์
+`NEXT_PUBLIC_API_MODE=mock` ใช้ข้อมูล JSON สำหรับทดสอบหน้าจอ `real` เรียก API ที่ใช้ Postgres ส่วน `LINE_VERIFY_MODE=mock` ใช้กับการทดสอบในเครื่องและ CI โดย production ใช้ `real` [คู่มือทดสอบ](MOCK_TESTING.md)
 
-## เงินและการคืน
+GitHub Actions ทำงานทุก push และ pull request มี `check` สำหรับ typecheck, lint, unit และ build, `integration` ใช้ Supabase local + ElasticMQ และ `e2e` ใช้ Chromium บน mock production build รอบยืนยันงาน FCFS ที่ `6759f71` ผ่าน 106 unit tests, 51 integration tests และ 38 ขั้นตอน Playwright [คู่มือ Playwright](../e2e/README.md) · [ผล CI](https://github.com/tmno-O/bookie-booike/actions/runs/43915018630)
 
-สามโหมดตาม F4 เป็นข้อกำหนดธุรกิจ Gateway ยังไม่เลือก Omise PromptPay คืนผ่าน Omise ไม่ได้ จึงไม่ตั้งเป็นค่าเริ่มต้นของ flow คืนอัตโนมัติ Stripe PromptPay ระบุรองรับ refund/Connect แต่ยังต้องตรวจ account, รูปแบบ marketplace และ payout จริง ไม่ถือว่ารองรับ escrow ตามที่ต้องการแล้ว
-
-แยก paid, refund eligibility, refund requested/succeeded และ payout status ทุกโหมดที่ร้านยกเลิก/จัดโต๊ะไม่ได้ต้องมีสิทธิ์คืนเต็มตามนโยบาย เงินเข้าหลัง hold หมดเป็น paid_unallocated ห้ามแย่งโต๊ะคืน
-
-## ความเหมาะสมกับ Hackathon
-
-คิว FIFO เหมาะกับโจทย์เปิดรับพร้อมกัน ค่า SQS สำหรับ pilot เล็กอาจอยู่ส่วนฟรี แต่ IAM/worker/recovery/testing ใช้เวลา ดู [COST_PLAN.md](./COST_PLAN.md) ราคา Singapore FIFO USD 0.50 ต่อ 1 ล้านที่คิดเงิน และฟรี 1 ล้าน requests/เดือนตามเงื่อนไขที่ตรวจ 5 พ.ย. 2569
-
-จำกัดก่อน: onboarding 3 ทาง, กฎหลัก, staff known customers, มัดจำ 3 โหมด sandbox, FIFO หนึ่งกลุ่มต่อ inventory, tests กรณีเสี่ยง ไม่ลงทุน full Rich Menu editor/ผังโต้ตอบก่อนปิด provider/payment decisions
-
-## อ้างอิง
-
-[SQS pricing](https://aws.amazon.com/sqs/pricing/), [AWS Price List](https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AWSQueueService/current/ap-southeast-1/index.json), [FIFO](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/FIFO-queues-understanding-logic.html), [LINE menu](https://developers.line.biz/en/docs/messaging-api/rich-menus-overview/), [LINE IDs](https://developers.line.biz/en/docs/messaging-api/getting-user-ids/), [PostgreSQL](https://www.postgresql.org/docs/current/rangetypes.html), [Omise PromptPay](https://docs.omise.co/promptpay), [Stripe PromptPay](https://docs.stripe.com/payments/promptpay) ตรวจ 5 พ.ย. 2569
+งานชำระเงิน มัดจำ คืนเงิน และ payout ยังอยู่ในแผน รวมถึง LINE webhook และการเผยแพร่ Rich Menu ผ่านระบบ ตอนเลือกระบบชำระเงิน ให้ทดสอบช่องทางจ่าย คืนเงิน และกรณีจ่ายหลังหมดเวลากันโต๊ะใน sandbox ก่อนเชื่อมเงินจริง
