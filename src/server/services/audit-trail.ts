@@ -7,6 +7,7 @@ import { verifyCheckpoints } from "./audit-checkpoints";
 import { getBooking } from "./bookings";
 
 async function timelineRows(venueId: string, options: { date?: string; bookingId?: string; q?: string; limit?: number; offset?: number }) {
+  // Ticket joins are only for historic audit entries; new evidence uses request queue_seq.
   const sql = db();
   const date = options.date ? sql`and (r.service_date = ${options.date} or a.details->>'service_date' = ${options.date}
     or a.details->>'serviceDate' = ${options.date}

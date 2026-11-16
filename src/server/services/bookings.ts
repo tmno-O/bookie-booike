@@ -28,13 +28,12 @@ function bookingFields(sql: ISql) {
     v.customer_cancel_enabled and b.status in ('confirmed', 'pending_allocation')
       and clock_timestamp() < b.service_at - make_interval(mins => v.cancel_cutoff_minutes) as can_cancel,
     case when proof.row_hash is not null then jsonb_build_object('reference', coalesce(proof.details->>'reference', b.reference),
-      'ticketSeq', coalesce(proof.details->>'ticket_seq', ticket.seq::text),
+      'queueSeq', coalesce(proof.details->>'queue_seq', request.queue_seq::text),
       'receivedAt', coalesce(proof.details->>'received_at', to_jsonb(request.received_at) #>> '{}'),
       'decidedAt', coalesce(proof.details->>'decided_at', to_jsonb(request.decided_at) #>> '{}'),
       'verifyCode', left(encode(proof.row_hash, 'hex'), 16)) end as receipt
     from bookings b join zones z on z.venue_id = b.venue_id and z.id = b.zone_id join venues v on v.id = b.venue_id
     join booking_requests request on request.id = b.request_id and request.venue_id = b.venue_id
-    left join queue_tickets ticket on ticket.id = request.ticket_id
     left join lateral (select row_hash, details from audit_logs a where a.venue_id = b.venue_id and a.entity_id = b.id
       and a.action in ('booking.confirmed', 'booking.pending_allocation') order by a.seq limit 1) proof on true`;
 }
@@ -44,8 +43,17 @@ function bookingView(row: BookingRow) {
 }
 
 export async function listBookings(access: Access, request: Request) {
-  const { limit, offset, date, status, zone, q } = input(bookingListQuery, Object.fromEntries(new URL(request.url).searchParams));
+  const params = new URL(request.url).searchParams;
+  const { limit, offset, date, status, zone, q } = input(bookingListQuery, Object.fromEntries(params));
   const sql = db();
+  if (access.customerId && params.get("active") === "1") {
+    const [row] = await sql<BookingRow[]>`
+      ${bookingFields(sql)}
+      where b.venue_id = ${access.venueId} and b.customer_id = ${access.customerId}
+        and b.id = (select booking_id from customer_active_booking(${access.venueId}, ${access.customerId}))
+    `;
+    return { bookings: row ? [bookingView(row)] : [], nextOffset: null };
+  }
   const ownership = access.customerId ? sql`and b.customer_id = ${access.customerId}` : sql``;
   const service = date ? sql`and b.service_date = ${date}` : sql``;
   const state = status ? sql`and b.status = ${status === "pending" ? "pending_allocation" : status}` : sql``;
@@ -94,17 +102,15 @@ export async function staffDashboard(venueId: string, serviceDate: string) {
       order by b.created_at desc, b.id desc
     `;
     const [inFlight] = await tx<{ count: number }[]>`
-      select ((
-        select count(*) from queue_tickets where venue_id = ${venueId} and status in ('waiting', 'ready')
-      ) + (
-        select count(*) from booking_requests where venue_id = ${venueId} and service_date = ${serviceDate}
-          and status in ('pending_publish', 'queued')
-      ))::int as count
+      select count(*)::int as count from booking_requests where venue_id = ${venueId} and service_date = ${serviceDate}
+        and status in ('pending_publish', 'queued')
     `;
     const zones = await zoneUsage(tx, venueId, serviceDate);
-    const [window] = await tx<{ maxAdvanceDays: number }[]>`select max_advance_days from queue_opening(${venueId})`;
+    const [window] = await tx<{ maxAdvanceDays: number; today: string }[]>`
+      select max_advance_days, to_char(today, 'YYYY-MM-DD') as today from booking_window(${venueId})
+    `;
     return {
-      serviceDate, today: bangkokDate(), maxAdvanceDays: window.maxAdvanceDays, bookings: rows.map(bookingView), zones,
+      serviceDate, today: window.today, maxAdvanceDays: window.maxAdvanceDays, bookings: rows.map(bookingView), zones,
       metrics: {
         bookings: rows.length,
         guests: rows.reduce((sum, row) => sum + row.partySize, 0),

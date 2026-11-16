@@ -19,13 +19,8 @@ function validateTarget(value: { tableId?: string; zoneId?: string }) {
   return Boolean(value.tableId) !== Boolean(value.zoneId);
 }
 
-const legacyBookingInput = z.strictObject({
-  venueId: id,
-  ...bookingFields,
-}).refine(validateTarget, "Specify either tableId or zoneId");
-
-export const ticketBookingInput = z.strictObject({ venueId: id, ticketId: id, zoneId: id, serviceDate, partyBucket });
-export const customerBookingInput = z.union([ticketBookingInput, legacyBookingInput]);
+export const zoneBookingFields = { serviceDate, partyBucket, contactName: contactInput.shape.name, contactPhone: contactInput.shape.phone };
+export const customerBookingInput = z.strictObject({ venueId: id, zoneId: id, ...zoneBookingFields });
 
 const legacyStaffBookingInput = z.strictObject({
   customerId: id,
@@ -43,7 +38,7 @@ export const requestStatus = z.object({
   bookingId: id.nullable(),
 });
 export const bookingStatus = z.enum(["confirmed", "pending_allocation", "checked_in", "cancelled"]);
-export const bookingReceipt = z.object({ reference: z.string(), ticketSeq: z.string().nullable(),
+export const bookingReceipt = z.object({ reference: z.string(), queueSeq: z.string().nullable(),
   receivedAt: instant, decidedAt: instant.nullable(), verifyCode: z.string().regex(/^[a-f0-9]{16}$/) });
 export const booking = z.object({
   id, venueId: id, customerId: id, tableId: id.nullable(), zoneId: id,
@@ -57,4 +52,4 @@ export const booking = z.object({
   receipt: bookingReceipt.nullable(),
 });
 export const cancellationInput = z.strictObject({ status: z.literal("cancelled") });
-export type BookingInput = z.infer<typeof legacyBookingInput>;
+export type BookingInput = { venueId: string } & Omit<z.infer<typeof legacyStaffBookingInput>, "customerId">;

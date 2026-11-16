@@ -10,12 +10,14 @@ async function sendLine(path: "push" | "multicast", sender: LineSender, body: ob
   let token: string;
   try { token = decryptSecret(sender.accessTokenCiphertext, `${sender.venueId}:access-token`); }
   catch { return { status: "dead", error: "INVALID_LINE_CIPHERTEXT" }; }
-  const response = await send(`https://api.line.me/v2/bot/message/${path}`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", "X-Line-Retry-Key": sender.retryKey },
-    signal: AbortSignal.timeout(5_000), body: JSON.stringify(body),
-  }).catch(() => null);
-  if (!response) return { status: "retry", error: "LINE_NETWORK_ERROR" };
+  let response: Response;
+  try {
+    response = await send(`https://api.line.me/v2/bot/message/${path}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", "X-Line-Retry-Key": sender.retryKey },
+      signal: AbortSignal.timeout(5_000), body: JSON.stringify(body),
+    });
+  } catch { return { status: "retry", error: "LINE_NETWORK_ERROR" }; }
   if (response.ok || (response.status === 409 && response.headers.has("x-line-accepted-request-id"))) return { status: "sent", error: null };
   return { status: response.status >= 500 || response.status === 429 ? "retry" : "dead", error: `LINE_HTTP_${response.status}` };
 }

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { AdminShell } from "../admin-shell";
 import TeamDialog from "../team-dialog";
 import { adminApi, asFailure, type Staff } from "../admin-api";
+import BookingLinkSettings from "./booking-link-settings";
 import styles from "../admin.module.css";
 import page from "./settings-pages.module.css";
 
@@ -128,6 +129,8 @@ export default function SettingsScreen() {
           <button type="button" className={styles.editLink} style={{ fontWeight: 500 }} onClick={() => setTeam(true)}>จัดการทีมและสิทธิ์ ›</button>
         </section>
       </form>
+
+      {canEdit && <BookingLinkSettings />}
 
       <nav className={page.links} aria-label="การตั้งค่าเพิ่มเติม">
         <Link href="/admin/settings/hours" className={page.linkBtn}>เวลาเปิด–ปิดร้าน ›</Link>

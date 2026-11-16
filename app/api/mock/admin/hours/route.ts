@@ -10,6 +10,8 @@ export const GET = route<Record<string, string>>(async (request) => {
   const staff = requireStaff(request);
   return json(await withDb((db) => ({
     standard: db.venue.schedule.standard,
+    maxAdvanceDays: db.venue.maxAdvanceDays,
+    timezone: db.venue.timezone,
     openWeekdays: db.venue.schedule.openWeekdays,
     service: db.venue.schedule.service,
     closures: db.venue.schedule.closures.map((c) => ({ ...c,

@@ -1,6 +1,6 @@
 # Deploy: Vercel + Supabase
 
-ฉบับ 13 พฤศจิกายน 2569 · production ที่แนะนำใช้ Vercel (เว็บ + API) กับ Supabase cloud (ฐานข้อมูล, Auth, คิว และ Cron) ด้วย `QUEUE_DRIVER=db` จึงไม่ต้องใช้ AWS SQS และไม่ต้องมี worker server
+อัปเดต 16 พฤศจิกายน 2569 · production ที่แนะนำใช้ Vercel (เว็บ + API) กับ Supabase cloud (ฐานข้อมูล, Auth, คิว และ Cron) ด้วย `QUEUE_DRIVER=db` จึงไม่ต้องใช้ AWS SQS และไม่ต้องมี worker server
 
 ## สถานะ
 
@@ -8,7 +8,7 @@
 | --- | --- |
 | โค้ดรองรับ deploy: pooler (`DATABASE_PREPARE`, `DATABASE_POOL_MAX`), คิวใน Postgres (`QUEUE_DRIVER=db`), `vercel.json` region `sin1` | อยู่ใน `main` แล้ว (PR #3) |
 | หลักฐาน k6 เทียบสองโหมด | [docs/evidence](evidence/README.md) |
-| Supabase cloud, Vercel project, LINE Login + LIFF | ยังไม่ได้ทำ ต้องใช้บัญชีเจ้าของ repo |
+| Supabase cloud, Vercel project, LINE Login + LIFF | เปิดใช้งานแล้วตามข้อมูลทีม (16 พ.ย. 2569) |
 
 ## ทำไมใช้คิวใน Postgres บน Vercel
 
@@ -78,9 +78,9 @@ Production ปฏิเสธ `LINE_VERIFY_MODE=mock` ลูกค้าจึ�
 ## 4. ตรวจบน cloud
 
 - [ ] `/api/health` ตอบ `ok: true`
-- [ ] เปิดลิงก์ LIFF ในแอป LINE บนมือถือ 2 เครื่อง เดินครบ: รับคิว → เลือกโซน → confirmed → การจองของฉัน
+- [ ] เปิดลิงก์ LIFF ในแอป LINE บนมือถือ 2 เครื่อง เดินครบ: เข้าสู่ระบบ → กรอกข้อมูล → เลือกโซน → confirmed → การจองของฉัน
 - [ ] Admin: login → dashboard → check-in → staff จองแทน → จัดสรรโซน
-- [ ] k6 burst กับโดเมนจริง ไล่ 500 → 2,000 → 5,000 ด้วยร้านทดสอบแยกแบบ `customer_picks` แล้วดู CPU และ connection ใน Supabase → Reports
+- [ ] รัน k6 บนสภาพแวดล้อมทดสอบแยก โดยเลือกโซนที่มีโต๊ะว่างหนึ่งโต๊ะ
 
 ## ข้อควรระวัง
 
@@ -91,7 +91,16 @@ Production ปฏิเสธ `LINE_VERIFY_MODE=mock` ลูกค้าจึ�
 
 ## 5. Booking and release notifications on Vercel
 
-Apply migrations with `npx supabase db push --include-all` (the policy migrations precede the existing floor-plan migration). Configure a Messaging API access token from the same LINE provider, `LINE_NOTIFICATIONS_ENABLED=true`, `LINE_VERIFY_MODE=real`, and a random `CRON_SECRET` of at least 32 characters in Vercel. In-app announcements work even when push is disabled or fails.
+Apply all pending migrations before deploying this branch. Configure a Messaging API access token under the same LINE provider, `LINE_NOTIFICATIONS_ENABLED=true`, `LINE_VERIFY_MODE=real`, and a random `CRON_SECRET` of at least 32 characters in Vercel. Set `BOOKING_PUBLIC_ORIGIN` to the public HTTPS site origin if the default Vercel production domain is unsuitable for links. In-app announcements work when push is disabled.
+
+Use one scheduler. Supabase Cron can call the existing POST endpoint every minute. Vercel Cron calls GET with `Authorization: Bearer $CRON_SECRET` and needs a plan that supports minute scheduling. Vercel Hobby supports daily jobs. See [Vercel Cron limits](https://vercel.com/docs/schedules/cron-jobs/usage-and-pricing).
+
+Verify whether the job already exists before changing the production schedule:
+
+```sql
+select jobid, jobname, schedule, active
+from cron.job where jobname = 'bookie-notifications';
+```
 
 Enable `pg_cron`, `pg_net`, and Vault in Supabase. Store the application URL and the same cron secret in Vault using the dashboard (names `bookie_app_url`, `bookie_cron_secret`). Schedule one POST per minute:
 
@@ -110,7 +119,7 @@ select cron.schedule('bookie-notifications', '* * * * *', $job$
 $job$);
 ```
 
-The endpoint reserves roughly 20 seconds for bounded deliveries, uses row locks to avoid overlapping workers, and retains stable LINE retry IDs. Check `net._http_response`, Cron run history, and `notification_outbox`, `announcement_outbox`, and `announcement_reminder_outbox`. Missing cron configuration returns 503, invalid credentials return 401, and disabled push preserves queued jobs. Apply `20261116000100_line_notification_scenarios.sql` before deploying the new worker code.
+The endpoint reserves roughly 20 seconds for deliveries. The worker commits an outbox lease before calling LINE and uses the same retry ID after a failure. Check Cron run history, the HTTP status from `pg_net`, and `GET /api/health` for aggregate outbox counts. Missing cron configuration returns 503, invalid credentials return 401, and disabled push preserves queued jobs. See [LINE notification audit](LINE_NOTIFICATIONS.md) for the rollout and smoke checks.
 
 Final booking decisions enqueue a LINE confirmation or a rejection with a customer-facing reason. Owners set the lead time for confirmed bookings and special days separately in `/admin/settings/notifications`. Both default to 24 hours. Booking reminders count back from the reservation time. Special-day reminders count back from the venue's local opening time and use the audience of the published announcement. Each reminder can be disabled. Changing a setting updates upcoming reminders that have yet to be attempted. Special-day announcements are sent when published and can also appear in the booking app.
 
@@ -147,4 +156,4 @@ A database administrator can rebuild the hash chain but cannot sign a new checkp
 
 `next.config.ts` sends `X-Frame-Options: DENY` and `frame-ancestors 'none'` on `/admin` and `/api`, `SAMEORIGIN` elsewhere, plus `nosniff`, `Referrer-Policy`, `Permissions-Policy` and HSTS. Check them after deploy with `curl -I https://<domain>/admin/login`.
 
-References: [Supabase scheduling with Vault and pg_net](https://supabase.com/docs/guides/functions/schedule-functions), [LINE LIFF redirect behavior](https://developers.line.biz/en/docs/liff/opening-liff-app/). The LIFF link supplies `next=waiting`; customers without saved contact details complete that step first.
+References: [Supabase scheduling with Vault and pg_net](https://supabase.com/docs/guides/functions/schedule-functions), [LINE LIFF redirect behavior](https://developers.line.biz/en/docs/liff/opening-liff-app/). LINE links restore `next=bookings` or `next=select` after LIFF initializes. The select link carries the release date.

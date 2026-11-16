@@ -11,10 +11,6 @@ export type Zone = { id: string; name: string; seats: number; status: "open" | "
 /** A zone holds one booking per table; one table seats 12 people. */
 export const TABLE_SEATS = 12;
 export const tablesFor = (zone: Zone) => Math.max(1, Math.ceil(zone.seats / TABLE_SEATS));
-export type QueueEntry = {
-  id: string; customerId: string; name: string; phone: string;
-  createdAt: string; startPosition: number; bookingId: string | null;
-};
 export type Booking = {
   id: string; reference: string; requestId: string; customerId: string; name: string; phone: string;
   serviceDate: string; party: string; zoneId: string; zoneName: string; createdAt: string;
@@ -38,8 +34,8 @@ export const DEFAULT_PROFILE: ShopProfile = {
 export type Invite = { id: string; email: string; role: "staff"; createdAt: string };
 export type Db = {
   venue: {
-    slug: string; name: string; timezone: string; queueStepSeconds: number; maxAdvanceDays: number;
-    /** Test hook: customers cannot join the queue before this instant (reset with opensInSeconds). */
+    slug: string; name: string; timezone: string; maxAdvanceDays: number;
+    /** Test hook: nights cannot open before this instant (reset with opensInSeconds). */
     holdUntil: string;
     schedule: Schedule;
   };
@@ -53,15 +49,14 @@ export type Db = {
   announcementOptOut: string[];
   invites: Invite[];
   floorPlan: { draft: FloorPlan | null; published: FloorPlan | null; publishedAt: string | null };
-  queue: QueueEntry[];
   bookings: Booking[];
+  bookingAttempts: { customerId: string; key: string; payloadHash: string; bookingId: string }[];
   seq: number;
 };
 
 export const PARTIES = ["1-4", "5-8", "9-12", "12+"] as const;
 /** Rough headcount per party bucket, used for dashboard guest totals and zone seat usage. */
 export const PARTY_SIZE: Record<string, number> = { "1-4": 4, "5-8": 8, "9-12": 12, "12+": 15 };
-export const QUEUE_AHEAD = 11; // people already waiting in front of the first customer
 const TZ = "Asia/Bangkok";
 
 export const today = (now = new Date()) =>
@@ -72,7 +67,7 @@ export function addDays(date: string, days: number) {
   return d.toISOString().slice(0, 10);
 }
 
-export function seed(opts: { opensInSeconds?: number; queueStepSeconds?: number } = {}): Db {
+export function seed(opts: { opensInSeconds?: number } = {}): Db {
   const now = new Date();
   const day = today(now);
   const zones: Zone[] = [
@@ -92,9 +87,8 @@ export function seed(opts: { opensInSeconds?: number; queueStepSeconds?: number 
   return {
     venue: {
       slug: "bookie-demo", name: "Bookie lyon.", timezone: TZ, maxAdvanceDays: 6,
-      holdUntil: new Date(now.getTime() + (opts.opensInSeconds ?? 0) * 1000).toISOString(),
+      holdUntil: new Date(opts.opensInSeconds ? now.getTime() + opts.opensInSeconds * 1000 : 0).toISOString(),
       schedule: structuredClone(DEFAULT_SCHEDULE),
-      queueStepSeconds: opts.queueStepSeconds ?? 2,
     },
     zones,
     lineUsers: [],
@@ -105,7 +99,7 @@ export function seed(opts: { opensInSeconds?: number; queueStepSeconds?: number 
     announcements: [], announcementOptOut: [],
     invites: [],
     floorPlan: { draft: null, published: null, publishedAt: null },
-    queue: [],
+    bookingAttempts: [],
     // Tonight's sample bookings (same as the admin designs). Pending requests do not hold a table until
     // staff allocate them. VIP (24 seats = 2 tables) has 1 of 2 tables taken, so one more customer booking fills it.
     bookings: [
@@ -127,6 +121,7 @@ async function load(): Promise<Db> {
   try {
     const db = JSON.parse(await readFile(file(), "utf8")) as Db;
     db.lineUsers ??= []; // databases saved before LINE login existed
+    db.bookingAttempts ??= [];
     db.profile ??= { ...DEFAULT_PROFILE };
     db.cancellation ??= { customerCancelEnabled: true, cancelCutoffMinutes: 120 };
     db.lineReminders ??= { bookingReminderHours: DEFAULT_REMINDER_HOURS, specialReminderHours: DEFAULT_REMINDER_HOURS };
@@ -170,13 +165,6 @@ export function withDb<T>(fn: (db: Db) => T | Promise<T>): Promise<T> {
 }
 
 export const reset = (opts?: Parameters<typeof seed>[0]) => withDb((db) => { Object.assign(db, seed(opts)); });
-
-export function queueState(db: Db, entry: QueueEntry, now = Date.now()) {
-  const step = db.venue.queueStepSeconds;
-  const advanced = step <= 0 ? Infinity : Math.floor((now - Date.parse(entry.createdAt)) / (step * 1000));
-  const position = Math.max(1, entry.startPosition - advanced);
-  return { position, ready: position === 1 };
-}
 
 export function zoneAvailability(db: Db, date: string) {
   return db.zones.map((zone) => {

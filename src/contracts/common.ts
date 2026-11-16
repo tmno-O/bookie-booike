@@ -9,5 +9,5 @@ export const label = z.string().trim().min(1).max(120);
 export const selectionMode = z.enum(["customer_picks", "auto_assign"]);
 export const status = z.enum(["active", "closed"]);
 export const errorResponse = z.object({
-  error: z.object({ code: z.string(), message: z.string() }),
+  error: z.object({ code: z.string(), message: z.string(), details: z.record(z.string(), z.string()).optional() }),
 });

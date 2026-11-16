@@ -1,6 +1,5 @@
-import WaitingScreen from "./waiting-screen";
+import { redirect } from "next/navigation";
 
-// Step 2 of 4 — waiting for booking to open (Figma "02 · รอเวลาเปิดจอง", node 169:394)
-export default async function WaitingPage({ params }: { params: Promise<{ slug: string }> }) {
-  return <WaitingScreen slug={(await params).slug} />;
+export default async function LegacyBookingPage({ params }: { params: Promise<{ slug: string }> }) {
+  redirect(`/book/${encodeURIComponent((await params).slug)}/select`);
 }

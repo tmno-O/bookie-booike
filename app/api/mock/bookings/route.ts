@@ -1,8 +1,12 @@
+import { randomUUID } from "node:crypto";
+import { idempotencyKey } from "@/contracts/booking";
+import { requireSameOrigin } from "@/lib/auth/permissions";
+import { sha256 } from "@/lib/crypto";
 import { ApiError } from "@/lib/errors";
-import { body, json, route } from "@/lib/http";
+import { body, input, json, route } from "@/lib/http";
 import { customerBookingView } from "@/mock/booking-view";
-import { addBooking, checkSlot } from "@/mock/booking";
-import { queueState, withDb } from "@/mock/db";
+import { activeBooking, addBooking, checkSlot } from "@/mock/booking";
+import { withDb } from "@/mock/db";
 import { isNightOpen } from "@/mock/schedule";
 import { assertMockEnabled, requireUser } from "@/mock/session";
 import { bookingInput } from "@/mock/validation";
@@ -11,35 +15,40 @@ export const GET = route<Record<string, string>>(async (request) => {
   assertMockEnabled();
   const bookings = await withDb((db) => {
     const customer = requireUser(db, request).id;
+    if (new URL(request.url).searchParams.get("active") === "1") {
+      const active = activeBooking(db, customer);
+      return active ? [customerBookingView(db, active)] : [];
+    }
     return db.bookings.filter((b) => b.customerId === customer)
     .sort((a, b) => a.serviceDate.localeCompare(b.serviceDate) || a.createdAt.localeCompare(b.createdAt)).map((b) => customerBookingView(db, b));
   });
-  return json({ bookings });
+  return json({ bookings, nextOffset: null });
 });
 
-// Turn a ready queue request into a booking. Safe to retry with the same payload.
+// Decide mock bookings under the JSON file lock. Replaying a key returns the same booking.
 export const POST = route<Record<string, string>>(async (request) => {
   assertMockEnabled();
-  const input = await body(request, bookingInput);
+  requireSameOrigin(request);
+  const payload = await body(request, bookingInput);
+  const key = input(idempotencyKey, request.headers.get("idempotency-key"));
+  const payloadHash = sha256(JSON.stringify(payload));
   const { booking, created } = await withDb((db) => {
     const customer = requireUser(db, request).id;
-    const entry = db.queue.find((e) => e.id === input.requestId && e.customerId === customer);
-    if (!entry) throw new ApiError(404, "NOT_FOUND", "Queue request not found");
-    if (entry.bookingId) {
-      const prior = db.bookings.find((b) => b.id === entry.bookingId)!;
-      if (prior.serviceDate === input.serviceDate && prior.party === input.party && prior.zoneId === input.zoneId) {
-        return { booking: prior, created: false };
-      }
-      throw new ApiError(409, "REQUEST_USED", "This queue request already has a booking");
+    const prior = db.bookingAttempts.find((attempt) => attempt.customerId === customer && attempt.key === key);
+    if (prior) {
+      if (prior.payloadHash === payloadHash) return { booking: db.bookings.find((b) => b.id === prior.bookingId)!, created: false };
+      throw new ApiError(422, "IDEMPOTENCY_CONFLICT", "Idempotency key already used with a different payload");
     }
-    if (!queueState(db, entry).ready) throw new ApiError(409, "NOT_YOUR_TURN", "Your queue turn has not arrived yet");
-    const zone = checkSlot(db, input.serviceDate, input.zoneId);
-    if (!isNightOpen(db, input.serviceDate)) throw new ApiError(409, "NIGHT_NOT_OPEN", "Booking has not opened for this night yet");
+    const active = activeBooking(db, customer);
+    if (active) throw new ApiError(409, "ACTIVE_BOOKING_EXISTS", "คุณมีการจองที่ยังใช้งานอยู่",
+      { bookingId: active.id, serviceDate: active.serviceDate });
+    const zone = checkSlot(db, payload.serviceDate, payload.zoneId);
+    if (!isNightOpen(db, payload.serviceDate)) throw new ApiError(409, "NIGHT_NOT_OPEN", "Booking has not opened for this night yet");
     const made = addBooking(db, {
-      requestId: entry.id, customerId: entry.customerId, name: entry.name, phone: entry.phone,
-      serviceDate: input.serviceDate, party: input.party, zone, channel: "line", requestedAt: entry.createdAt,
+      requestId: randomUUID(), customerId: customer, name: payload.contactName, phone: payload.contactPhone,
+      serviceDate: payload.serviceDate, party: payload.partyBucket, zone, channel: "line",
     });
-    entry.bookingId = made.id;
+    db.bookingAttempts.push({ customerId: customer, key, payloadHash, bookingId: made.id });
     return { booking: made, created: true };
   });
   return json({ booking }, { status: created ? 201 : 200 });

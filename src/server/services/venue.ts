@@ -9,7 +9,7 @@ import { liffChannel } from "@/lib/auth/line-verify";
 import { encryptSecret } from "@/lib/crypto";
 import type { Staff } from "@/lib/auth/staff-auth";
 import { staffAudit } from "./audit";
-import { queueOpening } from "./schedule";
+import { bookingSchedule } from "./schedule";
 
 export function staffChange<T>(
   staff: Staff,
@@ -47,18 +47,13 @@ export async function getVenue(lookup: { venueId: string } | { slug: string }, s
 
 export async function getPublicVenue(slug: string) {
   const venue = await getVenue({ slug });
-  const opening = await queueOpening(venue.id);
+  const opening = await bookingSchedule(venue.id);
   const [rule] = await db()`select coalesce(open_weekdays, array[0,1,2,3,4,5,6]::smallint[]) as open_weekdays,
     coalesce(closed, false) as closed from booking_rules where venue_id = ${venue.id} and scope = 'venue' order by version desc limit 1`;
   const closedDates = await db()`select to_char(service_date, 'YYYY-MM-DD') as service_date, reason
     from venue_closures where venue_id = ${venue.id}
       and service_date between ${opening.today}::date and ${opening.today}::date + ${opening.maxAdvanceDays}::int order by service_date`;
-  // Nights whose release time (the owner's "open N days before") has already passed.
-  const openNights = (await db()<{ night: string }[]>`
-    select to_char(d::date, 'YYYY-MM-DD') as night
-    from generate_series(${opening.today}::date, ${opening.today}::date + ${opening.maxAdvanceDays}::int, interval '1 day') d
-    where opens_at_for(${venue.id}, d::date) <= now() order by d`).map((row) => row.night);
-  return { ...venue, ...opening, openNights, openWeekdays: rule?.closed ? [] : rule?.openWeekdays ?? [0,1,2,3,4,5,6], closedDates, shop: shopProfile(venue) };
+  return { ...venue, ...opening, openWeekdays: rule?.closed ? [] : rule?.openWeekdays ?? [0,1,2,3,4,5,6], closedDates, shop: shopProfile(venue) };
 }
 
 export function shopProfile({ name, phone, address, entryPolicy }: z.infer<typeof shopProfileInput>) {
@@ -73,7 +68,16 @@ export async function changeVenue(
     const { allocationMode, largePartyMode, ...fields } = patch as typeof patch & {
       allocationMode?: "auto" | "manual"; largePartyMode?: "staff_review" | "disabled";
     };
-    if (Object.keys(fields).length) await tx`update venues set ${tx(columns(fields))} where id = ${staff.venueId}`;
+    if (Object.keys(fields).length) {
+      try {
+        await tx`update venues set ${tx(columns(fields))} where id = ${staff.venueId}`;
+      } catch (error) {
+        if (error instanceof postgres.PostgresError && error.code === "23505" && error.constraint_name === "venues_slug_key") {
+          throw new ApiError(409, "SLUG_TAKEN", "รหัสร้านนี้ถูกใช้แล้ว");
+        }
+        throw error;
+      }
+    }
     if (allocationMode) {
       await tx`insert into venue_settings (venue_id, allocation_mode) values (${staff.venueId}, ${allocationMode})
         on conflict (venue_id) do update set allocation_mode = excluded.allocation_mode`;
@@ -120,36 +124,47 @@ export async function rules(venueId: string) {
 
 export async function changeRule(staff: Staff, rule: z.infer<typeof ruleInput>) {
   return staffChange(staff, async (tx) => {
-    const zoneId = rule.scope === "zone" ? rule.scopeId! : null;
-    const tableId = rule.scope === "table" ? rule.scopeId! : null;
-    if (zoneId) {
-      const [zone] = await tx`select id from zones where venue_id = ${staff.venueId} and id = ${zoneId}`;
-      if (!zone) notFound("Zone");
+    const row = await saveRuleVersion(tx, staff, rule);
+    if (rule.scope === "venue" && rule.maxAdvanceDays !== undefined) {
+      await tx`
+        insert into venue_settings (venue_id, release_days_before) values (${staff.venueId}, ${rule.maxAdvanceDays ?? 30})
+        on conflict (venue_id) do update set release_days_before = excluded.release_days_before
+      `;
     }
-    if (tableId) {
-      const [table] = await tx`select id from venue_tables where venue_id = ${staff.venueId} and id = ${tableId}`;
-      if (!table) notFound("Table");
-    }
-
-    const [previous] = await tx`
-      select version, min_notice_minutes, max_advance_days, open_weekdays, closed, service_start, service_end
-      from booking_rules where venue_id = ${staff.venueId} and scope = ${rule.scope}
-        and zone_id is not distinct from ${zoneId}::uuid and table_id is not distinct from ${tableId}::uuid
-      order by version desc limit 1
-    `;
-    const { scope, scopeId, ...patch } = rule;
-    const { openWeekdays, ...fields } = { ...previous, ...patch, version: (previous?.version ?? 0) + 1 };
-    const [row] = await tx`
-      insert into booking_rules ${tx({
-        ...columns(fields), open_weekdays: openWeekdays == null ? null : tx.array(openWeekdays, 1005),
-        venue_id: staff.venueId, scope, zone_id: zoneId, table_id: tableId,
-      })}
-      returning id, scope, coalesce(zone_id, table_id) as scope_id, version,
-        min_notice_minutes, max_advance_days, open_weekdays, closed, service_start, service_end
-    `;
-    await staffAudit(tx, staff, "rule.version_added", scopeId ?? staff.venueId);
     return row;
   });
+}
+
+export async function saveRuleVersion(tx: postgres.TransactionSql, staff: Staff, rule: z.infer<typeof ruleInput>) {
+  const zoneId = rule.scope === "zone" ? rule.scopeId! : null;
+  const tableId = rule.scope === "table" ? rule.scopeId! : null;
+  if (zoneId) {
+    const [zone] = await tx`select id from zones where venue_id = ${staff.venueId} and id = ${zoneId}`;
+    if (!zone) notFound("Zone");
+  }
+  if (tableId) {
+    const [table] = await tx`select id from venue_tables where venue_id = ${staff.venueId} and id = ${tableId}`;
+    if (!table) notFound("Table");
+  }
+
+  const [previous] = await tx`
+    select version, min_notice_minutes, max_advance_days, open_weekdays, closed, service_start, service_end
+    from booking_rules where venue_id = ${staff.venueId} and scope = ${rule.scope}
+      and zone_id is not distinct from ${zoneId}::uuid and table_id is not distinct from ${tableId}::uuid
+    order by version desc limit 1
+  `;
+  const { scope, scopeId, ...patch } = rule;
+  const { openWeekdays, ...fields } = { ...previous, ...patch, version: (previous?.version ?? 0) + 1 };
+  const [row] = await tx`
+    insert into booking_rules ${tx({
+      ...columns(fields), open_weekdays: openWeekdays == null ? null : tx.array(openWeekdays, 1005),
+      venue_id: staff.venueId, scope, zone_id: zoneId, table_id: tableId,
+    })}
+    returning id, scope, coalesce(zone_id, table_id) as scope_id, version,
+      min_notice_minutes, max_advance_days, open_weekdays, closed, service_start, service_end
+  `;
+  await staffAudit(tx, staff, "rule.version_added", scopeId ?? staff.venueId);
+  return row;
 }
 
 export async function lineIntegration(venueId: string) {

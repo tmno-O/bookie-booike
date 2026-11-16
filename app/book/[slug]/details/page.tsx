@@ -6,6 +6,8 @@ import styles from "./details.module.css";
 const plex = IBM_Plex_Sans_Thai({ subsets: ["thai", "latin"], weight: ["400", "600"] });
 
 // Step 1 of 4 — booker details (Figma "01 · ข้อมูลผู้จอง · New flow", node 169:382)
+export const metadata = { title: "ข้อมูลผู้จอง" };
+
 export default async function DetailsPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   return (

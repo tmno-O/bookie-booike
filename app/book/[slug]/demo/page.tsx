@@ -1,7 +1,5 @@
-import BookingDemo from "../booking-demo";
+import { redirect } from "next/navigation";
 
-export default async function BookingDemoPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
-  const mock = process.env.NODE_ENV !== "production" && process.env.LINE_VERIFY_MODE === "mock";
-  return <main><BookingDemo slug={slug} mock={mock} /></main>;
+export default async function LegacyBookingPage({ params }: { params: Promise<{ slug: string }> }) {
+  redirect(`/book/${encodeURIComponent((await params).slug)}/select`);
 }

@@ -1,5 +1,4 @@
-// Posts table bookings without a queue ticket, so the server under test must run with DIRECT_BOOKING_ENABLED=true
-// (local only; production refuses to start with it).
+// Use a local venue and one mock LINE customer per booking request.
 import http from "k6/http";
 import { check, sleep } from "k6";
 import { Counter } from "k6/metrics";
@@ -8,7 +7,7 @@ const base = __ENV.BASE_URL || "http://localhost:3000";
 const date = __ENV.SERVICE_DATE;
 const run = __ENV.RUN_ID || Date.now().toString();
 const venueId = "10000000-0000-4000-8000-000000000001";
-const tableId = "30000000-0000-4000-8000-000000000002";
+const zoneId = __ENV.ZONE_ID || "20000000-0000-4000-8000-000000000002";
 const confirmed = new Counter("confirmed_bookings");
 const unavailable = new Counter("unavailable_bookings");
 
@@ -22,10 +21,10 @@ export const options = {
 };
 
 export function setup() {
-  if (!date) throw new Error("Set SERVICE_DATE to an unbooked service date for table A2");
-  const availability = http.get(`${base}/api/venues/${venueId}/availability?date=${date}`);
-  if (availability.status !== 200 || !availability.json("tables").some((table) => table.id === tableId && table.available)) {
-    throw new Error("Demo table A2 must be available before the load test");
+  if (!date) throw new Error("Set SERVICE_DATE to an bookable service date with one table left in the selected zone");
+  const availability = http.get(`${base}/api/venues/${venueId}/availability?date=${date}&partyBucket=1-4`);
+  if (availability.status !== 200 || !availability.json("zones").some((zone) => zone.id === zoneId && zone.available && zone.tablesLeft === 1)) {
+    throw new Error("Use an open zone with exactly one eligible table");
   }
 }
 
@@ -38,7 +37,7 @@ export default function contendForTable() {
   if (!check(login, { "mock session created": (response) => response.status === 200 })) return;
 
   const submitted = http.post(`${base}/api/booking-requests`, JSON.stringify({
-    venueId, serviceDate: date, tableId, partySize: 4,
+    venueId, serviceDate: date, zoneId, partyBucket: "1-4", contactName: `Load test ${__VU}`, contactPhone: "0812345678",
   }), { headers: { ...headers, "Idempotency-Key": `k6-${run}-${__VU}` } });
   if (!check(submitted, { "request accepted": (response) => response.status === 202 })) return;
 
@@ -52,7 +51,7 @@ export default function contendForTable() {
       return;
     }
     if (status === "rejected") {
-      if (check(resultCode, { "rejected only because table was taken": (code) => code === "TABLE_UNAVAILABLE" })) {
+      if (check(resultCode, { "rejected only because table was taken": (code) => code === "ZONE_FULL" })) {
         unavailable.add(1);
       }
       return;

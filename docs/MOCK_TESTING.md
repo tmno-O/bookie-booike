@@ -17,32 +17,30 @@ Follow the [local setup](../README.md#รันในเครื่อง) and 
 Keep `LINE_VERIFY_MODE=mock` for the local LINE account picker. This mode writes to Supabase. With the default `QUEUE_DRIVER=db` no worker is needed: the API decides requests from a Postgres queue right after responding. The optional `QUEUE_DRIVER=sqs` runs the booking worker through ElasticMQ.
 
 1. Open [/book/bookie-demo](http://localhost:3100/book/bookie-demo) in two browser profiles, or in one regular and one private window. Sign in with different accounts and enter a name and phone in each.
-2. Join the queue in both windows. With the default admission window of 1, the first ticket is ready and the second waits at position 2. Submit the first booking to advance the second ticket.
+2. Pick the same open night and zone in both windows. If one table is left, submit together and verify that only one booking is confirmed.
 3. Choose a night, party bucket and zone. Check the reference, contact information and status in the confirmation and My Bookings screens.
 4. Sign in at [/admin/login](http://localhost:3100/admin/login) with a seeded owner or staff account. Search a booking by reference and check in a confirmed booking for the current Bangkok service date. Try adding a booking by name and phone.
 5. Set `allocationMode` to `manual` through the [staff settings API](API_CONTRACT.md#พนักงาน). Make a booking, open its request in the admin queue and allocate it. A full zone brings up the alternate-zone picker. Restore `auto` for the next test.
 6. Try creating, resizing and closing a zone. As owner, edit standard hours, add and remove a special day, save the shop profile, and create and cancel a team invitation. Sign in as staff to verify the owner-only permissions.
 
-The real customer queue advances when a ready ticket is used or expires. The default ready window lasts 120 seconds. The `/api/mock/reset` helper resets the JSON mock data. Real-mode demo data lives in local Supabase.
+The `/api/mock/reset` helper resets the JSON mock data. Real-mode demo data lives in local Supabase.
 
 ## Mock LINE login
 
 `/login` offers three fake LINE accounts (เจ๊ม่อน `Umock0001`, พี่แมว `Umock0002`, น้องบี `Umock0003`) or a new typed name.
 It sends a mock ID token (`mock:<userId>:<displayName>`, same format as `LINE_VERIFY_MODE=mock`) to `POST /api/mock/line/login`,
 which sets the `mock_customer` cookie. `GET /api/mock/me` returns the profile, `POST /api/mock/line/logout` clears the cookie.
-Queue and booking APIs return `401 UNAUTHENTICATED` without a session. Logging in again as the same account brings back its bookings.
+Booking APIs return `401 UNAUTHENTICATED` without a session. Logging in again as the same account brings back its bookings.
 
 ## Flow
 
 0. **Login** (`/login`): choose a LINE account.
 1. **Details** (`/details`): name + phone (`0` then 8–9 digits). Saved in the browser session only.
-2. **Waiting** (`/waiting`): polls `GET /api/mock/venue`. "รับคิวจอง" is disabled until the venue opens, then calls `POST /api/mock/queue`.
-3. **Queue** (`/queue?r=<requestId>`): polls `GET /api/mock/queue/{id}`. Starts at position 12 and drops one place every `queueStepSeconds` (default 2s); at position 1 the button unlocks.
-4. **Select** (`/select?r=<requestId>`): `GET /api/mock/availability?date=`, then `POST /api/mock/bookings`.
-5. **Confirmed** (`/confirmed?b=<bookingId>`): `GET /api/mock/bookings/{id}`.
-6. **My bookings** (`/bookings`): `GET /api/mock/bookings`.
+2. **Select** (`/select`): fetch availability and submit `POST /api/mock/bookings` with an `Idempotency-Key`.
+3. **Confirmed** (`/confirmed?b=<bookingId>`): `GET /api/mock/bookings/{id}`.
+4. **My bookings** (`/bookings`): `GET /api/mock/bookings`.
 
-Each LINE account only sees its own queue entries and bookings.
+Old `/waiting` and `/queue` links redirect to `/select`. Each LINE account sees only its own bookings.
 
 ## Admin dashboard
 
@@ -53,7 +51,7 @@ separate from the customer LINE cookie, so you can be logged in as both in one b
 `GET /api/mock/admin/dashboard?date=YYYY-MM-DD` (staff only) returns the night's totals, booking list and zone seat usage.
 The page refreshes every 5 seconds, so customer bookings made in another window appear on their own.
 Guest counts are estimated from the party bucket (1–4 → 4, 5–8 → 8, 9–12 → 12, 12+ → 15).
-"รอจัดสรร" counts bookings awaiting zone allocation plus customers still waiting in the queue.
+"รอจัดสรร" counts bookings awaiting zone allocation.
 ### Add booking (staff-assisted)
 
 "+ เพิ่มการจอง" opens a dialog over the dashboard (`/admin/bookings/new`): fill in name, phone, night, party size and zone →
@@ -91,16 +89,13 @@ renaming updates existing bookings; a closed zone keeps its bookings but rejects
 ### Booking open times
 
 `/admin/hours` shows the standard rule ("ทุกคืน · เปิดจองล่วงหน้า 1 วัน · เวลา 20:00 น.") and a list of special days.
-"แก้ไขค่าเริ่มต้น" edits how many days before the night booking opens (0–7) and the time; "+ เพิ่มวันพิเศษ" adds a night with its
+"แก้ไขค่าเริ่มต้น" edits how many days before the night booking opens (0–365) and the time; "+ เพิ่มวันพิเศษ" adds a night with its
 own opening date and time (`opensOn` can't be after the night; one special day per night; "ลบ" removes it). Only the owner
 can edit (`403 FORBIDDEN` for `staff@bookie.test`, who sees the page read-only).
 APIs: `GET /api/mock/admin/hours`, `PUT .../hours/standard`, `POST .../hours/special`, `DELETE .../hours/special/{id}`.
 
-The schedule drives the customer side. Night D opens at the standard time N days before D (Bangkok time), or at the special
-day's date and time. Customers can't book a night before it opens (`409 NIGHT_NOT_OPEN`; the select screen shows "คืนนี้ยังไม่เปิดรับจอง ·
-เปิดรับจอง <time>" and disables the zones). The queue and the countdown on the waiting screen open when the first bookable night
-opens. With the default (1 day before, 20:00) tonight is open and tomorrow opens at 20:00 today. Staff-created bookings ignore the schedule.
-`opensInSeconds` on reset still holds the queue closed for testing the countdown.
+The picker lists open nights and displays the next opening time and countdown separately. Before a night opens, customer requests return `409 NIGHT_NOT_OPEN`. When the countdown ends, the picker refreshes and includes the new night.
+
 
 ### Shop settings and team
 
@@ -124,18 +119,17 @@ Every admin page from the Figma Admin file is now built (dashboard, booking list
 
 - Zones: VIP 24 seats (2 tables), Indoor 48 (4), Outdoor 60 (5), per night.
 - Tonight has 6 sample bookings (เจ๊ม่อน, คุณเมย์, คุณนัท, คุณแพรว, คุณบาส, คุณแนน) as in the admin designs; 3 are pending allocation. VIP has 1 of 2 tables taken, so one more customer booking fills it.
-- Bookable window: today through today + 6 days.
+- Seeded booking window: today through today + 6 days. Saving standard hours uses the same advance-day value for both the release and the window.
 
 ## Test helper
 
 `POST /api/mock/reset` restores seed data. Optional body:
 
 ```json
-{ "opensInSeconds": 30, "queueStepSeconds": 0.3 }
+{ "opensInSeconds": 30 }
 ```
 
-- `opensInSeconds`: venue opens this many seconds from now (shows the countdown on screen 2).
-- `queueStepSeconds`: seconds per queue position (`0` = instantly ready).
+Delay openings by 30 seconds to verify the countdown and automatic refresh on `/select`.
 
 ## Automated tests
 

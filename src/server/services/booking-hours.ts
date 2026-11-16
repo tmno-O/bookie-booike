@@ -3,24 +3,25 @@ import type { closureInput, serviceHoursInput, specialHours, standardHours } fro
 import type { Staff } from "@/lib/auth/staff-auth";
 import { db } from "@/lib/db";
 import { ApiError, notFound } from "@/lib/errors";
-import { bangkokDate } from "@/lib/service-date";
 import { staffAudit } from "./audit";
 import { fanoutAnnouncement } from "./announcements";
-import { changeRule, staffChange } from "./venue";
+import { changeRule, saveRuleVersion, staffChange } from "./venue";
 
 type Standard = z.infer<typeof standardHours>;
 type Special = z.infer<typeof specialHours>;
 
 export function getBookingHours(venueId: string) {
   return db().begin("isolation level repeatable read read only", async (tx) => {
-    const [standard] = await tx<Standard[]>`
-      select coalesce(s.release_days_before, 365) as days_before, coalesce(left(s.release_time::text, 5), '00:00') as time
-      from venues v left join venue_settings s on s.venue_id = v.id where v.id = ${venueId}
+    const [{ daysBefore, time, maxAdvanceDays, timezone }] = await tx<(Standard & { maxAdvanceDays: number; timezone: string })[]>`
+      select coalesce(s.release_days_before, 365) as days_before, coalesce(left(s.release_time::text, 5), '00:00') as time,
+        w.max_advance_days, v.timezone
+      from venues v left join venue_settings s on s.venue_id = v.id
+      cross join lateral booking_window(v.id) w where v.id = ${venueId}
     `;
     const specials = await tx<(Special & { id: string; opensAt: Date })[]>`
       select to_char(r.service_date, 'YYYY-MM-DD') as id, to_char(r.service_date, 'YYYY-MM-DD') as service_date,
-        to_char(opens_at at time zone 'Asia/Bangkok', 'YYYY-MM-DD') as opens_on,
-        to_char(opens_at at time zone 'Asia/Bangkok', 'HH24:MI') as time, opens_at, coalesce(r.title, '') as title,
+        to_char(opens_at at time zone ${timezone}, 'YYYY-MM-DD') as opens_on,
+        to_char(opens_at at time zone ${timezone}, 'HH24:MI') as time, opens_at, coalesce(r.title, '') as title,
         (select count(*)::int from announcement_outbox o join release_announcements a on a.id = o.announcement_id
           where a.venue_id = r.venue_id and a.service_date = r.service_date and a.opens_at = r.opens_at) as recipients,
         (select count(*)::int from announcement_outbox o join release_announcements a on a.id = o.announcement_id
@@ -36,7 +37,8 @@ export function getBookingHours(venueId: string) {
     `;
     const closures = await closureRows(tx, venueId);
     return {
-      standard, specials, openWeekdays: rule?.openWeekdays ?? [0,1,2,3,4,5,6], closures, canEdit: true,
+      standard: { daysBefore, time }, maxAdvanceDays, timezone, specials,
+      openWeekdays: rule?.openWeekdays ?? [0,1,2,3,4,5,6], closures, canEdit: true,
       // Same defaults as effective_rule() when the venue has not set its own service window.
       service: { start: rule?.start ?? "18:00", end: rule?.end ?? "02:00" },
     };
@@ -64,7 +66,7 @@ export async function saveOpenWeekdays(staff: Staff, openWeekdays: number[]) {
   const sql = db();
   const [row] = await sql<{ affectedBookings: number }[]>`
     select count(*)::int as affected_bookings from bookings
-    where venue_id = ${staff.venueId} and service_date >= ${bangkokDate()}::date
+    where venue_id = ${staff.venueId} and service_date >= (select today from booking_window(${staff.venueId}))
       and status in ('pending_allocation', 'confirmed')
       and not (extract(dow from service_date)::int = any(${sql.array(openWeekdays, 23)}))
   `;
@@ -75,7 +77,8 @@ export function saveServiceHours(staff: Staff, hours: z.infer<typeof serviceHour
 }
 export function addClosure(staff: Staff, closure: z.infer<typeof closureInput>) {
   return staffChange(staff, async (tx) => {
-    if (closure.serviceDate < bangkokDate()) throw new ApiError(422, "DATE_IN_PAST", "คืนที่เลือกผ่านมาแล้ว");
+    const [window] = await tx`select ${closure.serviceDate}::date < today as past from booking_window(${staff.venueId})`;
+    if (window.past) throw new ApiError(422, "DATE_IN_PAST", "คืนที่เลือกผ่านมาแล้ว");
     const [row] = await tx`
       insert into venue_closures (venue_id, service_date, reason, created_by)
       values (${staff.venueId}, ${closure.serviceDate}, ${closure.reason}, ${staff.userId})
@@ -122,6 +125,7 @@ export function saveStandardHours(staff: Staff, standard: Standard) {
       on conflict (venue_id) do update set
         release_days_before = excluded.release_days_before, release_time = excluded.release_time
     `;
+    await saveRuleVersion(tx, staff, { scope: "venue", maxAdvanceDays: standard.daysBefore });
     await staffAudit(tx, staff, "hours.standard_saved", staff.venueId);
     return { standard };
   });
@@ -129,12 +133,16 @@ export function saveStandardHours(staff: Staff, standard: Standard) {
 
 export async function addSpecialHours(staff: Staff, special: Special) {
   const saved = await staffChange(staff, async (tx) => {
-    if (special.serviceDate < bangkokDate()) throw new ApiError(422, "DATE_IN_PAST", "คืนที่เลือกผ่านมาแล้ว");
-    const [night] = await tx`select service_night_open(${staff.venueId}, ${special.serviceDate}) as open`;
+    const [night] = await tx`
+      select service_night_open(v.id, ${special.serviceDate}) as open,
+        ${special.serviceDate}::date < w.today as past, v.timezone
+      from venues v cross join lateral booking_window(v.id) w where v.id = ${staff.venueId}
+    `;
+    if (night.past) throw new ApiError(422, "DATE_IN_PAST", "คืนที่เลือกผ่านมาแล้ว");
     if (!night.open) throw new ApiError(409, "CLOSED", "ร้านปิดในคืนที่เลือก");
     const [row] = await tx<{ opensAt: Date }[]>`
       insert into booking_releases (venue_id, service_date, opens_at, title)
-      values (${staff.venueId}, ${special.serviceDate}, (${special.opensOn}::date + ${special.time}::time) at time zone 'Asia/Bangkok', ${special.title})
+      values (${staff.venueId}, ${special.serviceDate}, (${special.opensOn}::date + ${special.time}::time) at time zone ${night.timezone}, ${special.title})
       on conflict (venue_id, service_date) do nothing returning opens_at
     `;
     if (!row) throw new ApiError(409, "SPECIAL_DAY_EXISTS", "คืนนี้มีการตั้งเวลาเฉพาะอยู่แล้ว");

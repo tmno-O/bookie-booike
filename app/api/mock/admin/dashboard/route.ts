@@ -13,7 +13,6 @@ export const GET = route<Record<string, string>>(async (request) => {
   return json(await withDb((db) => {
     const night = db.bookings.filter((b) => b.serviceDate === date && b.status !== "cancelled")
       .sort((a, b) => a.reference.localeCompare(b.reference));
-    const waiting = db.queue.filter((e) => !e.bookingId).length;
     return {
       venueName: db.venue.name,
       serviceDate: date,
@@ -21,7 +20,7 @@ export const GET = route<Record<string, string>>(async (request) => {
       metrics: {
         bookings: night.length,
         guests: night.reduce((sum, b) => sum + PARTY_SIZE[b.party], 0),
-        pendingRequests: night.filter((b) => b.status === "pending").length + waiting,
+        pendingRequests: night.filter((b) => b.status === "pending").length,
         checkedIn: night.filter((b) => b.status === "checked_in").length,
       },
       bookings: night.map(({ id, reference, name, phone, party, zoneName, channel, status }) =>

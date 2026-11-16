@@ -1,132 +1,178 @@
 "use client";
 
-import Link from "next/link";
-import { waitForBooking } from "@/client/booking-result";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { serviceDate } from "@/contracts/common";
 import type { FloorPlan } from "@/lib/floor-plan";
 import FloorPlanView from "@/ui/floor-plan-view";
-import { api, asFailure, realApiMode, thaiDate } from "../flow";
+import { ActiveBookingNotice, useActiveBooking } from "../active-booking";
+import { api, asFailure, loadCustomer, readAttempt, saveAttempt, thaiDate, type BookingAttempt, type LineUser } from "../flow";
 import styles from "./select.module.css";
 
 const PARTIES = [{ label: "1–4", value: "1-4" }, { label: "5–8", value: "5-8" }, { label: "9–12", value: "9-12" }, { label: "12+", value: "12+" }];
 type Zone = { id: string; name: string; tablesLeft: number; available: boolean; closed?: boolean };
 const MAP_ZONES = ["VIP", "Indoor", "Outdoor"];
 type NightInfo = { zones: Zone[]; open: boolean; opensAt: string; closed?: boolean };
-const openText = (iso: string) =>
-  new Intl.DateTimeFormat("th-TH-u-ca-gregory", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Bangkok" }).format(new Date(iso));
-type Venue = { today: string; maxAdvanceDays: number; openNights?: string[]; openWeekdays: number[]; largePartyMode?: "staff_review" | "disabled";
-  closedDates: { serviceDate: string; reason: string }[]; shop?: { name: string; entryPolicy: string } };
+type Opening = { serviceDate: string; opensAt: string };
+type Venue = { openNights: string[]; upcomingNights: Opening[]; timezone: string; nextDateAt: string; largePartyMode?: "staff_review" | "disabled";
+  shop?: { name: string; entryPolicy: string } };
 
-const addDays = (date: string, days: number) => {
-  const d = new Date(`${date}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-};
+const openText = (iso: string, timeZone?: string) =>
+  new Intl.DateTimeFormat("th-TH-u-ca-gregory", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+    hourCycle: "h23", timeZone }).format(new Date(iso));
+const countdown = (seconds: number) => [Math.floor(seconds / 3600), Math.floor(seconds / 60) % 60, seconds % 60]
+  .map((number) => String(number).padStart(2, "0")).join(":");
 
-/** Nights the customer can pick: those the owner has already opened, else the whole booking window. */
-const nightsOf = (v: Venue) => v.openNights?.length ? v.openNights : Array.from({ length: v.maxAdvanceDays + 1 }, (_, i) => addDays(v.today, i));
-
-// Step 4 of 4 — pick night, party size and zone (Figma "04 · เลือกคืน จำนวนคน และโซน", node 169:388)
 export default function SelectForm({ slug }: { slug: string }) {
   const router = useRouter();
-  const requestId = useSearchParams().get("r");
+  const requested = serviceDate.safeParse(useSearchParams().get("date")).data;
+  const { active, refresh: refreshActive } = useActiveBooking(slug);
   const [venue, setVenue] = useState<Venue>();
   const [date, setDate] = useState("");
   const [party, setParty] = useState(0);
-  const [zones, setZones] = useState<Zone[]>([]);
-  const [night, setNight] = useState<{ open: boolean; opensAt: string; closed?: boolean }>({ open: true, opensAt: "" });
+  const [availability, setAvailability] = useState<NightInfo & { key: string }>();
   const [zoneId, setZoneId] = useState<string>();
   const [plan, setPlan] = useState<FloorPlan | null>(null);
+  const [customer, setCustomer] = useState<(NonNullable<ReturnType<typeof loadCustomer>> & { scope: string })>();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [returnTo, setReturnTo] = useState<"waiting" | "queue">();
-  const availabilityPath = `/availability?date=${date}${realApiMode ? `&partyBucket=${encodeURIComponent(PARTIES[party].value)}` : ""}`;
+  const [canResume, setCanResume] = useState(false);
+  const [scheduleVersion, setScheduleVersion] = useState(0);
+  const [availabilityVersion, setAvailabilityVersion] = useState(0);
+  const [now, setNow] = useState(Date.now);
+  const attempt = useRef<BookingAttempt | null>(null);
+  const userPickedDate = useRef(false);
+  const dates = venue?.openNights ?? [];
+  const upcoming = venue?.upcomingNights ?? [];
+  const earliest = upcoming.reduce<Opening | undefined>((first, entry) =>
+    !first || Date.parse(entry.opensAt) < Date.parse(first.opensAt) ? entry : first, undefined);
+  const next = upcoming.find((entry) => entry.serviceDate === requested) ?? earliest;
+  const nextAt = next ? Date.parse(next.opensAt) : 0;
+  const boundaries = [earliest?.opensAt, venue?.nextDateAt].flatMap((value) => value ? [Date.parse(value)] : []);
+  const refreshAt = boundaries.length ? Math.min(...boundaries) : undefined;
+  const remaining = Math.max(0, Math.ceil((nextAt - now) / 1000));
+  const partyBucket = PARTIES[party].value;
+  const availabilityKey = `${date}:${partyBucket}:${availabilityVersion}`;
+  const night = availability?.key === availabilityKey ? availability : undefined;
+  const zones = night?.zones ?? [];
+  const closed = night?.closed === true;
+  const refreshSchedule = useCallback(() => {
+    setScheduleVersion((v) => v + 1);
+    setAvailabilityVersion((v) => v + 1);
+  }, []);
 
-  // Only customers whose queue turn has arrived may pick a night.
   useEffect(() => {
-    if (!requestId) { router.replace(`/book/${slug}/waiting`); return; }
     const controller = new AbortController();
-    Promise.all([
-      api<{ status: string; bookingId?: string; bookingRequestId?: string }>(`/queue/${requestId}`, { signal: controller.signal }),
-      api<Venue>("/venue", { signal: controller.signal }),
-    ]).then(async ([queue, v]) => {
+    api<{ user: LineUser }>("/me", { signal: controller.signal }).then(({ user }) => {
       if (controller.signal.aborted) return;
-      if (queue.bookingId) router.replace(`/book/${slug}/confirmed?b=${queue.bookingId}`);
-      else if (queue.status === "waiting") router.replace(`/book/${slug}/queue?r=${requestId}`);
-      else if (queue.status === "expired") router.replace(`/book/${slug}/waiting`);
-      else if (queue.status === "used" && queue.bookingRequestId) {
-        setBusy(true);
-        const { booking } = await waitForBooking(`/api/me/booking-requests/${queue.bookingRequestId}`, controller.signal, true);
-        if (!controller.signal.aborted) router.replace(`/book/${slug}/confirmed?b=${booking.id}`);
-      } else { setVenue(v); setDate(nightsOf(v)[0] ?? v.today); }
+      const scope = `${slug}:${user.userId}`;
+      const saved = loadCustomer(scope);
+      if (!saved) { router.replace(`/book/${slug}/details${requested ? `?date=${requested}` : ""}`); return; }
+      setCustomer({ ...saved, scope });
+      attempt.current = readAttempt(scope);
+      setCanResume(attempt.current !== null);
     }).catch((e) => {
-      if (controller.signal.aborted) return;
-      const failure = asFailure(e);
-      if (failure.status === 404) router.replace(`/book/${slug}/waiting`);
-      else {
-        setError(failure.code === "ZONE_FULL" ? "โซนนี้เต็มแล้ว กรุณารับคิวใหม่" : failure.message);
-        setBusy(false);
-        if (failure.ticketUsed) setReturnTo(failure.code === "BOOKING_PROCESSING" ? "queue" : "waiting");
-      }
+      if (!controller.signal.aborted && asFailure(e).status !== 401) setError(asFailure(e).message);
     });
-    return () => { controller.abort(); };
-  }, [requestId, router, slug]);
+    return () => controller.abort();
+  }, [requested, router, slug]);
 
-  // The shop's published floor plan; without one the built-in map below is shown.
   useEffect(() => {
-    if (!venue) return;
-    let active = true;
-    api<{ plan: FloorPlan | null }>("/floor-plan").then((r) => { if (active) setPlan(r.plan); }).catch(() => undefined);
-    return () => { active = false; };
-  }, [venue]);
+    const controller = new AbortController();
+    api<Venue>("/venue", { signal: controller.signal }).then((v) => {
+      if (controller.signal.aborted) return;
+      setVenue(v);
+      setDate((current) => {
+        if (!userPickedDate.current && requested && v.openNights.includes(requested)) return requested;
+        return v.openNights.includes(current) ? current : v.openNights[0] ?? "";
+      });
+      setNow(Date.now());
+    }).catch((e) => { if (!controller.signal.aborted) setError(asFailure(e).message); });
+    return () => controller.abort();
+  }, [requested, scheduleVersion, slug]);
 
-  const loadZones = () => api<NightInfo>(availabilityPath)
-    .then((r) => { setZones(r.zones); setNight({ open: r.open, opensAt: r.opensAt, closed: r.closed }); return r.zones; });
+  useEffect(() => {
+    if (!refreshAt) return;
+    const timer = setTimeout(refreshSchedule, Math.max(0, refreshAt - Date.now()) + 150);
+    const clock = nextAt ? setInterval(() => setNow(Date.now()), 1000) : undefined;
+    return () => { clearTimeout(timer); clearInterval(clock); };
+  }, [nextAt, refreshAt, refreshSchedule]);
+
+  useEffect(() => {
+    const visible = () => { if (document.visibilityState === "visible") refreshSchedule(); };
+    window.addEventListener("focus", refreshSchedule);
+    document.addEventListener("visibilitychange", visible);
+    return () => {
+      window.removeEventListener("focus", refreshSchedule);
+      document.removeEventListener("visibilitychange", visible);
+    };
+  }, [refreshSchedule]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    api<{ plan: FloorPlan | null }>("/floor-plan", { signal: controller.signal })
+      .then((r) => { if (!controller.signal.aborted) setPlan(r.plan); }).catch(() => undefined);
+    return () => controller.abort();
+  }, [slug]);
+
   useEffect(() => {
     if (!date) return;
-    let active = true;
-    api<NightInfo>(availabilityPath)
-      .then((r) => { if (active) { setZones(r.zones); setNight({ open: r.open, opensAt: r.opensAt, closed: r.closed }); } }).catch((e) => active && setError(asFailure(e).message));
-    return () => { active = false; };
-  }, [availabilityPath, date]);
+    const controller = new AbortController();
+    api<NightInfo>(`/availability?date=${date}&partyBucket=${encodeURIComponent(partyBucket)}`, { signal: controller.signal })
+      .then((r) => { if (!controller.signal.aborted) setAvailability({ ...r, key: availabilityKey }); })
+      .catch((e) => { if (!controller.signal.aborted) setError(asFailure(e).message); });
+    return () => controller.abort();
+  }, [availabilityKey, date, partyBucket]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (!zoneId || !requestId) return;
+    if (!customer || busy) return;
+    const resumed = canResume ? attempt.current : null;
+    if (!resumed && (active !== null || !zoneId || !night?.open || !zones.some((z) => z.id === zoneId && z.available))) return;
+    const payload = resumed?.payload ?? JSON.stringify({ serviceDate: date, partyBucket, zoneId,
+      contactName: customer.name, contactPhone: customer.phone });
+    const same = attempt.current?.payload === payload ? attempt.current : null;
     setBusy(true); setError("");
     try {
+      const current = same ?? { payload, id: crypto.randomUUID() };
+      attempt.current = current;
+      saveAttempt(customer.scope, current);
       const { booking } = await api<{ booking: { id: string } }>("/bookings", {
-        method: "POST", body: { requestId, serviceDate: date, party: PARTIES[party].value, zoneId },
+        method: "POST", body: JSON.parse(current.payload), idempotencyKey: current.id,
       });
+      attempt.current = null;
+      setCanResume(false);
+      saveAttempt(customer.scope, null);
       router.push(`/book/${slug}/confirmed?b=${booking.id}`);
     } catch (e) {
       const failure = asFailure(e);
-      setError(failure.code === "ZONE_FULL" ? "โซนนี้เต็มแล้ว กรุณาเลือกโซนอื่น" : failure.code === "NIGHT_NOT_OPEN" ? "คืนนี้ยังไม่เปิดรับจอง" : failure.message);
+      setError(failure.code === "ZONE_FULL" ? "โซนนี้เต็มแล้ว กรุณาเลือกโซนอื่น"
+        : failure.code === "NIGHT_NOT_OPEN" ? "คืนนี้ยังไม่เปิดรับจอง"
+        : failure.code === "ACTIVE_BOOKING_EXISTS" ? (failure.details?.requestId ? "คำขอจองเดิมกำลังดำเนินการ" : "คุณมีการจองที่ยังใช้งานอยู่")
+        : failure.message);
+      if (failure.code === "ACTIVE_BOOKING_EXISTS") refreshActive();
       setBusy(false);
-      if (failure.ticketUsed || failure.code === "TICKET_NOT_READY") {
+      if (failure.requestFinal || (failure.status >= 400 && failure.status < 500 && failure.status !== 401)) {
+        attempt.current = null;
+        saveAttempt(customer.scope, null);
+      }
+      setCanResume(attempt.current !== null);
+      if (failure.code === "ZONE_FULL" || failure.code === "ZONE_CLOSED") {
         setZoneId(undefined);
-        setReturnTo(failure.code === "BOOKING_PROCESSING" ? "queue" : "waiting");
-      } else if (failure.code === "ZONE_FULL" || failure.code === "ZONE_CLOSED") {
-        setZoneId(undefined);
-        void loadZones().catch((error) => setError(asFailure(error).message));
+        setAvailabilityVersion((v) => v + 1);
+      }
+      if (["NIGHT_NOT_OPEN", "BOOKING_CLOSED", "DATE_OUT_OF_RANGE", "CLOSED"].includes(failure.code)) {
+        refreshSchedule();
       }
     }
   }
 
-  const closureReason = (day: string) => {
-    const closure = venue?.closedDates.find((c) => c.serviceDate === day);
-    if (closure) return closure.reason || "ร้านปิด";
-    if (venue && !venue.openWeekdays.includes(new Date(`${day}T00:00:00Z`).getUTCDay())) return "วันหยุดประจำสัปดาห์";
-    return null;
-  };
-  const closed = night.closed || !!closureReason(date);
   const zoneButton = (name: string, className = "") => {
     const zone = zones.find((z) => z.name === name);
     const full = zone ? !zone.available : false;
     const selected = !!zone && zoneId === zone.id;
     return (
-      <button type="button" key={name} aria-pressed={selected} disabled={!zone || full || !night.open || closed || busy || !!returnTo}
+      <button type="button" key={name} aria-pressed={selected} disabled={!zone || full || !night?.open || closed || busy || active !== null}
         className={`${styles.zone} ${className} ${selected ? styles.zoneOn : ""} ${full ? styles.zoneFull : ""}`}
         onClick={() => zone && setZoneId(zone.id)}>
         {name}{full && <span className={styles.full}>{zone?.closed ? "ปิด" : "เต็ม"}</span>}
@@ -137,17 +183,18 @@ export default function SelectForm({ slug }: { slug: string }) {
   return (
     <form className={styles.form} onSubmit={submit}>
       <div className={styles.body}>
-        <p className={styles.step}>ขั้นตอน 4 จาก 4</p>
+        <p className={styles.step}>ขั้นตอน 2 จาก 2</p>
         <h1 className={styles.title}>เลือกคืนและโซน</h1>
         <p className={styles.subtitle}>เลือกวันที่ จำนวนคน และพื้นที่ที่ต้องการ</p>
+        {active && <ActiveBookingNotice slug={slug} booking={active} />}
 
         <label className={styles.label} htmlFor="date">คืนที่ต้องการ</label>
         <div className={styles.dateField}>
-          <span>{date ? thaiDate(date) : "กำลังโหลด…"}</span><span className={styles.chev} aria-hidden>⌄</span>
-          {venue && <select id="date" className={styles.dateInput} value={date} disabled={busy || !!returnTo}
-            onChange={(e) => { setDate(e.target.value); setZoneId(undefined); setZones([]); }}>
-            {nightsOf(venue).map((day) =>
-              <option key={day} value={day} disabled={!!closureReason(day)}>{thaiDate(day)}{closureReason(day) ? ` · ร้านปิด: ${closureReason(day)}` : ""}</option>)}
+          <span>{date ? thaiDate(date) : venue ? "ยังไม่มีคืนเปิดจอง" : "กำลังโหลด…"}</span><span className={styles.chev} aria-hidden>⌄</span>
+          {venue && <select id="date" className={styles.dateInput} value={date} disabled={busy || !dates.length}
+            onChange={(e) => { userPickedDate.current = true; setDate(e.target.value); setZoneId(undefined); setError(""); }}>
+            {!dates.length && <option value="">ยังไม่มีคืนเปิดจอง</option>}
+            {dates.map((day) => <option key={day} value={day}>{thaiDate(day)}</option>)}
           </select>}
         </div>
 
@@ -155,8 +202,8 @@ export default function SelectForm({ slug }: { slug: string }) {
         <div className={styles.party} role="group" aria-labelledby="party-label">
           {PARTIES.map((p, i) => venue?.largePartyMode === "disabled" && p.value === "12+" ? null : (
             <button type="button" key={p.value} aria-pressed={party === i}
-              className={`${styles.pill} ${party === i ? styles.pillOn : ""}`} disabled={busy || !!returnTo}
-              onClick={() => { if (party !== i) { setParty(i); setZoneId(undefined); if (realApiMode) setZones([]); } }}>{p.label}</button>
+              className={`${styles.pill} ${party === i ? styles.pillOn : ""}`} disabled={busy}
+              onClick={() => { if (party !== i) { setParty(i); setZoneId(undefined); setError(""); } }}>{p.label}</button>
           ))}
         </div>
         {venue?.largePartyMode === "disabled" && <p className={styles.caption}>กลุ่มเกิน 12 คน กรุณาติดต่อร้านโดยตรง</p>}
@@ -169,7 +216,7 @@ export default function SelectForm({ slug }: { slug: string }) {
               <FloorPlanView plan={plan} selectedId={zoneId} onSelect={setZoneId}
                 zones={Object.fromEntries(zones.map((z) => [z.id, {
                   name: z.name, badge: z.available ? undefined : z.closed ? "ปิด" : "เต็ม",
-                  disabled: !z.available || !night.open || closed || busy || !!returnTo,
+                  disabled: !z.available || !night?.open || closed || busy || active !== null,
                 }]))} />
             </div>
             {zones.some((z) => !plan.zones.some((shape) => shape.zoneId === z.id)) && (
@@ -193,22 +240,26 @@ export default function SelectForm({ slug }: { slug: string }) {
             )}
           </>
         )}
-        {closed && <p role="status" className={styles.error}>ร้านปิด · {closureReason(date) || "คืนนี้ปิดรับจอง"}</p>}
-        {!closed && !night.open && night.opensAt && <p role="status" className={styles.error} style={{ color: "#b94e29" }}>คืนนี้ยังไม่เปิดรับจอง · เปิดรับจอง {openText(night.opensAt)} น.</p>}
+        {closed && <p role="status" className={styles.error}>ร้านปิด · {"คืนนี้ปิดรับจอง"}</p>}
+        {next && remaining > 0 && <div className={styles.caption}>
+          <p>{thaiDate(next.serviceDate)} · เปิดจอง {openText(next.opensAt, venue?.timezone)} น.</p>
+          <p role="timer" aria-label="เวลานับถอยหลังเปิดจอง">{countdown(remaining)}</p>
+        </div>}
+        {upcoming.length > 1 && <details className={styles.caption}>
+          <summary>เวลาเปิดจองคืนอื่น</summary>
+          <ul>{upcoming.filter((entry) => entry !== next).map((entry) =>
+            <li key={entry.serviceDate}>{thaiDate(entry.serviceDate)} · เปิดจอง {openText(entry.opensAt, venue?.timezone)} น.</li>)}</ul>
+        </details>}
+        {requested && venue && !dates.includes(requested) && !upcoming.some((entry) => entry.serviceDate === requested)
+          && <p className={styles.caption}>คืนที่ลิงก์ระบุยังไม่อยู่ในช่วงเปิดจอง: {thaiDate(requested)}</p>}
         <p className={styles.hint}>แตะพื้นที่บนผังเพื่อเลือกโซน</p>
         {venue?.shop?.entryPolicy && <p className={styles.caption} style={{ marginTop: 16, fontSize: 12 }}>นโยบายการเข้าร้าน: {venue.shop.entryPolicy}</p>}
         {error && <p role="alert" className={styles.error}>{error}</p>}
       </div>
       <div className={styles.footer}>
-        {returnTo ? (
-          <Link className={styles.cta} href={returnTo === "queue" ? `/book/${slug}/queue?r=${requestId}` : `/book/${slug}/waiting`}>
-            {returnTo === "queue" ? "ดูสถานะคำขอ" : "กลับไปรับคิวใหม่"}
-          </Link>
-        ) : (
-          <button type="submit" className={styles.cta} disabled={!zoneId || !night.open || closed || busy}>
-            {busy ? "กำลังจอง…" : zoneId ? "ยืนยันการจอง" : "เลือกโซนเพื่อดำเนินการต่อ"}
-          </button>
-        )}
+        <button type="submit" className={styles.cta} disabled={busy || !customer || (!canResume && (active !== null || !zoneId || !night?.open || closed))}>
+          {busy ? "กำลังจอง…" : canResume ? "ตรวจผลคำขอก่อนหน้า" : zoneId ? "ยืนยันการจอง" : "เลือกโซนเพื่อดำเนินการต่อ"}
+        </button>
       </div>
     </form>
   );

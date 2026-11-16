@@ -30,7 +30,7 @@ it("validates client fixtures", () => {
   expect(venuePublic.parse(venue)).toEqual(venue);
   expect(availability.parse(tables)).toEqual(tables);
 });
-it("rejects conflicting booking targets and impossible dates", () => {
-  expect(customerBookingInput.safeParse({ ...booking, zoneId: booking.tableId }).success).toBe(false);
+it("rejects legacy table selections and impossible dates", () => {
+  expect(customerBookingInput.safeParse({ ...booking, tableId: booking.zoneId }).success).toBe(false);
   expect(customerBookingInput.safeParse({ ...booking, serviceDate: "2026-02-30" }).success).toBe(false);
 });

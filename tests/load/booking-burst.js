@@ -1,5 +1,4 @@
-// Posts table bookings without a queue ticket, so the server under test must run with DIRECT_BOOKING_ENABLED=true
-// (local only; production refuses to start with it).
+// Use a local venue and one mock LINE customer per booking request.
 import http from "k6/http";
 import { Counter } from "k6/metrics";
 
@@ -13,10 +12,9 @@ function integer(name, fallback, max) {
 
 const count = integer("BOOKING_REQUESTS", 5000, 5000);
 const parallel = integer("MAX_IN_FLIGHT", count, count);
-const perSession = integer("REQUESTS_PER_SESSION", 25, 30);
 const base = __ENV.BASE_URL || "http://localhost:3100";
 const slug = __ENV.VENUE_SLUG || "bookie-demo";
-const tableId = __ENV.TABLE_ID || "30000000-0000-4000-8000-000000000002";
+const zoneId = __ENV.ZONE_ID || "20000000-0000-4000-8000-000000000002";
 const date = __ENV.SERVICE_DATE;
 const runId = __ENV.RUN_ID;
 const contentType = { "Content-Type": "application/json" };
@@ -40,17 +38,17 @@ export function setup() {
   if (!/^[A-Za-z0-9]{1,40}$/.test(runId ?? "")) throw new Error("Set RUN_ID to a new alphanumeric identifier");
 
   const venue = http.get(`${base}/api/venues/by-slug/${encodeURIComponent(slug)}`);
-  if (venue.status !== 200 || venue.json("tableSelectionMode") !== "customer_picks") {
-    throw new Error("Use a test venue configured for customer_picks");
+  if (venue.status !== 200 || venue.json("allocationMode") !== "auto") {
+    throw new Error("Use a local test venue with automatic allocation");
   }
   const venueId = venue.json("id");
-  const availability = http.get(`${base}/api/venues/${venueId}/availability?date=${date}`);
-  if (availability.status !== 200 || !availability.json("tables").some((table) => table.id === tableId && table.available && table.capacity >= 4)) {
-    throw new Error("The selected test table must be available and seat at least 4 people");
+  const availability = http.get(`${base}/api/venues/${venueId}/availability?date=${date}&partyBucket=1-4`);
+  if (availability.status !== 200 || !availability.json("zones").some((zone) => zone.id === zoneId && zone.available && zone.tablesLeft === 1)) {
+    throw new Error("Use an open zone with exactly one eligible table");
   }
 
   const sessions = [];
-  const sessionCount = Math.ceil(count / perSession);
+  const sessionCount = count;
   for (let offset = 0; offset < sessionCount; offset += 10) {
     const logins = Array.from({ length: Math.min(10, sessionCount - offset) }, (_, index) => ({
       method: "POST",
@@ -69,14 +67,14 @@ export function setup() {
 }
 
 export default function submitBurst({ venueId, sessions }) {
-  const body = JSON.stringify({ venueId, serviceDate: date, tableId, partySize: 4 });
+  const body = JSON.stringify({ venueId, serviceDate: date, zoneId, partyBucket: "1-4", contactName: "Burst test", contactPhone: "0812345678" });
   const requests = Array.from({ length: count }, (_, index) => ({
     method: "POST",
     url: `${base}/api/booking-requests`,
     body,
     params: {
       headers: { ...contentType, "Idempotency-Key": `burst-${runId}-${index}` },
-      cookies: { bookie_session: { value: sessions[Math.floor(index / perSession)], replace: true } },
+      cookies: { bookie_session: { value: sessions[index], replace: true } },
       tags: { phase: "booking" },
       timeout: "90s",
     },

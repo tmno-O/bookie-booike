@@ -10,9 +10,9 @@ export function BookingReceipt({ booking }: { booking: Booking }) {
   if (!receipt) return null;
   return <details style={{ marginBlock: 16 }}>
     <summary style={{ minHeight: 44, cursor: "pointer" }}>หลักฐานการจอง · {receipt.verifyCode}</summary>
-    <p>เลขอ้างอิง {receipt.reference}<br />เลข ticket {receipt.ticketSeq ?? "จองโดยไม่มี ticket"}<br />
+    <p>เลขอ้างอิง {receipt.reference}<br />ลำดับคำขอ {receipt.queueSeq ?? "–"}<br />
       รับคำขอ {timestamp(receipt.receivedAt)}<br />ตัดสิน {receipt.decidedAt ? timestamp(receipt.decidedAt) : "ยังไม่ตัดสิน"}<br />
       รหัสตรวจสอบ <code>{receipt.verifyCode}</code></p>
-    <p>ตำแหน่งคิวเปลี่ยนตามเวลา ใช้เลขอ้างอิงและรหัสตรวจสอบเทียบกับข้อมูลร้าน</p>
+    <p>ใช้เลขอ้างอิงและรหัสตรวจสอบเทียบกับข้อมูลร้าน</p>
   </details>;
 }

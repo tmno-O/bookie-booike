@@ -18,7 +18,7 @@ export function Shell({ slug, back, children, cta }: {
           <span className={styles.brand}>Bookie lyon.</span>
           <Link href={`/book/${slug}/bookings`} className={styles.mine}>การจองของฉัน</Link>
         </header>
-        <main className={styles.body}><AnnouncementBanner />{children}</main>
+        <main className={styles.body}><AnnouncementBanner slug={slug} />{children}</main>
         <div className={styles.footer}>
           {cta.href && !cta.disabled
             ? <Link href={cta.href} className={styles.cta}>{cta.label}</Link>

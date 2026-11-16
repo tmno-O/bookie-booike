@@ -1,8 +1,9 @@
+import { z } from "zod";
 import { body, json, route } from "@/lib/http";
 import { withDb } from "@/mock/db";
 import { assertMockEnabled } from "@/mock/session";
 import { requireOwner, requireStaff } from "@/mock/staff";
-import { settingsPatch } from "@/contracts/venue";
+import { settingsPatch, venueSlugPatch } from "@/contracts/venue";
 import { profileInput } from "@/mock/validation";
 
 // Shop info shown to customers and the booking entry policy. Staff can read; only the owner can save.
@@ -15,9 +16,11 @@ export const GET = route<Record<string, string>>(async (request) => {
 
 export const PATCH = route(async (request) => {
   assertMockEnabled(); requireOwner(request);
-  const { largePartyMode, bookingReminderHours, specialReminderHours, ...cancellation } = await body(request, settingsPatch.pick({
+  const patch = await body(request, z.union([venueSlugPatch, settingsPatch.pick({
     customerCancelEnabled: true, cancelCutoffMinutes: true, largePartyMode: true, bookingReminderHours: true, specialReminderHours: true,
-  }));
+  })]));
+  if ("slug" in patch) return json(await withDb((db) => ({ slug: db.venue.slug = patch.slug })));
+  const { largePartyMode, bookingReminderHours, specialReminderHours, ...cancellation } = patch;
   return json(await withDb((db) => {
     if (largePartyMode) db.largePartyMode = largePartyMode;
     if (bookingReminderHours !== undefined) db.lineReminders.bookingReminderHours = bookingReminderHours;

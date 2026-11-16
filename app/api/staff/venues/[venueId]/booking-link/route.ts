@@ -1,12 +1,9 @@
-import QRCode from "qrcode";
-import { ApiError } from "@/lib/errors";
 import { json } from "@/lib/http";
+import { bookingLinks } from "@/server/booking-link";
 import { staffRoute } from "@/server/staff-route";
 import { getVenue } from "@/server/services/venue";
 
-export const GET = staffRoute(async (_request, staff) => {
+export const GET = staffRoute(async (request, staff) => {
   const venue = await getVenue(staff);
-  if (!venue.liffId) throw new ApiError(409, "LINE_NOT_CONFIGURED", "LINE is not configured");
-  const url = `https://liff.line.me/${venue.liffId}`;
-  return json({ url, qrSvg: await QRCode.toString(url, { type: "svg" }) });
+  return json(await bookingLinks(new URL(request.url).origin, venue.slug, venue.liffId));
 });

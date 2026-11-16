@@ -1,7 +1,7 @@
 import { requestStatus } from "@/contracts/booking";
 import { apiRequest, type ApiFailure } from "./transport";
 
-export async function waitForBooking(path: string, signal?: AbortSignal, ticketUsed = false) {
+export async function waitForBooking(path: string, signal?: AbortSignal) {
   const deadline = Date.now() + 45_000;
   while (Date.now() < deadline) {
     const result = requestStatus.parse(await apiRequest(path, { signal }));
@@ -9,13 +9,13 @@ export async function waitForBooking(path: string, signal?: AbortSignal, ticketU
     if (result.status === "rejected") {
       throw {
         status: 409, code: result.resultCode ?? "BOOKING_REJECTED",
-        message: "คำขอจองไม่สำเร็จ", ticketUsed, requestFinal: true,
+        message: "คำขอจองไม่สำเร็จ", requestFinal: true,
       } satisfies ApiFailure;
     }
-    await new Promise((resolve) => setTimeout(resolve, 700));
+    await new Promise((resolve) => setTimeout(resolve, 400));
     signal?.throwIfAborted();
   }
   throw {
-    status: 503, code: "BOOKING_PROCESSING", message: "กำลังดำเนินการจอง กรุณาดูสถานะคำขออีกครั้ง", ticketUsed,
+    status: 503, code: "BOOKING_PROCESSING", message: "กำลังดำเนินการจอง กดยืนยันอีกครั้งเพื่อดูผลคำขอเดิม",
   } satisfies ApiFailure;
 }

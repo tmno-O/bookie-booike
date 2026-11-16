@@ -8,7 +8,7 @@ const parse = (text: string): unknown => {
   try { return JSON.parse(text); } catch { throw new ApiError(400, "INVALID_JSON", "Invalid JSON body"); }
 };
 
-// Test helper: restore seed data. Optional body: {"opensInSeconds":30,"queueStepSeconds":0}
+// Test helper: restore seed data. Optional body: {"opensInSeconds":30}
 export const POST = route<Record<string, string>>(async (request) => {
   assertMockEnabled();
   const text = await request.text();

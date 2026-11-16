@@ -9,6 +9,7 @@ import styles from "../admin.module.css";
 
 type Special = { id: string; serviceDate: string; opensOn: string; time: string; title: string; recipients: number; sent: number; failed: number };
 type Hours = { standard: Standard; specials: Special[]; canEdit: boolean; openWeekdays: number[];
+  maxAdvanceDays: number; timezone: string;
   closures: { serviceDate: string; reason: string; affectedBookings: number }[] };
 
 const thaiTime = (t: string) => `${t} น.`;
@@ -107,8 +108,9 @@ export default function HoursScreen() {
           </div>
           {hours?.canEdit && <button type="button" className={styles.editLink} onClick={() => setDialog("standard")}>แก้ไขค่าเริ่มต้น</button>}
         </div>
-        <p className={styles.ruleText}>{std ? `ทุกคืน · ${std.daysBefore === 0 ? "เปิดจองในคืนที่จอง" : `เปิดจองล่วงหน้า ${std.daysBefore} วัน`} · เวลา ${thaiTime(std.time)}` : error ? "–" : "กำลังโหลด…"}</p>
-        <p className={styles.cardSub}>กำหนดเวลาเปิดรับจองล่วงหน้าก่อนคืนที่ลูกค้าต้องการ</p>
+        <p className={styles.ruleText}>{std ? `เปิดจองล่วงหน้า ${std.daysBefore} วัน · เวลา ${thaiTime(std.time)}` : error ? "–" : "กำลังโหลด…"}</p>
+        {hours && <p className={styles.cardSub}>ลูกค้าเลือกวันได้ถึง {hours.maxAdvanceDays === 0 ? "คืนนี้" : `อีก ${hours.maxAdvanceDays} วัน`} · เวลาร้าน {hours.timezone}</p>}
+        {hours && std && hours.maxAdvanceDays !== std.daysBefore && <p className={styles.hintLine}>ค่าเดิมแยกกัน เมื่อบันทึกเวลามาตรฐาน ระบบจะใช้จำนวนวันเดียวกันทั้งสองค่า</p>}
       </section>
 
       <div className={styles.sectionHead}>

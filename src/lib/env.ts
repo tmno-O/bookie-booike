@@ -1,8 +1,10 @@
 import { z } from "zod";
+import { slug } from "@/contracts/common";
 
 const httpUrl = z.url({ protocol: /^https?$/ });
 const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  DEFAULT_VENUE_SLUG: z.preprocess((value) => value === "" ? undefined : value, slug.default("bookie-demo")),
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
   DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(50).default(10),
   DATABASE_PREPARE: z.enum(["true", "false"]).default("true").transform((value) => value === "true"),
@@ -15,11 +17,16 @@ const schema = z.object({
   LINE_VERIFY_MODE: z.enum(["real", "mock"]).default("real"),
   LINE_SECRET_KEY: z.string().regex(/^[0-9a-f]{64}$/i),
   LINE_NOTIFICATIONS_ENABLED: z.enum(["true", "false"]).default("false").transform((value) => value === "true"),
+  BOOKING_PUBLIC_ORIGIN: z.preprocess((value) => value === "" ? undefined : value,
+    z.url({ protocol: /^https$/ }).refine((value) => {
+      try {
+        const url = new URL(value);
+        return url.pathname === "/" && !url.search && !url.hash && !url.username && !url.password;
+      } catch { return false; }
+    }).optional()),
   CRON_SECRET: z.preprocess((value) => value === "" ? undefined : value, z.string().min(32).optional()),
   // Base64 PKCS#8 DER Ed25519 private key, kept outside the database so signed audit checkpoints cannot be forged there.
   AUDIT_SIGNING_KEY: z.preprocess((value) => value === "" ? undefined : value, z.string().regex(/^[A-Za-z0-9+/]+={0,2}$/).optional()),
-  // Lets customers book a table without a queue ticket (the /demo page and k6 load scripts). Never in production.
-  DIRECT_BOOKING_ENABLED: z.enum(["true", "false"]).default("false").transform((value) => value === "true"),
   BOOKING_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(30),
   BOOKING_MAX_RECEIVES: z.coerce.number().int().min(1).max(100).default(5),
 }).refine((env) => env.QUEUE_DRIVER !== "sqs" || env.SQS_QUEUE_URL, {
@@ -28,9 +35,6 @@ const schema = z.object({
 }).refine((env) => env.NODE_ENV !== "production" || env.LINE_VERIFY_MODE !== "mock", {
   path: ["LINE_VERIFY_MODE"],
   message: "Mock LINE verification is forbidden in production",
-}).refine((env) => env.NODE_ENV !== "production" || !env.DIRECT_BOOKING_ENABLED, {
-  path: ["DIRECT_BOOKING_ENABLED"],
-  message: "Booking without a queue ticket is forbidden in production",
 });
 
 export function parseEnv(input: Record<string, string | undefined>) {

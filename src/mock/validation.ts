@@ -1,19 +1,13 @@
 import { z } from "zod";
+import { zoneBookingFields } from "@/contracts/booking";
 import { PARTIES } from "./db";
 
-export const customerInput = z.strictObject({
-  name: z.string().trim().min(1).max(80),
-  phone: z.string().trim().regex(/^0\d{8,9}$/, "Phone must be 9–10 digits starting with 0"),
-});
 export const bookingInput = z.strictObject({
-  requestId: z.string().min(1).max(100),
-  serviceDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  party: z.enum(PARTIES),
+  ...zoneBookingFields,
   zoneId: z.string().min(1).max(100),
 });
 export const resetInput = z.strictObject({
   opensInSeconds: z.number().int().min(0).max(86400).optional(),
-  queueStepSeconds: z.number().min(0).max(60).optional(),
 });
 
 export const staffBookingInput = z.strictObject({
@@ -33,7 +27,6 @@ export const zonePatch = zoneInput.partial().refine((v) => Object.keys(v).length
 
 const clock = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Time must be HH:MM");
 const dateOnly = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
-export const standardHoursInput = z.strictObject({ daysBefore: z.number().int().min(0).max(30), time: clock });
 export const specialDayInput = z.strictObject({ serviceDate: dateOnly, opensOn: dateOnly, time: clock })
   .refine((d) => d.opensOn <= d.serviceDate, { message: "opensOn must not be after the night", path: ["opensOn"] });
 

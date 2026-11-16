@@ -1,5 +1,6 @@
 import type { ISql } from "postgres";
 import { db } from "@/lib/db";
+import { ApiError } from "@/lib/errors";
 import { getVenue } from "./venue";
 
 type ZoneAvailability = { id: string; name: string; tablesLeft: number; available: boolean; closed: boolean };
@@ -48,15 +49,14 @@ export function zoneAvailability(
 export async function venueAvailability(venueId: string, serviceDate: string, partySize = 1) {
   await getVenue({ venueId });
   return db().begin("isolation level repeatable read read only", async (tx) => {
+    const [night] = await tx<{ opensAt: Date; issue: string | null }[]>`
+      select opens_at_for(${venueId}, ${serviceDate}) as opens_at,
+        booking_window_issue(${venueId}, ${serviceDate}, now()) as issue
+    `;
+    if (night.issue === "DATE_OUT_OF_RANGE") throw new ApiError(422, night.issue, "วันที่อยู่นอกช่วงเปิดจอง");
     const tables = await tx`select * from venue_availability(${venueId}, ${serviceDate})`;
     const zones = await zoneAvailability(tx, venueId, serviceDate, partySize, { allowPending: true });
-    const [night] = await tx`
-      select s.opens_at, service_night_open(${venueId}, ${serviceDate}) and s.opens_at <= now()
-        and (closes_at is null or closes_at > now()) as night_open,
-        not service_night_open(${venueId}, ${serviceDate}) as closed
-      from (select opens_at_for(${venueId}, ${serviceDate}) as opens_at) s
-      left join booking_releases b on b.venue_id = ${venueId} and b.service_date = ${serviceDate}
-    `;
-    return { venueId, serviceDate, tables, zones, ...night };
+    return { venueId, serviceDate, tables, zones, opensAt: night.opensAt,
+      nightOpen: night.issue === null, closed: night.issue === "CLOSED" || night.issue === "BOOKING_CLOSED" };
   });
 }

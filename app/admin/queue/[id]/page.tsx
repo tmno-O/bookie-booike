@@ -1,6 +1,8 @@
 import { serviceDate } from "@/contracts/common";
 import QueueScreen from "../queue-screen";
 
+export const metadata = { title: "แอดมิน: จัดสรรโต๊ะ" };
+
 export default async function QueueRequestPage({ params, searchParams }: {
   params: Promise<{ id: string }>; searchParams: Promise<{ date?: string | string[] }>;
 }) {

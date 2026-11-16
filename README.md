@@ -24,9 +24,9 @@ npm run dev -- --port 3100
 
 **ทางเลือก SQS FIFO:** ตั้ง `QUEUE_DRIVER=sqs` ใน `.env.local` แล้วรัน `docker compose up -d` (ElasticMQ พอร์ต `9324`) และเปิด terminal แยกรัน `npm run worker`. ห้ามรันสองโหมดกับฐานข้อมูลเดียวกันพร้อมกัน เพราะ drain ของโหมด `db` จะหยิบคำขอ `queued` ของโหมด `sqs` ไปตัดสินด้วย.
 
-- [หน้าจองของลูกค้า](http://localhost:3100/book/bookie-demo) เดินจาก login ถึงรับคิว เลือกคืนและโซน แล้วดูผลกับประวัติการจอง. ใช้หน้าต่างปกติคู่กับหน้าต่างส่วนตัว หรือใช้สองโปรไฟล์เบราว์เซอร์ เพื่อเห็นคิวขยับหลังส่งคำขอแรก.
+- [หน้าจองของลูกค้า](http://localhost:3100/book/bookie-demo) เข้าสู่ระบบ LINE กรอกข้อมูลติดต่อ เลือกคืนและโซน แล้วยืนยันการจอง. ใช้สองโปรไฟล์เบราว์เซอร์เพื่อทดสอบลูกค้าสองคนกดจองโต๊ะสุดท้ายพร้อมกัน.
 - [หน้าแอดมิน](http://localhost:3100/admin/login) ใช้ `owner@bookie.test` หรือ `staff@bookie.test` กับรหัส local `BookieDemo123!`. เจ้าของจัดการเวลาเปิดจอง ข้อมูลร้าน และคำเชิญ. ทั้งสอง role จัดการจอง คิว เช็กอิน และโซน.
-- [เดโมเลือกโต๊ะผ่าน API เดิม](http://localhost:3100/book/bookie-demo/demo) (ต้องตั้ง `DIRECT_BOOKING_ENABLED=true` ในเครื่อง ไม่เช่นนั้นได้ `403 QUEUE_TICKET_REQUIRED`) และ [สถานะ DB กับคิว](http://localhost:3100/api/health) ใช้ทดสอบระบบเดิมและการเชื่อมต่อ.
+- [สถานะ DB กับคิว](http://localhost:3100/api/health) ใช้ตรวจการเชื่อมต่อและคำขอค้าง.
 
 `NEXT_PUBLIC_API_MODE=mock` ใช้ JSON mock สำหรับทั้งสองหน้าจอและเป็นค่าเริ่มต้น. รีสตาร์ต Next.js เมื่อเปลี่ยนโหมด. ตัวอย่างขั้นตอนทั้งสองแบบอยู่ใน [คู่มือทดสอบ](docs/MOCK_TESTING.md).
 
@@ -39,11 +39,14 @@ npm test
 npm run test:integration
 ```
 
-Integration tests ใช้ Supabase, ElasticMQ (`docker compose up -d`) และ LINE mock. `tests/integration/booking.test.ts` ทดสอบฟีเจอร์ทั้งหมดผ่านโหมด `sqs` จึงต้องพัก booking worker ของเดโม (ถ้าเปิดอยู่) ระหว่างรัน. Tests สร้างร้านกับคิวแยกชั่วคราวและล้างข้อมูลร้านทดสอบเมื่อจบ. `tests/integration/db-queue.test.ts` ทดสอบโหมด `QUEUE_DRIVER=db` (ลำดับคิว, drain พร้อมกัน, idempotency, retry แล้ว `SYSTEM_ERROR`, health).
+GitHub Actions รันตรวจโค้ด, Playwright และ integration tests ทุก push และ pull request. เปิด artifact `playwright-report` เพื่อดูรายงานและภาพแต่ละขั้นตอน.
+
+- Playwright ใช้ Chromium และ mock backend ครอบคลุมการจอง FCFS, countdown, ยกเลิกแล้วจองใหม่ และงานแอดมิน. ดูคำสั่งใน [e2e/README.md](e2e/README.md).
+- Integration tests ใช้ Supabase local (`supabase start`) และ ElasticMQ (`docker compose up -d elasticmq`). ตั้ง `.env.local` ตาม [.env.example](.env.example) ใช้ URL จาก `supabase status` และ `LINE_VERIFY_MODE=mock`. ชุดทดสอบครอบคลุมทั้ง Postgres queue และ SQS FIFO รวมถึง LINE outbox ด้วยตัวส่งจำลอง. พัก booking worker ของเดโมระหว่างทดสอบถ้าเปิดอยู่.
 
 ### k6 spike และ burst
 
-รันเมื่อเว็บทำงาน (และ booking worker ถ้าใช้โหมด `sqs`). สคริปต์จองโต๊ะตรงโดยไม่รับคิว จึงต้องเปิดเว็บด้วย `DIRECT_BOOKING_ENABLED=true` (ใช้ในเครื่องเท่านั้น production ปฏิเสธค่านี้). เลือกคืนอนาคตสองคืนที่โต๊ะ A2 ของ `bookie-demo` ยังว่าง. แต่ละชุดจองโต๊ะเดียวและบันทึกผล contention ในฐานข้อมูล local.
+รันกับเว็บในเครื่องที่ตั้ง `NEXT_PUBLIC_API_MODE=real`, `LINE_VERIFY_MODE=mock` (และรัน booking worker เมื่อใช้ `sqs`). เลือกคืนบริการที่เปิดจองแล้วและเหลือโต๊ะเดียวในโซนทดสอบ. ค่าเริ่มต้นคือโซน VIP ของ `bookie-demo`.
 
 ```powershell
 $env:BASE_URL = 'http://localhost:3100'
@@ -51,7 +54,7 @@ $env:SERVICE_DATE = [DateTimeOffset]::UtcNow.ToOffset([TimeSpan]::FromHours(7)).
 k6 run tests/load/booking-spike.js
 ```
 
-Burst เตรียม 200 sessions แยกกันแล้วส่งคำขอ session ละ 25 รายการ ภายใต้ rate limit 30 ต่อนาที. ตัวอย่างใช้ Docker และจำกัดจำนวนคำขอค้างพร้อมกันไว้ 250 รายการ. ปรับ `MAX_IN_FLIGHT` ตามทรัพยากรของเครื่อง และตั้ง `VENUE_SLUG` กับ `TABLE_ID` เพื่อใช้ร้านทดสอบอื่น.
+Burst เตรียมหนึ่งบัญชี LINE mock ต่อคำขอ. ตัวอย่างใช้ Docker และจำกัดคำขอพร้อมกันไว้ 250. ปรับ `MAX_IN_FLIGHT` ตามทรัพยากร และตั้ง `VENUE_SLUG` กับ `ZONE_ID` เพื่อใช้ร้านทดสอบอื่น.
 
 ```powershell
 $env:SERVICE_DATE = [DateTimeOffset]::UtcNow.ToOffset([TimeSpan]::FromHours(7)).AddDays(8).ToString('yyyy-MM-dd')
@@ -59,7 +62,7 @@ $env:RUN_ID = [guid]::NewGuid().ToString('N')
 $env:BOOKING_REQUESTS = '5000'
 $env:MAX_IN_FLIGHT = '250'
 $testPath = (Resolve-Path 'tests/load/booking-burst.js').Path
-docker run --rm --mount "type=bind,src=$testPath,dst=/burst.js,readonly" -e BASE_URL=http://host.docker.internal:3100 -e SERVICE_DATE -e RUN_ID -e BOOKING_REQUESTS -e MAX_IN_FLIGHT -e REQUESTS_PER_SESSION -e VENUE_SLUG -e TABLE_ID grafana/k6:latest run /burst.js
+docker run --rm --mount "type=bind,src=$testPath,dst=/burst.js,readonly" -e BASE_URL=http://host.docker.internal:3100 -e SERVICE_DATE -e RUN_ID -e BOOKING_REQUESTS -e MAX_IN_FLIGHT -e VENUE_SLUG -e ZONE_ID grafana/k6:latest run /burst.js
 ```
 
 ถ้าใช้ k6 ในเครื่อง ให้รัน `k6 run tests/load/booking-burst.js` กับ `BASE_URL=http://localhost:3100`. เกณฑ์คือ `booking_posts=5000` และ `booking_accepted=5000` ซึ่งนับ HTTP `202`. ดู latency ของ POST จาก `http_req_duration{phase:booking}`. หลังคิวว่าง ให้ตรวจผลตาม `RUN_ID`.
@@ -68,9 +71,9 @@ docker run --rm --mount "type=bind,src=$testPath,dst=/burst.js,readonly" -e BASE
 docker exec supabase_db_Hackathon-Final psql -U postgres -d postgres -c "select status, result_code, count(*) from public.booking_requests where idempotency_key like 'burst-${env:RUN_ID}-%' group by status, result_code;"
 ```
 
-สำหรับโต๊ะเดียวที่ว่าง ผลที่คาดคือ `confirmed` 1 และ `rejected/TABLE_UNAVAILABLE` 4,999. หากยังมี `queued` หรือ `pending_publish` ให้รอแล้วตรวจซ้ำ.
+สำหรับโต๊ะเดียวที่ว่าง ผลที่คาดคือ `confirmed` 1 และ `rejected/ZONE_FULL` 4,999. หากยังมี `queued` หรือ `pending_publish` ให้รอแล้วตรวจซ้ำ.
 
-### ผลทดสอบ local วันที่ 12 พฤศจิกายน 2569
+### ผลทดสอบ local ก่อนเปลี่ยนเป็น FCFS วันที่ 12 พฤศจิกายน 2569
 
 เทียบสองโหมดคิวด้วย burst 5,000 คำขอ ส่งพร้อมกัน 250 (รายละเอียด เงื่อนไข และไฟล์หลักฐานอยู่ใน [docs/evidence](docs/evidence/README.md)):
 
@@ -90,12 +93,13 @@ docker exec supabase_db_Hackathon-Final psql -U postgres -d postgres -c "select 
 
 ## พฤติกรรมและการกู้คืน
 
-- คิวเรียกทีละ 1 คนโดยค่าเริ่มต้น และให้เวลาเลือก 120 วินาที. คืนบริการมีเวลาเปิดจองตาม Bangkok และใช้วันพิเศษก่อนค่ามาตรฐาน.
+- ลูกค้าเลือกคืนที่เปิดจองแล้วและส่งคำขอได้เลย. แต่ละคืนมีเวลาเปิดจองของตัวเอง และวันพิเศษมีผลเหนือค่ามาตรฐาน.
+- ลูกค้า LINE มีได้หนึ่งการจองที่ยังใช้งานอยู่ต่อร้าน หรือหนึ่งคำขอที่กำลังประมวลผล. การยกเลิกคืนสิทธิ์ทันที. รายการที่ร้านจองแทนไม่นับโควตา.
 - `auto` เลือกโต๊ะว่างขนาดเล็กสุดที่พอในโซน. `manual` สร้างรายการรอจัดสรรและถือโต๊ะเมื่อยืนยัน. ตั้งผ่าน `PATCH /api/staff/venues/{venueId}/settings`. การจองที่ยืนยันและเช็กอินแล้วนับรวมในความจุของคืนบริการ.
 - เวลาให้บริการตามกฎร้านมีค่าเริ่มต้น `18:00–02:00` และช่วงจอง 30 วัน. กฎระดับโต๊ะมาก่อนโซนและร้าน. ลูกค้ายกเลิกก่อนเวลาให้บริการอย่างน้อย 120 นาทีโดยค่าเริ่มต้น.
 - `202` หมายถึงคำขอเข้าคิวแล้ว ยังไม่ใช่การจองสำเร็จ ให้ติดตามผลจาก status API.
-- โหมด `sqs` (ทางเลือก): `202` หลัง broker รับคำขอ. หากได้ `503 QUEUE_UNAVAILABLE` ให้ส่งซ้ำด้วย `Idempotency-Key` เดิม. Worker ตรวจ `pending_publish` และหมดอายุ ticket ทุก 15 วินาที (`npm run reconcile` ตรวจทันที). Worker ต่อ visibility ระหว่างประมวลผลและลบข้อความหลัง commit.
-- โหมด `db` (หลัก): คำขอบันทึกเป็น `queued` ใน transaction เดียวกับที่รับคำขอ (ได้ `queue_seq`). `drain_booking_requests()` หยิบเฉพาะคำขอเก่าสุดของแต่ละร้าน/คืน ล็อกด้วย `FOR UPDATE SKIP LOCKED` แล้ว commit ทีละรายการ จึงรันหลายตัวพร้อมกันได้โดยลำดับในคืนเดียวกันไม่สลับ. API เรียกหลังตอบด้วย `after()` แบบ exclusive และ Supabase Cron เรียกทุก 1 วินาทีเป็นตัวสำรอง. `booking_housekeeping()` ทำงานเก็บกวาดแทน reconcile. ลำดับคิวคือลำดับที่คำขอปรากฏในฐานข้อมูล (commit) ซึ่งเทียบเท่าลำดับที่ broker รับในโหมด `sqs`.
+- โหมด `sqs` (ทางเลือก): `202` หลัง broker รับคำขอ. หากได้ `503 QUEUE_UNAVAILABLE` ให้ส่งซ้ำด้วย `Idempotency-Key` เดิม. Worker ตรวจ `pending_publish` ทุก 15 วินาที (`npm run reconcile` ตรวจทันที). Worker ต่อ visibility ระหว่างประมวลผลและลบข้อความหลัง commit.
+- โหมด `db` (หลัก): คำขอบันทึกเป็น `queued` ใน transaction เดียวกับที่รับคำขอ (ได้ `queue_seq`). `drain_booking_requests()` หยิบเฉพาะคำขอเก่าสุดของแต่ละร้าน/คืน ล็อกด้วย `FOR UPDATE SKIP LOCKED` แล้ว commit ทีละรายการ จึงรันหลายตัวพร้อมกันได้โดยลำดับในคืนเดียวกันไม่สลับ. API เรียกหลังตอบด้วย `after()` แบบ exclusive และ Supabase Cron เรียกทุก 1 วินาทีเป็นตัวสำรอง. `booking_housekeeping()` ทำงานเก็บกวาดแทน reconcile. การรับคำขอในคืนเดียวกันล็อกจน commit ทำให้ `queue_seq` ตรงกับลำดับที่ฐานข้อมูลรับจริง. โหมด `sqs` ใช้ลำดับที่ broker รับ.
 - ทั้งสองโหมดเรียก `process_booking_request()` ตัวเดียวกัน. เมื่อ retry ครบ `BOOKING_MAX_RECEIVES` ระบบบันทึก `rejected/SYSTEM_ERROR` พร้อม audit. ติดตาม `pending_publish`, `queued` และ `notification_outbox` จากฐานข้อมูลฝั่ง server.
 
 ## Deploy, LINE และ SQS (ทางเลือก)
@@ -110,9 +114,9 @@ docker exec supabase_db_Hackathon-Final psql -U postgres -d postgres -c "select 
 
 ## การพิสูจน์ความถูกต้องของคิวและการจอง
 
-- `queue_tickets.seq` เป็น identity พร้อม unique constraint; active allocation หนึ่งโต๊ะต่อคืนถูกบังคับด้วย unique index การตัดสินและยกเลิกใช้ advisory lock ต่อร้าน/คืน
-- `queue_seq` คือเลขคำขอ DB; driver ประมวลผลหัวคิวที่ commit แล้วต่อร้าน/คืน คำขอที่ยังไม่ commit มองไม่เห็น ลำดับเลขที่จ่ายระหว่าง transaction พร้อมกันจึงไม่ใช่คำรับรองลำดับส่งจากอุปกรณ์ลูกค้า
-- `/admin/audit` แสดง ticket, queue_seq, เวลารับ/ตัดสินระดับมิลลิวินาที Asia/Bangkok, ผลปฏิเสธ, โต๊ะ/โซน และเบอร์ปิดบัง ค้นเลขอ้างอิงหรือเบอร์ 4 ตัวท้ายได้ Owner ส่งออก CSV ได้
+- ฐานข้อมูลบังคับ active allocation หนึ่งโต๊ะต่อคืนด้วย unique index. การตัดสินและยกเลิกใช้ advisory lock ต่อร้าน/คืน
+- `queue_seq` คือเลขคำขอ DB; ตัวระบายคิวประมวลผลหัวคิวที่ commit แล้วต่อร้าน/คืน. เวลาแตะปุ่มบนเครื่องลูกค้าไม่ใช่เวลาที่ฐานข้อมูลรับคำขอ
+- `/admin/audit` แสดง ticket เก่า, queue_seq, เวลารับ/ตัดสินระดับมิลลิวินาที Asia/Bangkok, ผลปฏิเสธ, โต๊ะ/โซน และเบอร์ปิดบัง ค้นเลขอ้างอิงหรือเบอร์ 4 ตัวท้ายได้ Owner ส่งออก CSV ได้
 - ทุกแถว `audit_logs` ต่อ hash chain ต่อร้าน พร้อม seq และ SHA-256 ของข้อมูลมาตรฐาน UTC; trigger ปฏิเสธ UPDATE/DELETE/TRUNCATE ตรวจด้วย `verify_audit_chain()` หรือปุ่มในหน้า audit ลูกค้าเทียบรหัส 16 hex บนใบยืนยันกับแถว `booking.confirmed` / `booking.pending_allocation` ของร้าน
 - Hash chain ตรวจพบการเปลี่ยนข้อมูลหรือการขาดหายใน chain ที่เก็บอยู่ ผู้มีสิทธิ์ระดับผู้ดูแล DB ยังปิด trigger แล้วเขียน chain ใหม่หรือลบท้าย chain ได้ ต้องเก็บ checkpoint (`lastSeq`, `headHash`) หรือสำเนาภายนอกเพื่อพิสูจน์เทียบย้อนหลัง รหัสสั้นไม่ใช่ลายเซ็นดิจิทัลหรือการยืนยันตัวบุคคล
 - ประวัติก่อน migration เก็บ hash ของข้อมูลเดิม และใช้ `created_at` เดิมแทน `received_at`; ไม่สามารถสร้างรายละเอียด/เวลาจริงย้อนหลังที่เดิมไม่ได้เก็บ
