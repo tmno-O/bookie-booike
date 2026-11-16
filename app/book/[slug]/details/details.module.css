@@ -1,7 +1,7 @@
 .root { position: fixed; inset: 0; overflow-y: auto; background: #fff; }
 .screen { position: relative; display: flex; flex-direction: column; min-height: 100%; max-width: 390px; margin: 0 auto; background: #fff; color: #25211f; }
 .header { position: relative; display: flex; align-items: center; justify-content: space-between; height: 60px; padding: 0 20px 0 12px; border-bottom: 1px solid #e8e5e1; }
-.back { display: grid; place-items: center; width: 40px; height: 48px; border-radius: 8px; font-size: 15px; font-weight: 600; color: #25211f; text-decoration: none; }
+.back { display: grid; place-items: center; width: 44px; height: 48px; border-radius: 8px; font-size: 34px; line-height: 1; font-weight: 400; padding-bottom: 4px; box-sizing: border-box; color: #25211f; text-decoration: none; }
 .brand { position: absolute; left: 50%; transform: translateX(-50%); font-size: 18px; font-weight: 600; white-space: nowrap; }
 .mine { font-size: 12px; color: #b94e29; text-decoration: none; }
 .body { flex: 1; padding: 28px 20px 0; }
