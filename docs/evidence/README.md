@@ -1,4 +1,27 @@
-# หลักฐานการทดสอบโหลด k6: ยิงคำขอจอง 5,000 รายการพร้อมกัน
+# หลักฐานการทดสอบ Bookie Bookie
+
+## ผล CI บน main
+
+ผลที่ตรวจแล้วหลัง PR #23 ที่ commit `44b8c61` [GitHub Actions](https://github.com/tmno-O/bookie-booike/actions/runs/43920496169)
+
+| ชุด | ผล | หลักฐานสำหรับนำเสนอ |
+| --- | --- | --- |
+| check | 106 unit tests พร้อม typecheck, lint และ build | [ผล CI](https://github.com/tmno-O/bookie-booike/actions/runs/43920496169) |
+| integration | 51 tests จาก 4 ไฟล์ | [เปิด job integration แล้วเลือก Run npm run test:integration](https://github.com/tmno-O/bookie-booike/actions/runs/43920496169/job/133486163790) |
+| e2e | 38 ขั้นตอน | [รายงานและภาพ Playwright](https://github.com/tmno-O/bookie-booike/actions/runs/43920496169/artifacts/14253722072) |
+
+Integration ใช้ Supabase local ลง migrations จริง และจำลองผลตอบกลับจาก LINE
+
+- API และคิว 20 เคส [booking.test.ts](../../tests/integration/booking.test.ts)
+- คิว Postgres 11 เคส [db-queue.test.ts](../../tests/integration/db-queue.test.ts)
+- กฎร้านและ audit 12 เคส [policies.test.ts](../../tests/integration/policies.test.ts)
+- LINE outbox, reminder และ retry 8 เคส [notification-scenarios.test.ts](../../tests/integration/notification-scenarios.test.ts)
+
+ให้อาจารย์ดูผล `51 passed` คู่กับเคส 50 คำขอแย่งโต๊ะสุดท้าย ซึ่งยืนยันหนึ่งรายการและปฏิเสธ 49 รายการ. ให้ร้านดูภาพจองสำเร็จ ยกเลิก แล้วจองใหม่ หรือเดโมบนมือถือด้วยบัญชีทดสอบหากต้องการพิสูจน์ข้อความเข้าแชต. Repository เป็น private จึงใช้ภาพสรุป CI หรือภาพเดโมสำหรับผู้ชมที่ไม่มีสิทธิ์เข้าถึง.
+
+## ผลย้อนหลังของ k6
+
+ผลด้านล่างเก็บจากโค้ดก่อนเปลี่ยนเป็น FCFS และรันในเครื่อง.
 
 ทดสอบเมื่อ 12 พฤศจิกายน 2569 ที่ commit `6f3f359` (branch `chore/deploy`) ด้วยสคริปต์ [`tests/load/booking-burst.js`](../../tests/load/booking-burst.js)
 

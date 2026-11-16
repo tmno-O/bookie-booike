@@ -1,4 +1,4 @@
-# Mock booking flow (local testing)
+# Bookie Bookie local testing
 
 With `NEXT_PUBLIC_API_MODE=mock` (the default), the customer and admin screens use mock APIs under `/api/mock/*`, backed by a JSON file
 (`.mock/db.json`, git-ignored, created on first use). No Docker, Supabase, SQS or LINE needed.
@@ -135,4 +135,7 @@ Delay openings by 30 seconds to verify the countdown and automatic refresh on `/
 
 ```bash
 npm test
+python e2e/run_tests.py --start-server
 ```
+
+With migrated local Supabase and ElasticMQ, run `npm run test:integration`. To run the LINE notification scenarios against local Supabase, use `npm run test:scenarios`. The suite simulates LINE HTTP responses. See the [Playwright instructions](../e2e/README.md) and [CI evidence](evidence/README.md).

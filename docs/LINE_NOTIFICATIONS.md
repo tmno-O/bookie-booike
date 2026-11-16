@@ -1,4 +1,4 @@
-# LINE notification audit
+# Bookie Bookie LINE notification audit
 
 | Event | Source and delivery |
 | --- | --- |
@@ -14,6 +14,6 @@ Previously, booking delivery held a PostgreSQL row lock during the LINE call and
 
 The worker retries network failures, HTTP 429 and 5xx up to five attempts, with backoff. LINE can accept the retry ID without delivering to a customer who has blocked the account. Bookie records LINE acceptance, not a read receipt. An in-flight push cannot be recalled after cancellation or opt-out, and cancellation is a separate event. Missing credentials or a missing recipient mark the job `skipped`. Unknown production cron state is separate from LINE login being connected. [LINE retry API](https://developers.line.biz/en/docs/messaging-api/retrying-api-request/) · [LIFF redirects](https://developers.line.biz/en/docs/liff/opening-liff-app/)
 
-Before the production rollout, verify the `bookie-notifications` job with the read-only query in [DEPLOY.md](DEPLOY.md). Apply pending migrations before deploying code that reads the lease columns. Check the first authenticated invocation and `/api/health`, then verify a booking and a cancellation with an authorized LINE test account. `pending` counts jobs released for delivery, including retries and jobs on lease. `oldestPendingAgeSeconds` measures age from creation or the scheduled due time. `dead` counts jobs that need investigation. The endpoint exposes aggregate counts only.
+For the deployed version, verify the `bookie-notifications` job with the read-only query in [DEPLOY.md](DEPLOY.md). Check that the pending migrations, including the lease columns, are applied before deploying the matching code. Check the first authenticated invocation and `/api/health`, then verify a booking and a cancellation with an authorized LINE test account. `pending` counts jobs released for delivery, including retries and jobs on lease. `oldestPendingAgeSeconds` measures age from creation or the scheduled due time. `dead` counts jobs that need investigation. The endpoint exposes aggregate counts only.
 
 Use one production scheduler. When minute-by-minute delivery is needed on Vercel Hobby, schedule `POST /api/internal/notifications/drain` through Supabase Cron. A Vercel plan with minute scheduling can use `GET` at the same endpoint. Both methods require `CRON_SECRET`. [Vercel Cron limits](https://vercel.com/docs/schedules/cron-jobs/usage-and-pricing)

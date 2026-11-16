@@ -14,5 +14,17 @@
       "startsAt": "2026-11-17T11:00:00.000Z",
       "endsAt": "2026-11-17T19:00:00.000Z"
     }
+  ],
+  "nightOpen": true,
+  "opensAt": "2026-11-16T13:00:00.000Z",
+  "closed": false,
+  "zones": [
+    {
+      "id": "20000000-0000-4000-8000-000000000001",
+      "name": "โซนหลัก",
+      "tablesLeft": 1,
+      "available": true,
+      "closed": false
+    }
   ]
 }

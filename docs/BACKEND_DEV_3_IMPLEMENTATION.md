@@ -1,6 +1,8 @@
-# Backend development 3 — implementation record
+# Bookie Bookie backend development 3
 
-## Latest project examined
+> Historical implementation and verification record before PR #22. Current booking flow and test results are in the [project summary](PROJECT_SUMMARY.md) and [CI evidence](evidence/README.md).
+
+## Starting point
 
 Implementation started from `origin/main` commit `928a998`, which includes the new owner floor-plan editor and published customer zone picker. Next.js routes validate Zod contracts and session/tenant permissions, TypeScript services perform configuration/read operations, and Postgres functions own allocation, cancellation, ticket admission, and locking. Both database and optional SQS drivers call the same booking decision function. Existing uncommitted project exploration/summary documents were left out of feature commits.
 
@@ -24,6 +26,6 @@ Implementation started from `origin/main` commit `928a998`, which includes the n
 
 ## Deployment and evidence boundaries
 
-Apply migrations with `npx supabase db push --include-all`; the requested policy migration numbers precede the already-existing floor-plan migration. Configure `CRON_SECRET`, LINE push, and Supabase Cron using [DEPLOY.md](DEPLOY.md). Cron configuration is documented, not provisioned against cloud accounts.
+This round introduced policy migrations with versions earlier than the floor-plan migration. For the current rollout and Cron checks, follow the [deployment guide](DEPLOY.md). The verification in this record used local services.
 
 Hash verification proves consistency against retained chain data. A DB administrator can disable triggers and rewrite the entire chain or remove its tail; external checkpoints/exports are needed to detect that. Legacy timestamps and details cannot be reconstructed. Receipt short hashes support comparison with staff evidence, not identity verification. The build retains the pre-existing mock filesystem tracing warning.

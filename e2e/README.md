@@ -1,6 +1,6 @@
-# Bookie Lyon Playwright tests
+# Bookie Bookie Playwright tests
 
-Run customer and admin flows in Chromium against a disposable mock database. Each step records a screenshot.
+Run customer and admin flows in Chromium against a disposable mock database. Each step records a screenshot. Use the [test evidence guide](../docs/evidence/README.md) for the latest verified CI baseline and presentation examples.
 
 ## Setup
 

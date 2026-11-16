@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Automated UI test for Bookie Lyon (customer flow + admin pages).
+"""Automated UI test for Bookie Bookie (customer flow + admin pages).
 
 Drives a real Chromium browser with Playwright, clicks through the app like a macro and
 saves a screenshot of every step into a new timestamped folder next to this script:
@@ -560,7 +560,7 @@ def write_report(run: Run, base: str, started: datetime, seconds: float) -> None
     passed = sum(r.status == "PASS" for r in run.results)
     failed = len(run.results) - passed
     lines = [
-        f"# Bookie Lyon UI test — {started:%Y-%m-%d %H:%M:%S}", "",
+        f"# Bookie Bookie UI test — {started:%Y-%m-%d %H:%M:%S}", "",
         f"- App: {base}", f"- Result: **{'PASS' if not failed else 'FAIL'}** ({passed} passed, {failed} failed)",
         f"- Duration: {seconds:.1f}s", "", "| # | Flow | Step | Result | Seconds | Notes | Screenshot |", "|---|---|---|---|---|---|---|",
     ]
@@ -573,7 +573,7 @@ def write_report(run: Run, base: str, started: datetime, seconds: float) -> None
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Bookie Lyon automated UI test")
+    parser = argparse.ArgumentParser(description="Bookie Bookie automated UI test")
     parser.add_argument("--base-url", default="http://localhost:3100")
     parser.add_argument("--headed", action="store_true", help="show the browser window")
     parser.add_argument("--chrome", action="store_true", help="use the installed Google Chrome (implies --headed)")

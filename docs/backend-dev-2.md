@@ -1,8 +1,8 @@
-# แผนต่อ: เชื่อม Frontend เข้ากับ Backend จริง (bookie-booike)
+# แผนเชื่อม Frontend กับ Backend ของ Bookie Bookie
 
-> **สถานะ 13 พ.ย. 2569:** ทำครบทุกขั้นแล้ว (PR #2) เก็บไว้เป็นบันทึก. ขั้น deploy ย้ายไปที่ [DEPLOY.md](DEPLOY.md) และใช้ Vercel + Supabase ด้วย `QUEUE_DRIVER=db` แทน SQS/worker บน cloud.
+> **สถานะ 13 พ.ย. 2569:** ทำครบทุกขั้นแล้ว (PR #2) เก็บไว้เป็นบันทึก. ขั้น deploy ย้ายไปที่ [DEPLOY.md](DEPLOY.md) และใช้ Vercel + Supabase ด้วย `QUEUE_DRIVER=db` แทน SQS/worker บน cloud. Flow ห้องรอในบันทึกนี้ถูกแทนด้วย FCFS ภายหลังใน PR #22. ดู [สรุปปัจจุบัน](PROJECT_SUMMARY.md).
 
-## Context — สถานะปัจจุบัน (เช็ค 12 พ.ย. 2569)
+## จุดเริ่มต้นของงาน ณ 12 พฤศจิกายน 2569
 
 **Frontend (tmno-O, merge PR #1 เมื่อ 11 พ.ย.)** — UI ครบทุกหน้า Figma แต่ยิง `/api/mock/*` ทั้งหมด (JSON file `.mock/db.json`)
 - ลูกค้า 6 จอ: login LINE (mock) → details → waiting (นับถอยหลังเปิดจอง) → queue (เลขคิวลดลง) → select (คืน/จำนวนคน bucket `1-4|5-8|9-12|12+`/โซน) → confirmed → my bookings

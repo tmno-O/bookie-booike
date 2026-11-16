@@ -1,4 +1,4 @@
-# Bookie API
+# Bookie Bookie API
 
 JSON ใช้ camelCase. ส่ง `Content-Type: application/json` เมื่อมี body. ข้อผิดพลาดคืน `{"error":{"code":"NOT_FOUND","message":"Booking not found"}}`. ดู [Zod contracts](../src/contracts/) และ [fixtures](fixtures/).
 
@@ -28,7 +28,7 @@ JSON ใช้ camelCase. ส่ง `Content-Type: application/json` เมื�
 
 | Method และ path | สัญญา |
 | --- | --- |
-| `GET /api/health` | คืน `{ok,checks:{database,queue}}` และ `503` เมื่อมีส่วนใดล่ม. โหมด `db` ไม่เช็ค SQS เพราะคิวอยู่ในฐานข้อมูล |
+| `GET /api/health` | คืน `{ok,checks:{database,queue,outbox},backlog,outbox}` และ `503` เมื่อ check ใดล้มเหลว. `backlog` สรุปคำขอ `queued` และ `pending_publish`. `outbox` สรุปงานส่ง LINE และเตือนที่ถึงเวลา รวมถึงยอด `dead`. |
 
 ## พนักงาน
 
@@ -56,13 +56,14 @@ JSON ใช้ camelCase. ส่ง `Content-Type: application/json` เมื�
 | `GET /team` | คืน `{members,invites,canEdit}`. เจ้าของเห็นคำเชิญที่บันทึกไว้ |
 | `POST /team/invites`, `DELETE /team/invites/{id}` | เจ้าของบันทึกหรือยกเลิกคำเชิญ `{email,role:"staff"}`. อีเมลซ้ำได้ `INVITE_EXISTS` และสมาชิกเดิมได้ `ALREADY_MEMBER` |
 | `GET/PATCH /`, `GET/PATCH /rules`, `GET/PUT /releases` | อ่านข้อมูลร้าน กฎบริการ และเวลาเปิดรับรายคืน. การแก้ไขต้องเป็นเจ้าของ. กฎระดับโต๊ะมาก่อนโซนและร้าน ค่าที่เป็น null สืบทอดจาก scope ถัดไป |
-| `GET/PATCH /line-integration`, `GET /booking-link` | ค่า LINE integration และลิงก์เว็บ `{slug,webUrl,webQrSvg}` กับลิงก์ LIFF `{url,qrSvg}` (เป็น `null` ถ้าไม่ได้ตั้ง LIFF). API ส่งเพียงสถานะว่าตั้งค่า secret แล้ว |
+| `GET/PATCH /line-integration`, `GET /booking-link` | Owner อ่านและตั้งค่า LINE integration โดย API ส่งเพียงสถานะ secret. Staff หรือ owner อ่านลิงก์เว็บ `{slug,webUrl,webQrSvg}` และลิงก์ LIFF `{url,qrSvg}` (เป็น `null` ถ้าไม่ได้ตั้ง LIFF) |
 
-เจ้าของร้านเปลี่ยน `slug` ด้วย `PATCH /api/staff/venues/{venueId}` หรือ `PATCH .../settings` โดยส่ง `{slug}`. รหัสซ้ำคืน `409 SLUG_TAKEN`. ถ้าเปลี่ยนรหัสร้านที่เชื่อม LINE แล้ว ให้ตั้ง LIFF Endpoint URL เป็น `<webUrl>/login` และอัปเดต Rich Menu. ถ้าเป็นร้านเริ่มต้น ให้ตั้ง `DEFAULT_VENUE_SLUG` ให้ตรงก่อน deploy ครั้งถัดไป.
 | `GET /customers?q=` | ค้น contact ภายในร้านจากชื่อ เลขท้ายเบอร์ หรือเบอร์เต็มที่ร้านบันทึก |
 
+เจ้าของร้านเปลี่ยน `slug` ด้วย `PATCH /api/staff/venues/{venueId}` หรือ `PATCH .../settings` โดยส่ง `{slug}`. รหัสซ้ำคืน `409 SLUG_TAKEN`. ถ้าเปลี่ยนรหัสร้านที่เชื่อม LINE แล้ว ให้ตั้ง LIFF Endpoint URL เป็น `<webUrl>/login` และอัปเดต Rich Menu. ถ้าเป็นร้านเริ่มต้น ให้ตั้ง `DEFAULT_VENUE_SLUG` ให้ตรงก่อน deploy ครั้งถัดไป.
+
 Route เวลาเปิดจอง, โปรไฟล์ร้าน และการจัดการคำเชิญคืน `403 FORBIDDEN` เมื่อ role เป็น staff. เวลามาตรฐานกับวันพิเศษตีความตาม timezone ของร้าน. วันพิเศษมีผลเหนือเวลาเปิดมาตรฐานในช่วงที่อนุญาตให้จอง. ดู [เวลาเปิดจอง](BOOKING_OPENING.md).
-# วันเปิดร้านและวันปิดพิเศษ
+## วันเปิดร้านและวันปิดพิเศษ
 
 Owner: `GET /api/staff/venues/{venueId}/hours` returns `openWeekdays` (Sunday=0) and `closures` with `serviceDate`, `reason`, `affectedBookings`. `PUT .../hours/closures` accepts `{openWeekdays: number[]}`; an empty array closes every weekday. `GET .../hours/closures?date=YYYY-MM-DD` previews affected bookings. `POST .../hours/closures` accepts `{serviceDate, reason, bookings?: "keep" | "cancel"}`. When the night has confirmed or pending bookings, `bookings` is required (`409 CLOSURE_HAS_BOOKINGS` otherwise): `keep` leaves them, `cancel` cancels them in the same transaction and queues a LINE cancellation that includes the reason. Checked-in bookings are never cancelled. The response adds `cancelledBookings`. `PUT .../hours/closures` returns `affectedBookings`, the upcoming bookings that now fall on a closed weekday. `DELETE .../hours/closures/{date}` reopens that night. Public venue adds `openWeekdays`, `closedDates`; `opensAt` is null when the bookable window contains no open nights. Closed nights reject requests with `CLOSED`, including requests already queued before closure.
 
@@ -80,7 +81,7 @@ Session-scoped `GET /api/me/announcements` returns `{announcements: [{id,title,s
 
 ## Audit trail and receipts
 
-Staff `GET /api/staff/venues/{venueId}/audit?date=YYYY-MM-DD&limit=50&offset=0&q=...` returns `{date,entries,nextOffset}`. Search accepts a reference substring or exactly four phone digits. Entries contain string-valued bigint `id`, `seq`, `ticketSeq`, `queueSeq`, timestamps, action/actor, result code, table/zone IDs, reference, masked phone, and full `rowHash`. Events sort by audit `seq` across the venue; request decisions retain `queue_seq` for comparison. Unused tickets have no service night and appear under their Bangkok issue date until linked to a request.
+Staff `GET /api/staff/venues/{venueId}/audit?date=YYYY-MM-DD&limit=50&offset=0&q=...` returns `{date,entries,nextOffset}`. Search accepts a reference substring or exactly four phone digits. Entries contain string-valued bigint `id`, `seq`, `ticketSeq`, `queueSeq`, timestamps, action/actor, result code, table/zone IDs, reference, masked phone, and full `rowHash`. Events sort by audit `seq` across the venue; request decisions retain `queue_seq` for comparison. Legacy tickets without a service night appear under their Bangkok issue date. Customer FCFS creates booking requests directly.
 
 `GET .../audit/verify?from=&to=` verifies an optional inclusive audit-sequence range; omitted bounds verify the whole venue. Returns `valid`, `checked`, `firstBadSeq`, `firstBadId`, `lastSeq`, `headHash`. Range verification uses the preceding stored hash as its boundary. `checkpoints: {configured, checked, firstInvalidSeq, latestSeq}` reports signed checkpoints; `valid` is false when the chain or any checkpoint fails. A checkpoint fails when its Ed25519 signature does not verify or the row at its `seq` no longer has the signed hash. Owner `GET .../audit/checkpoint` returns the latest signed checkpoint with its signed `message` and `publicKeyPem` for offline storage. `POST /api/internal/audit/checkpoint` (Cron, `Bearer <CRON_SECRET>`) signs each venue head that moved; it returns 503 without `AUDIT_SIGNING_KEY`. `GET .../audit/export.csv?date=&q=` is owner-only and exports all matching rows with masked phone numbers and spreadsheet formula escaping. `GET .../bookings/{bookingId}/timeline` is tenant-scoped and returns booking-related entries.
 

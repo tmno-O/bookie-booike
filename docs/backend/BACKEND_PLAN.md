@@ -1,8 +1,8 @@
-# แผนงาน Backend และ API contract
+# แผนงาน Backend และ API contract ของ Bookie Bookie
 
-5 พฤศจิกายน 2569 · ฉบับ Feature 1–4 + LIFF/FIFO | ผู้ใช้รับบทบาท Backend | เอกสารออกแบบ ยังไม่มีระบบเปิดใช้งาน ไม่มีผล pilot/load test หรือธุรกรรมจริงที่ยืนยันแล้ว
+5 พฤศจิกายน 2569 · ฉบับ Feature 1–4 + LIFF/FIFO | ผู้ใช้รับบทบาท Backend | แผนก่อนพัฒนา
 
-> **อัปเดต 13 พ.ย. 2569:** ระบบจริงเลือก **DB queue** (`QUEUE_DRIVER=db`) เป็นคิวหลักหลังวัดผลเทียบกับ SQS FIFO. `sqs` ตามเอกสารนี้ (SQS FIFO + worker) ยังคงไว้เป็นทางเลือก. `db` เก็บคิวในตาราง Postgres แล้วตัดสินด้วย `drain_booking_requests()` ลำดับคิวจึงเป็นลำดับที่คำขอ commit ลงฐานข้อมูลแทนลำดับที่ broker รับ ใช้สำหรับ Vercel ที่รัน worker ไม่ได้. ดู [README](../../README.md) และ [DEPLOY](../DEPLOY.md).
+> **บันทึกแผนเดิม 5 พฤศจิกายน 2569** เนื้อหาด้านล่างเก็บข้อเสนอของช่วงออกแบบ. ระบบปัจจุบันใช้คิว Postgres, FCFS และจองตรงจากหน้าเลือกโซน. ใช้ [Tech Stack](../TECH_STACK_PLAN.md), [สัญญา API](../API_CONTRACT.md) และ [Deploy](../DEPLOY.md) สำหรับโค้ดหลัง PR #22.
 
 ## 1. งานที่คุณรับผิดชอบ
 
@@ -97,4 +97,4 @@ Payment adapter ต้องประกาศ capabilities เช่น support
 
 ต้องทดสอบ onboarding 3 ทางและไม่มี menu mutation เมื่อ keep, provider ต่างกัน, name collision, กฎโซน/โต๊ะขัดกัน, ปิดโต๊ะมี booking, no-show แข่ง check-in, cancellation/refund boundary, late/duplicate/out-of-order payment, broker ack/DB commit crash, retry หลัง 5 นาที, FIFO และ k6 spike ก่อนอ้างเสถียร
 
-ดู [BACKEND_FEATURE_STACK.md](./BACKEND_FEATURE_STACK.md), [FEATURE_REQUIREMENTS.md](./FEATURE_REQUIREMENTS.md), [COST_PLAN.md](./COST_PLAN.md)
+ดู [รายละเอียดฟีเจอร์ฉบับออกแบบ](BACKEND_FEATURE_STACK.md) และ [ข้อกำหนดฉบับปัจจุบัน](../SRS_Bookie_Bookie.md).
