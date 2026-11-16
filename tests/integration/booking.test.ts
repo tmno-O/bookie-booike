@@ -3,7 +3,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { createClient } from "@supabase/supabase-js";
 import { ChangeMessageVisibilityCommand, CreateQueueCommand, DeleteQueueCommand } from "@aws-sdk/client-sqs";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { POST as signIn } from "../../app/api/session/line/route";
 import { GET as customerProfile } from "../../app/api/me/route";
 import { GET as availability } from "../../app/api/venues/[venueId]/availability/route";
@@ -185,13 +185,14 @@ it("submits directly and resolves the last zone table through FIFO", async () =>
 
   const setting = await patchSettings(request("PATCH", { token: ownerToken, data: { allocationMode: "manual" } }), context({ venueId }));
   expect(setting.status).toBe(200);
-  const manual = await submit(alice.cookie, day(11));
+  const waiting = await login(venueSlug, randomUUID(), "Manual guest");
+  const manual = await submit(waiting.cookie, day(11));
   expect(manual.status, await manual.clone().text()).toBe(202);
   await consumeBookingMessage(await nextMessage());
-  const status = await getStatus((await manual.json()).requestId);
+  const status = await getStatus((await manual.json()).requestId, waiting.cookie);
   const [pending] = await sql`select status, table_id from bookings where id = ${status.bookingId}`;
   expect(pending).toMatchObject({ status: "pending_allocation", tableId: null });
-  const list = await readBookings(request("GET", { cookie: alice.cookie, path: `/?date=${day(11)}&limit=1` }), context({}));
+  const list = await readBookings(request("GET", { cookie: waiting.cookie, path: `/?date=${day(11)}&limit=1` }), context({}));
   const { bookings, nextOffset } = await list.json();
   expect(nextOffset).toBeNull();
   expect(bookings.map((entry: unknown) => bookingContract.parse(entry))).toMatchObject([{
@@ -254,19 +255,19 @@ it("reads staff booking details, filters by contact and reference, and counts se
 });
 
 it("checks guests in once on the Bangkok service night without releasing their seats", async () => {
-  async function reserve(date: string) {
-    const response = await book(date);
+  async function reserve(date: string, cookie: string) {
+    const response = await book(date, cookie);
     expect(response.status, await response.clone().text()).toBe(202);
     await consumeBookingMessage(await nextMessage());
-    return (await getStatus((await response.json()).requestId)).bookingId as string;
+    return (await getStatus((await response.json()).requestId, cookie)).bookingId as string;
   }
-  const tomorrow = await reserve(day(1));
+  const tomorrow = await reserve(day(1), bob.cookie);
   const act = (bookingId: string) => checkIn(request("POST", { token: staffToken }), context({ venueId, bookingId }));
   const early = await act(tomorrow);
   expect(early.status).toBe(409);
   expect(await early.json()).toMatchObject({ error: { code: "NOT_SERVICE_DATE" } });
 
-  const bookingId = await reserve(day(0));
+  const bookingId = await reserve(day(0), alice.cookie);
   const attempts = await Promise.all([act(bookingId), act(bookingId)]);
   expect(attempts.map((attempt) => attempt.status).sort()).toEqual([200, 409]);
   expect(await attempts.find((attempt) => attempt.ok)!.json()).toMatchObject({
@@ -567,10 +568,14 @@ beforeAll(async () => {
     setToken(result.data.session.access_token);
   }
 
-  alice = await login(venueSlug, "alice", "Alice");
-  bob = await login(venueSlug, "bob", "Bob");
-  other = await login(otherSlug, "alice", "Alice");
 }, 60_000);
+
+beforeEach(async () => {
+  const subject = randomUUID();
+  alice = await login(venueSlug, subject, "Alice");
+  bob = await login(venueSlug, randomUUID(), "Bob");
+  other = await login(otherSlug, subject, "Alice");
+});
 
 afterAll(async () => {
   if (!queueUrl) return;
@@ -635,13 +640,14 @@ describe.sequential("Supabase + ElasticMQ booking", () => {
   it("queues 20 contenders with a shared FIFO group and allocates one table", async () => {
     const date = day(2);
     const key = randomUUID().toString();
+    const guests = await Promise.all(Array.from({ length: 17 }, () => login(venueSlug, randomUUID(), "Contender")));
     const responses = await Promise.all([
       book(date, alice.cookie, key),
       book(date, bob.cookie),
       staffBooking(request("POST", {
         token: staffToken, key: randomUUID(), data: { customerId: bob.customerId, serviceDate: date, tableId, partySize: 4 },
       }), context({ venueId })),
-      ...Array.from({ length: 17 }, () => book(date)),
+      ...guests.map((guest) => book(date, guest.cookie)),
     ]);
     for (const response of responses) expect(response.status, await response.clone().text()).toBe(202);
     const submitted = await Promise.all(responses.map((response) => response.json()));
@@ -767,7 +773,7 @@ describe.sequential("Supabase + ElasticMQ booking", () => {
     const replacement = await getStatus(second.requestId);
     expect(replacement.status).toBe("confirmed");
     expect((await closeTable(request("DELETE", { token: staffToken }), context({ venueId, tableId }))).status).toBe(200);
-    expect((await book(day(7))).status).toBe(409);
+    expect((await book(day(7), bob.cookie)).status).toBe(409);
     expect((await getStatus(second.requestId)).status).toBe("confirmed");
     await db()`update venues set cancel_cutoff_minutes = 20000 where id = ${venueId}`;
     expect((await cancel(request("POST", { cookie: alice.cookie }), context({ bookingId: replacement.bookingId }))).status).toBe(409);
@@ -780,8 +786,9 @@ describe.sequential("Supabase + ElasticMQ booking", () => {
   it("retries LINE outbox delivery without rolling back the confirmed booking", async () => {
     const sql = db();
     const [job] = await sql`
-      select n.id, n.booking_id from notification_outbox n
+      select n.id, n.booking_id, i.subject from notification_outbox n
       join bookings b on b.id = n.booking_id and b.venue_id = n.venue_id
+      join customer_identities i on i.customer_id = b.customer_id and i.provider_id = ${venueSlug}
       where n.venue_id = ${venueId} and b.service_date = ${day(4)} and n.kind = 'confirmed'
     `;
     expect(job).toBeDefined();
@@ -794,7 +801,7 @@ describe.sequential("Supabase + ElasticMQ booking", () => {
 
     const failed: typeof fetch = async (_url, init) => {
       expect(new Headers(init?.headers).get("x-line-retry-key")).toBe(job.id);
-      expect(JSON.parse(String(init?.body)).to).toBe("alice");
+      expect(JSON.parse(String(init?.body)).to).toBe(job.subject);
       return new Response(null, { status: 502 });
     };
     expect(await deliverNextNotification(failed, venueId)).toBe(true);
@@ -857,6 +864,9 @@ it("keeps in-app announcements after LINE retry and stops delivery after opt-out
 
 
 it("scopes audit evidence, masks phone numbers, restricts exports, and matches customer receipts", async () => {
+  const submitted = await book(day(14));
+  expect(submitted.status, await submitted.clone().text()).toBe(202);
+  await consumeBookingMessage(await nextMessage());
   const [booking] = await db()`select b.id, b.reference, to_char(b.service_date, 'YYYY-MM-DD') as date
     from bookings b where b.venue_id = ${venueId} and b.customer_id = ${alice.customerId}
       and b.contact_phone = '0812345678' order by b.created_at limit 1`;

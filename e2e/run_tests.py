@@ -231,12 +231,13 @@ def customer_flow(run: Run, browser: Browser, base: str, slow: int) -> dict:
 
     flow.step("my-bookings", my_bookings)
 
-    # The customer can get back to the booking flow from their history.
+    # An existing booking blocks a fresh request before the customer selects a zone.
     def other_night():
         page.goto(f"{book}/details")
-        expect(page.locator("#name")).to_be_visible()
+        expect(page.get_by_role("complementary", name="การจองเดิม")).to_be_visible()
+        expect(page.get_by_role("button", name="ดำเนินการต่อ")).to_be_disabled()
 
-    flow.step("start-new-booking", other_night)
+    flow.step("duplicate-booking-blocked", other_night)
     context.close()
     return shared
 

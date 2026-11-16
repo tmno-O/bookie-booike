@@ -1,8 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { POST as signIn } from "../../app/api/session/line/route";
 import { POST as requestBooking } from "../../app/api/booking-requests/route";
 import { GET as readRequest } from "../../app/api/me/booking-requests/[requestId]/route";
+import { POST as cancel } from "../../app/api/me/bookings/[bookingId]/cancel/route";
+import { GET as readBookings } from "../../app/api/me/bookings/route";
 import { GET as health } from "../../app/api/health/route";
 import { db } from "@/lib/db";
 import { drainBookingQueue } from "@/server/services/booking-queue";
@@ -74,13 +76,19 @@ beforeAll(async () => {
     values (${venueId}, ${slug}, '123', '123-dbq')`;
   await sql`insert into zones (id, venue_id, name, capacity) values (${zoneId}, ${venueId}, 'Zone', 12)`;
   await sql`insert into venue_tables (id, venue_id, zone_id, name, capacity) values (${tableId}, ${venueId}, ${zoneId}, 'T1', 4)`;
-  for (const name of ["Ann", "Ben", "Cat", "Dan"]) {
-    const response = await signIn(request("POST", { data: { venueSlug: slug, idToken: `mock:${name.toLowerCase()}:${name}` } }), context({}));
-    expect(response.status, await response.clone().text()).toBe(200);
-    const { customerId } = await response.json() as { customerId: string };
-    customers.push({ cookie: response.headers.get("set-cookie")!.split(";")[0], customerId });
-  }
 }, 60_000);
+
+async function customer(name = "Contender") {
+  const response = await signIn(request("POST", { data: { venueSlug: slug, idToken: `mock:${randomUUID()}:${name}` } }), context({}));
+  expect(response.status, await response.clone().text()).toBe(200);
+  const { customerId } = await response.json() as { customerId: string };
+  return { cookie: response.headers.get("set-cookie")!.split(";")[0], customerId };
+}
+
+beforeEach(async () => {
+  const newCustomers = await Promise.all(["Ann", "Ben", "Cat", "Dan"].map((name) => customer(name)));
+  customers.splice(0, customers.length, ...newCustomers);
+});
 
 afterAll(async () => {
   if (!initialized) return;
@@ -131,8 +139,8 @@ describe.sequential("Database booking queue", () => {
 
   it("keeps each night in insert order under concurrent drains", async () => {
     const date = day(6);
-    for (const customer of customers) await book(customer, date);
-    for (const customer of customers) await book(customer, date);
+    const contenders = [...customers, ...await Promise.all(customers.map(() => customer()))];
+    for (const guest of contenders) await book(guest, date);
     await Promise.all([settle(), settle(), settle(), settle()]);
 
     const rows = await night(date);
@@ -150,6 +158,43 @@ describe.sequential("Database booking queue", () => {
     expect(await book(customers[0], date, key)).toBe(first);
     await settle();
     expect(await night(date)).toHaveLength(1);
+  });
+
+  it("allows just one concurrent request across two nights and frees the quota on cancellation", async () => {
+    const [guest, other] = customers;
+    const requests = await Promise.all([day(9), day(10)].map((serviceDate) =>
+      requestBooking(request("POST", { cookie: guest.cookie, key: randomUUID(),
+        data: { venueId, serviceDate, zoneId, partyBucket: "1-4", contactName: "Guest", contactPhone: "0812345678" } }), context({}))));
+    expect(requests.map(({ status }) => status).sort()).toEqual([202, 409]);
+    expect(await requests.find(({ ok }) => !ok)!.json()).toMatchObject({ error: { code: "ACTIVE_BOOKING_EXISTS" } });
+    await settle();
+
+    const active = (cookie: string) => readBookings(new Request("http://localhost/?active=1", { headers: { Cookie: cookie } }), context({}));
+    const list = await (await active(guest.cookie)).json();
+    expect(list.bookings).toHaveLength(1);
+    expect((await (await active(other.cookie)).json()).bookings).toEqual([]);
+    const [{ id }] = list.bookings;
+    const result = await cancel(request("POST", { cookie: guest.cookie }), context({ bookingId: id }));
+    expect(await result.json()).toMatchObject({ status: "cancelled" });
+    expect((await (await active(guest.cookie)).json()).bookings).toEqual([]);
+
+    const next = await book(guest, day(11));
+    await settle();
+    expect((await night(day(11)))[0]).toMatchObject({ id: next, status: "confirmed" });
+  });
+
+  it("enforces the quota in SQL even when two requests were already queued", async () => {
+    const [{ customerId }] = customers;
+    const sql = db();
+    const [first, second] = await Promise.all([day(19), day(20)].map(async (date) => (await sql<{ id: string }[]>`
+      insert into booking_requests (venue_id, customer_id, actor_type, actor_id, source, service_date, party_size, zone_id,
+        party_bucket, idempotency_key, payload_hash, status)
+      values (${venueId}, ${customerId}, 'customer', ${customerId}, 'liff', ${date}, 4, ${zoneId},
+        '1-4', ${randomUUID()}, 'pre-existing', 'queued') returning id`)[0].id));
+    const results = await Promise.all([first, second].map(async (id) =>
+      (await sql`select status, result_code from process_booking_request(${id})`)[0]));
+    expect(results.map((r) => r.status).sort()).toEqual(["confirmed", "rejected"]);
+    expect(results.find((r) => r.status === "rejected")?.resultCode).toBe("ACTIVE_BOOKING_EXISTS");
   });
 
   it("retries a failing request and then rejects it", async () => {
@@ -210,7 +255,8 @@ describe.sequential("Database booking queue", () => {
 
   it("audits 50 simultaneous contenders without issuing tickets and allocates once", async () => {
     const date = day(12);
-    const ids = await Promise.all(Array.from({ length: 50 }, (_, i) => book(customers[i % customers.length], date)));
+    const guests = await Promise.all(Array.from({ length: 50 }, () => customer()));
+    const ids = await Promise.all(guests.map((guest) => book(guest, date)));
     await Promise.all([settle(), settle(), settle()]);
     const rows = await night(date);
     expect(rows).toHaveLength(50);

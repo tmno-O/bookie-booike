@@ -65,6 +65,18 @@ export async function createBookingRequest(booking: BookingSubmission, customerI
     }
 
     if (actor.type === "customer") {
+      // Match the decision procedure's venue/customer lock order. Idempotent replays return above.
+      await tx`select pg_advisory_xact_lock(hashtextextended(${`${venueId}:${customerId}`}, 6))`;
+      const [active] = await tx<{ bookingId: string; serviceDate: string }[]>`
+        select booking_id, to_char(service_date, 'YYYY-MM-DD') as service_date from customer_active_booking(${venueId}, ${customerId})
+      `;
+      if (active) return new ApiError(409, "ACTIVE_BOOKING_EXISTS", "คุณมีการจองที่ยังใช้งานอยู่", active);
+      const [inFlight] = await tx<{ requestId: string; serviceDate: string }[]>`
+        select id as request_id, to_char(service_date, 'YYYY-MM-DD') as service_date from booking_requests
+        where venue_id = ${venueId} and customer_id = ${customerId} and source = 'liff' and status in ('pending_publish', 'queued')
+        order by queue_seq limit 1
+      `;
+      if (inFlight) return new ApiError(409, "ACTIVE_BOOKING_EXISTS", "คำขอจองเดิมกำลังดำเนินการ", inFlight);
       const [schedule] = await tx<{ code: string | null }[]>`
         select booking_window_issue(${venueId}, ${serviceDate}, clock_timestamp()) as code
       `;

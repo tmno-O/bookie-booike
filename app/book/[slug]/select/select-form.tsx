@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { FloorPlan } from "@/lib/floor-plan";
 import FloorPlanView from "@/ui/floor-plan-view";
+import { ActiveBookingNotice, useActiveBooking } from "../active-booking";
 import { api, asFailure, loadCustomer, readAttempt, saveAttempt, thaiDate, type BookingAttempt, type LineUser } from "../flow";
 import styles from "./select.module.css";
 
@@ -23,6 +24,7 @@ const countdown = (seconds: number) => [Math.floor(seconds / 3600), Math.floor(s
 
 export default function SelectForm({ slug }: { slug: string }) {
   const router = useRouter();
+  const { active, refresh: refreshActive } = useActiveBooking(slug);
   const [venue, setVenue] = useState<Venue>();
   const [date, setDate] = useState("");
   const [party, setParty] = useState(0);
@@ -109,7 +111,7 @@ export default function SelectForm({ slug }: { slug: string }) {
     event.preventDefault();
     if (!customer || busy) return;
     const resumed = canResume ? attempt.current : null;
-    if (!resumed && (!zoneId || !night?.open || !zones.some((z) => z.id === zoneId && z.available))) return;
+    if (!resumed && (active !== null || !zoneId || !night?.open || !zones.some((z) => z.id === zoneId && z.available))) return;
     const payload = resumed?.payload ?? JSON.stringify({ serviceDate: date, partyBucket, zoneId,
       contactName: customer.name, contactPhone: customer.phone });
     const same = attempt.current?.payload === payload ? attempt.current : null;
@@ -128,7 +130,10 @@ export default function SelectForm({ slug }: { slug: string }) {
     } catch (e) {
       const failure = asFailure(e);
       setError(failure.code === "ZONE_FULL" ? "โซนนี้เต็มแล้ว กรุณาเลือกโซนอื่น"
-        : failure.code === "NIGHT_NOT_OPEN" ? "คืนนี้ยังไม่เปิดรับจอง" : failure.message);
+        : failure.code === "NIGHT_NOT_OPEN" ? "คืนนี้ยังไม่เปิดรับจอง"
+        : failure.code === "ACTIVE_BOOKING_EXISTS" ? (failure.details?.requestId ? "คำขอจองเดิมกำลังดำเนินการ" : "คุณมีการจองที่ยังใช้งานอยู่")
+        : failure.message);
+      if (failure.code === "ACTIVE_BOOKING_EXISTS") refreshActive();
       setBusy(false);
       if (failure.requestFinal || (failure.status >= 400 && failure.status < 500 && failure.status !== 401)) {
         attempt.current = null;
@@ -151,7 +156,7 @@ export default function SelectForm({ slug }: { slug: string }) {
     const full = zone ? !zone.available : false;
     const selected = !!zone && zoneId === zone.id;
     return (
-      <button type="button" key={name} aria-pressed={selected} disabled={!zone || full || !night?.open || closed || busy}
+      <button type="button" key={name} aria-pressed={selected} disabled={!zone || full || !night?.open || closed || busy || active !== null}
         className={`${styles.zone} ${className} ${selected ? styles.zoneOn : ""} ${full ? styles.zoneFull : ""}`}
         onClick={() => zone && setZoneId(zone.id)}>
         {name}{full && <span className={styles.full}>{zone?.closed ? "ปิด" : "เต็ม"}</span>}
@@ -165,6 +170,7 @@ export default function SelectForm({ slug }: { slug: string }) {
         <p className={styles.step}>ขั้นตอน 2 จาก 2</p>
         <h1 className={styles.title}>เลือกคืนและโซน</h1>
         <p className={styles.subtitle}>เลือกวันที่ จำนวนคน และพื้นที่ที่ต้องการ</p>
+        {active && <ActiveBookingNotice slug={slug} booking={active} />}
 
         <label className={styles.label} htmlFor="date">คืนที่ต้องการ</label>
         <div className={styles.dateField}>
@@ -194,7 +200,7 @@ export default function SelectForm({ slug }: { slug: string }) {
               <FloorPlanView plan={plan} selectedId={zoneId} onSelect={setZoneId}
                 zones={Object.fromEntries(zones.map((z) => [z.id, {
                   name: z.name, badge: z.available ? undefined : z.closed ? "ปิด" : "เต็ม",
-                  disabled: !z.available || !night?.open || closed || busy,
+                  disabled: !z.available || !night?.open || closed || busy || active !== null,
                 }]))} />
             </div>
             {zones.some((z) => !plan.zones.some((shape) => shape.zoneId === z.id)) && (
@@ -228,7 +234,7 @@ export default function SelectForm({ slug }: { slug: string }) {
         {error && <p role="alert" className={styles.error}>{error}</p>}
       </div>
       <div className={styles.footer}>
-        <button type="submit" className={styles.cta} disabled={busy || !customer || (!canResume && (!zoneId || !night?.open || closed))}>
+        <button type="submit" className={styles.cta} disabled={busy || !customer || (!canResume && (active !== null || !zoneId || !night?.open || closed))}>
           {busy ? "กำลังจอง…" : canResume ? "ตรวจผลคำขอก่อนหน้า" : zoneId ? "ยืนยันการจอง" : "เลือกโซนเพื่อดำเนินการต่อ"}
         </button>
       </div>

@@ -11,6 +11,7 @@ const titles = {
 };
 
 const rejectionReasons: Record<string, string> = {
+  ACTIVE_BOOKING_EXISTS: "คุณมีการจองเดิมที่ยังใช้งานอยู่ กรุณาตรวจสอบการจองของคุณ",
   TABLE_UNAVAILABLE: "โต๊ะที่เลือกไม่ว่าง",
   ZONE_FULL: "โซนที่เลือกเต็มแล้ว",
   ZONE_CLOSED: "โซนที่เลือกปิดรับจอง",

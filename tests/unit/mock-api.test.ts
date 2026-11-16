@@ -259,6 +259,24 @@ describe("mock booking API", () => {
     expect(avail.zones.find((z: { id: string }) => z.id === "zone-vip")).toMatchObject({ tablesLeft: 0, available: false });
   });
 
+  it("blocks concurrent bookings on different nights and allows a new booking after cancellation", async () => {
+    const who = await booker();
+    const owner = cookieOf(await call(staffLogin, "/api/mock/admin/login", { method: "POST", body: { email: "owner@bookie.test" } }));
+    await call(hoursStandard, "/api/mock/admin/hours/standard", { method: "PUT", cookie: owner, body: { daysBefore: 3, time: "00:00" } });
+    const [first, second] = await Promise.all([2, 3].map((offset) =>
+      reserve({ ...who, key: randomUUID() }, "zone-indoor", "1-4", addDays(today(), offset))));
+    expect([first.status, second.status].sort()).toEqual([201, 409]);
+    const failed = await (first.ok ? second : first).json();
+    const { booking } = await (first.ok ? first : second).json();
+    expect(failed.error).toMatchObject({ code: "ACTIVE_BOOKING_EXISTS", details: { bookingId: booking.id, serviceDate: booking.serviceDate } });
+    const active = () => call(listBookings, "/api/mock/bookings?active=1", { cookie: who.cookie }).then((r) => r.json());
+    expect((await active()).bookings).toMatchObject([{ id: booking.id }]);
+    const cancellation = await call(customerCancel, `/api/mock/bookings/${booking.id}/cancel`, { method: "POST", cookie: who.cookie }, { id: booking.id });
+    expect(cancellation.status).toBe(200);
+    expect((await active()).bookings).toEqual([]);
+    expect((await reserve(who, "zone-indoor", "1-4", booking.serviceDate)).status).toBe(201);
+  });
+
   it("rejects dates outside the bookable window", async () => {
     const res = await call(availability, "/api/mock/availability?date=2000-01-01");
     expect(res.status).toBe(422);

@@ -3,6 +3,12 @@ import { ApiError } from "@/lib/errors";
 import { addDays, today, zoneAvailability, type Booking, type Db, type Zone } from "./db";
 import { isServiceNightOpen } from "./schedule";
 
+export function activeBooking(db: Db, customerId: string) {
+  return db.bookings.filter((b) => b.customerId === customerId && b.channel === "line"
+    && (b.status === "confirmed" || b.status === "pending" || b.status === "checked_in") && b.serviceDate >= today())
+    .sort((a, b) => a.serviceDate.localeCompare(b.serviceDate) || a.createdAt.localeCompare(b.createdAt))[0];
+}
+
 /** Shared slot check: bookable date window, known zone, free table. Throws an ApiError otherwise. */
 export function checkSlot(db: Db, serviceDate: string, zoneId: string): Zone {
   if (serviceDate < today() || serviceDate > addDays(today(), db.venue.maxAdvanceDays)) {

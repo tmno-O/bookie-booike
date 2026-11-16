@@ -1,6 +1,6 @@
 export const realApiMode = process.env.NEXT_PUBLIC_API_MODE === "real";
 
-export type ApiFailure = { code: string; message: string; status: number; requestFinal?: boolean };
+export type ApiFailure = { code: string; message: string; status: number; requestFinal?: boolean; details?: Record<string, string> };
 export type ApiInit = { method?: string; body?: unknown; idempotencyKey?: string; signal?: AbortSignal };
 
 export async function apiRequest<T>(path: string, init?: ApiInit): Promise<T> {
@@ -20,6 +20,7 @@ export async function apiRequest<T>(path: string, init?: ApiInit): Promise<T> {
       code: data.error?.code ?? "ERROR",
       message: data.error?.message ?? "เกิดข้อผิดพลาด",
       status: response.status,
+      details: data.error?.details,
     } satisfies ApiFailure;
   }
   return data as T;

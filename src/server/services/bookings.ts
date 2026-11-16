@@ -43,8 +43,17 @@ function bookingView(row: BookingRow) {
 }
 
 export async function listBookings(access: Access, request: Request) {
-  const { limit, offset, date, status, zone, q } = input(bookingListQuery, Object.fromEntries(new URL(request.url).searchParams));
+  const params = new URL(request.url).searchParams;
+  const { limit, offset, date, status, zone, q } = input(bookingListQuery, Object.fromEntries(params));
   const sql = db();
+  if (access.customerId && params.get("active") === "1") {
+    const [row] = await sql<BookingRow[]>`
+      ${bookingFields(sql)}
+      where b.venue_id = ${access.venueId} and b.customer_id = ${access.customerId}
+        and b.id = (select booking_id from customer_active_booking(${access.venueId}, ${access.customerId}))
+    `;
+    return { bookings: row ? [bookingView(row)] : [], nextOffset: null };
+  }
   const ownership = access.customerId ? sql`and b.customer_id = ${access.customerId}` : sql``;
   const service = date ? sql`and b.service_date = ${date}` : sql``;
   const state = status ? sql`and b.status = ${status === "pending" ? "pending_allocation" : status}` : sql``;

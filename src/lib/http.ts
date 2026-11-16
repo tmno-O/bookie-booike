@@ -40,7 +40,7 @@ export function route<T extends Record<string, string>>(
       return await handler(request, await context.params);
     } catch (error) {
       if (error instanceof ApiError) {
-        return json({ error: { code: error.code, message: error.message } }, { status: error.status });
+        return json({ error: { code: error.code, message: error.message, details: error.details } }, { status: error.status });
       }
       console.error("API failure", error instanceof Error ? error.name : "UnknownError",
         typeof error === "object" && error && "code" in error ? error.code : undefined,
