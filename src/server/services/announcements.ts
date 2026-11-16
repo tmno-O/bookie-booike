@@ -35,18 +35,21 @@ export function setAnnouncementOptOut(customer: Customer, optOut: boolean) {
 }
 
 /** Queues the audience of an announcement in short batches so the venue lock is never held during fan-out. */
-export async function fanoutAnnouncement(announcementId: string, batch = 1000) {
-  for (let i = 0; i < 10_000; i++) {
+export async function fanoutAnnouncement(announcementId: string, batch = 1000, deadline = Infinity) {
+  for (let i = 0; i < 10_000 && Date.now() < deadline; i++) {
     const [step] = await db()<{ done: boolean }[]>`select fanout_announcement(${announcementId}, ${batch}) as done`;
     if (step.done) return;
   }
 }
 
 /** Finishes fan-outs that were interrupted, for example by a timeout after the owner saved the special day. */
-export async function fanoutPendingAnnouncements(limit = 5) {
+export async function fanoutPendingAnnouncements(limit = 5, deadline = Infinity) {
   const pending = await db()<{ id: string }[]>`
     select id from release_announcements where not fanout_done order by created_at limit ${limit}
   `;
-  for (const { id } of pending) await fanoutAnnouncement(id);
+  for (const { id } of pending) {
+    if (Date.now() >= deadline) break;
+    await fanoutAnnouncement(id, 1000, deadline);
+  }
   return pending.length;
 }

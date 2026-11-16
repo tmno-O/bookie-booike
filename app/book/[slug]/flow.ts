@@ -1,5 +1,6 @@
 import { customerApi, customerVenueSlug } from "@/client/customer-api";
 import { apiRequest, asFailure, realApiMode, type ApiInit } from "@/client/transport";
+import { bookingLoginQuery } from "@/lib/booking-links";
 
 export { asFailure, realApiMode };
 export type { ApiFailure } from "@/client/transport";
@@ -11,8 +12,11 @@ export async function api<T>(path: string, init?: ApiInit): Promise<T> {
     return await apiRequest<T>(`/api/mock${path}${query}`, init);
   } catch (error) {
     if (asFailure(error).status === 401 && !path.startsWith("/line/") && typeof window !== "undefined") {
+      const parts = window.location.pathname.split("/");
+      const date = new URLSearchParams(window.location.search).get("date") ?? undefined;
+      const next = parts[3] === "confirmed" ? "bookings" : parts[3] === "details" && date ? "select" : parts[3];
       // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- redirect after session expiry
-      window.location.href = `${window.location.pathname.split("/").slice(0, 3).join("/")}/login`;
+      window.location.href = `${parts.slice(0, 3).join("/")}/login${bookingLoginQuery(next, date)}`;
     }
     throw error;
   }

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
-import { MULTICAST_LIMIT, sendLineMulticast } from "@/server/line-push";
+import { MULTICAST_LIMIT, sendLineMulticast, type Delivery } from "@/server/line-push";
+import { notificationOrigin, releaseNoticeMessage } from "@/server/notification-message";
 
 const maxAttempts = 5;
 const leaseSeconds = 60;
@@ -8,14 +9,14 @@ type Outbox = "announcement_outbox" | "announcement_reminder_outbox";
 
 type Row = {
   id: string; venueId: string; announcementId: string; batchId: string | null; attempts: number;
-  title: string; serviceDate: string; opensAt: Date; liffId: string | null; accessTokenCiphertext: string | null;
+  slug: string; name: string; timezone: string; title: string; serviceDate: string; opensAt: Date; liffId: string | null; accessTokenCiphertext: string | null;
   subject: string | null; optedOut: boolean; stale: boolean; obsolete: boolean; scheduleChanged: boolean;
 };
 
 type Batch = {
   outbox: Outbox;
   batchId: string; venueId: string; accessTokenCiphertext: string | null; subjects: string[];
-  title: string; serviceDate: string; opensAt: Date; liffId: string | null;
+  slug: string; name: string; timezone: string; title: string; serviceDate: string; opensAt: Date; liffId: string | null; leaseUntil: string;
 };
 
 function skipReason(row: Row): { status: "skipped" | "dead"; error: string } | null {
@@ -23,6 +24,7 @@ function skipReason(row: Row): { status: "skipped" | "dead"; error: string } | n
   if (row.obsolete) return { status: "skipped", error: "RELEASE_UNAVAILABLE" };
   if (row.scheduleChanged) return { status: "skipped", error: "REMINDER_SETTINGS_CHANGED" };
   if (!row.accessTokenCiphertext || !row.subject) return { status: "skipped", error: "LINE_PUSH_NOT_CONFIGURED" };
+  if (row.attempts >= maxAttempts) return { status: "dead", error: "LEASE_EXHAUSTED" };
   if (row.stale) return { status: "dead", error: "DELIVERY_WINDOW_EXPIRED" };
   return null;
 }
@@ -45,12 +47,11 @@ async function claimBatch(outbox: Outbox, venueId?: string): Promise<Batch | "sk
       ? tx`o.batch_id = ${head.batchId} and o.status in ('pending', 'sending')`
       : tx`o.announcement_id = ${head.announcementId} and o.batch_id is null and o.status = 'pending' and o.next_attempt_at <= now()`;
     const deliveryStart = reminder ? tx`o.reminder_at` : tx`o.created_at`;
-    const opening = reminder ? tx`join venues v on v.id = a.venue_id
-      cross join lateral (select special_day_starts_at(a.venue_id, a.service_date) as at) service` : tx``;
+    const opening = reminder ? tx`cross join lateral (select special_day_starts_at(a.venue_id, a.service_date) as at) service` : tx``;
     const reminderEnded = reminder ? tx`or r.title is distinct from a.title or now() >= service.at` : tx``;
     const scheduleChanged = reminder ? tx`o.reminder_at is distinct from line_reminder_at(service.at, v.special_reminder_hours)` : tx`false`;
     const rows = await tx<Row[]>`
-      select o.id, o.venue_id, o.announcement_id, o.batch_id, o.attempts, a.title,
+      select o.id, o.venue_id, o.announcement_id, o.batch_id, o.attempts, a.title, v.slug, v.name, v.timezone,
         to_char(a.service_date, 'YYYY-MM-DD') as service_date, a.opens_at, l.liff_id, l.access_token_ciphertext,
         i.subject, c.announcements_opt_out as opted_out,
         ${deliveryStart} < now() - interval '23 hours' as stale,
@@ -58,6 +59,7 @@ async function claimBatch(outbox: Outbox, venueId?: string): Promise<Batch | "sk
         (r.venue_id is null or r.opens_at <> a.opens_at or not service_night_open(a.venue_id, a.service_date)
           or now() >= announcement_expires_at(a.venue_id, a.service_date) ${reminderEnded}) as obsolete
       from ${tx(outbox)} o join release_announcements a on a.id = o.announcement_id
+      join venues v on v.id = a.venue_id
       ${opening}
       join venue_customers c on c.venue_id = o.venue_id and c.customer_id = o.customer_id
       left join booking_releases r on r.venue_id = a.venue_id and r.service_date = a.service_date
@@ -79,32 +81,19 @@ async function claimBatch(outbox: Outbox, venueId?: string): Promise<Batch | "sk
     if (!sendable.length) return "skipped-only";
 
     const batchId = head.batchId ?? randomUUID();
-    await tx`update ${tx(outbox)} set status = 'sending', batch_id = ${batchId}, attempts = attempts + 1,
-      lease_until = clock_timestamp() + ${leaseSeconds} * interval '1 second'
-      where id in ${tx(sendable.map((row) => row.id))}`;
+    const [{ leaseUntil }] = await tx<{ leaseUntil: string }[]>`
+      update ${tx(outbox)} set status = 'sending', batch_id = ${batchId}, attempts = attempts + 1,
+        lease_until = statement_timestamp() + ${leaseSeconds} * interval '1 second'
+      where id in ${tx(sendable.map((row) => row.id))} returning lease_until::text as lease_until
+    `;
     const [first] = sendable;
     return {
       outbox, batchId, venueId: first.venueId, accessTokenCiphertext: first.accessTokenCiphertext,
       subjects: [...new Set(sendable.map((row) => row.subject!))],
       title: first.title, serviceDate: first.serviceDate, opensAt: first.opensAt, liffId: first.liffId,
+      slug: first.slug, name: first.name, timezone: first.timezone, leaseUntil,
     };
   });
-}
-
-function message(batch: Batch) {
-  const reminder = batch.outbox === "announcement_reminder_outbox";
-  const title = `${reminder ? "เตือนวันพิเศษ" : "รอบใหม่"}: ${batch.title}`;
-  const contents: object[] = [
-    { type: "text", text: title, weight: "bold", size: "lg", wrap: true },
-    { type: "text", text: `คืนบริการ ${batch.serviceDate}`, wrap: true },
-  ];
-  if (!reminder || batch.opensAt.getTime() > Date.now()) {
-    const opens = new Intl.DateTimeFormat("th-TH-u-ca-gregory", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Bangkok" })
-      .format(batch.opensAt);
-    contents.push({ type: "text", text: `เปิดจอง ${opens} น.`, wrap: true });
-  }
-  if (batch.liffId) contents.push({ type: "button", action: { type: "uri", label: "ดูรอบจอง", uri: `https://liff.line.me/${batch.liffId}?next=waiting` } });
-  return { type: "flex", altText: title, contents: { type: "bubble", body: { type: "box", layout: "vertical", contents } } };
 }
 
 /** Sends one multicast batch. The LINE call happens outside any database transaction. */
@@ -113,10 +102,16 @@ export async function deliverNextAnnouncement(send: typeof fetch = fetch, venueI
   if (!batch) return false;
   if (batch === "skipped-only") return true;
 
-  const result = await sendLineMulticast(
-    { retryKey: batch.batchId, venueId: batch.venueId, accessTokenCiphertext: batch.accessTokenCiphertext },
-    batch.subjects, [message(batch)], send,
-  );
+  let result: Delivery;
+  try {
+    const message = releaseNoticeMessage({ ...batch, reminder: batch.outbox === "announcement_reminder_outbox" }, notificationOrigin());
+    result = await sendLineMulticast(
+      { retryKey: batch.batchId, venueId: batch.venueId, accessTokenCiphertext: batch.accessTokenCiphertext },
+      batch.subjects, [message], send,
+    );
+  } catch {
+    result = { status: "retry", error: "LINE_DELIVERY_ERROR" };
+  }
   const sql = db();
   await sql`
     update ${sql(batch.outbox)} set
@@ -124,7 +119,7 @@ export async function deliverNextAnnouncement(send: typeof fetch = fetch, venueI
         else ${result.status} end,
       next_attempt_at = clock_timestamp() + 30 * power(2, greatest(attempts - 1, 0)) * interval '1 second',
       last_error = ${result.error}, lease_until = null
-    where batch_id = ${batch.batchId} and status = 'sending'
+    where batch_id = ${batch.batchId} and status = 'sending' and lease_until = ${batch.leaseUntil}::timestamptz
   `;
   if (result.status === "dead") console.error("LINE announcement batch failed permanently", batch.batchId, result.error);
   return true;

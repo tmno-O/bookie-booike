@@ -4,7 +4,7 @@ import { PATCH as patchSettings } from "../../app/api/staff/venues/[venueId]/set
 import { encryptSecret, sha256 } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import { customerAnnouncements, fanoutAnnouncement } from "@/server/services/announcements";
-import { addSpecialHours, deleteSpecialHours, saveServiceHours } from "@/server/services/booking-hours";
+import { addClosure, addSpecialHours, deleteSpecialHours, saveServiceHours } from "@/server/services/booking-hours";
 import { deliverNextAnnouncement } from "../../worker/announcements";
 import { deliverNextNotification } from "../../worker/notifications";
 
@@ -34,14 +34,14 @@ async function setup() {
     await tx`insert into zones (id, venue_id, name, capacity) values (${zone}, ${venueId}, 'Zone', 12)`;
     await tx`insert into venue_tables (id, venue_id, zone_id, name, capacity) values (${table}, ${venueId}, ${zone}, 'T1', 12)`;
     await tx`insert into venue_line_integrations (venue_id, provider_id, channel_id, liff_id, access_token_ciphertext)
-      values (${venueId}, ${venueId}, 'local-test', 'local-test', ${encryptSecret("mock-token", `${venueId}:access-token`)})`;
+      values (${venueId}, ${venueId}, '123', '123-localtest', ${encryptSecret("mock-token", `${venueId}:access-token`)})`;
     const customers = { booker: randomUUID(), newcomer: randomUUID() };
     for (const [subject, customerId] of Object.entries(customers)) {
       await tx`insert into customers (id) values (${customerId})`;
       await tx`insert into venue_customers (venue_id, customer_id, display_name) values (${venueId}, ${customerId}, ${subject})`;
       await tx`insert into customer_identities (provider_id, subject, customer_id) values (${venueId}, ${subject}, ${customerId})`;
     }
-    return { owner, staffToken, table, customers, ...calendar };
+    return { owner, staffToken, table, zone, customers, ...calendar };
   });
 }
 
@@ -163,6 +163,56 @@ it("skips reminders for bookings cancelled before delivery", async () => {
   expect(messageAt(send, 1)).toMatchObject({ to: "booker", title: "ยกเลิกการจองแล้ว" });
   const [job] = await db()`select status, last_error from notification_outbox where booking_id = ${bookingId} and kind = 'reminder'`;
   expect(job).toMatchObject({ status: "skipped", lastError: "BOOKING_NOT_CONFIRMED" });
+});
+
+it("delivers pending allocation, confirms allocation, then sends the closure cancellation reason", async () => {
+  const { owner, zone, customers: { booker }, bookingNight } = fixture;
+  const sql = db();
+  await sql`insert into venue_settings (venue_id, allocation_mode) values (${owner.venueId}, 'manual')`;
+  const [request] = await sql<{ id: string }[]>`insert into booking_requests
+    (venue_id, customer_id, actor_type, actor_id, source, service_date, party_size, zone_id, party_bucket, idempotency_key, payload_hash, status)
+    values (${owner.venueId}, ${booker}, 'customer', ${booker}, 'liff', ${bookingNight}, 4, ${zone}, '1-4', ${randomUUID()}, 'line-test', 'queued') returning id`;
+  const { bookingId } = await decide(request.id);
+  const send = mockLine();
+  expect(await deliverNextNotification(send, owner.venueId)).toBe(true);
+  expect(messageAt(send, 0)).toMatchObject({ to: "booker", title: "ได้รับคำขอ รอร้านยืนยัน" });
+  const [allocated] = await sql`select allocate_booking(${owner.venueId}, ${bookingId}, ${owner.userId}, ${zone}) as code`;
+  expect(allocated.code).toBe("ALLOCATED");
+  expect(await deliverNextNotification(send, owner.venueId)).toBe(true);
+  expect(messageAt(send, 1)).toMatchObject({ to: "booker", title: "ยืนยันการจองแล้ว" });
+  const closed = await addClosure(owner, { serviceDate: bookingNight, reason: "ซ่อมร้าน", bookings: "cancel" });
+  expect(closed.cancelledBookings).toBe(1);
+  expect(await deliverNextNotification(send, owner.venueId)).toBe(true);
+  expect(messageAt(send, 2)).toMatchObject({ to: "booker", title: "ยกเลิกการจองแล้ว",
+    contents: expect.arrayContaining([expect.objectContaining({ text: "ร้านปิดคืนนี้: ซ่อมร้าน" })]) });
+});
+
+it("commits the notification lease before I/O and recovers an expired lease with the same LINE retry key", async () => {
+  const { owner: { venueId }, customers: { booker } } = fixture;
+  const { bookingId } = await book(booker);
+  const sql = db();
+  const [job] = await sql<{ id: string }[]>`select id from notification_outbox where booking_id = ${bookingId} and kind = 'confirmed'`;
+  let notifyStarted!: () => void;
+  const started = new Promise<void>((resolve) => { notifyStarted = resolve; });
+  let resume!: (response: Response) => void;
+  const response = new Promise<Response>((resolve) => { resume = resolve; });
+  const send = vi.fn<typeof fetch>().mockImplementation(() => { notifyStarted(); return response; });
+  const delivery = deliverNextNotification(send, venueId);
+  try {
+    await Promise.race([started, delivery.then(() => { throw new Error("Expected LINE delivery to start"); })]);
+    const [during] = await sql`select status, attempts from notification_outbox where id = ${job.id}`;
+    expect(during).toMatchObject({ status: "sending", attempts: 1 });
+    expect(await deliverNextNotification(mockLine(), venueId)).toBe(false);
+    await sql`update notification_outbox set lease_until = now() - interval '1 second' where id = ${job.id}`;
+    const retry = mockLine();
+    expect(await deliverNextNotification(retry, venueId)).toBe(true);
+    expect(messageAt(retry, 0).retryKey).toBe(job.id);
+  } finally {
+    resume(new Response(null, { status: 503 }));
+    await delivery;
+  }
+  const [after] = await sql`select status, attempts, lease_until from notification_outbox where id = ${job.id}`;
+  expect(after).toMatchObject({ status: "sent", attempts: 2, leaseUntil: null });
 });
 
 it("shows one in-app announcement and sends a separate special-day reminder only to past bookers", async () => {

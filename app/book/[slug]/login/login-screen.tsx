@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { apiRequest } from "@/client/transport";
 import { slug as venueSlug } from "@/contracts/common";
+import { bookingAfterLogin, safeBookingLoginQuery } from "@/lib/booking-links";
 import { api, asFailure, realApiMode } from "../flow";
 import styles from "./login.module.css";
 
@@ -82,12 +83,11 @@ function LiffLogin({ slug, liffId }: { slug: string; liffId?: string | null }) {
         if (!RENEWABLE.has(failure.code) || storage()?.getItem(RELOGIN_KEY)) throw e;
         storage()?.setItem(RELOGIN_KEY, "1");
         liff.logout();
-        // Keep only `next`; LINE's own callback parameters must not be replayed.
-        const next = new URLSearchParams(location.search).get("next");
-        liff.login({ redirectUri: `${location.origin}${location.pathname}${next ? `?next=${encodeURIComponent(next)}` : ""}` });
+        // LIFF initialization completed. Preserve the destination, not LINE's temporary callback parameters.
+        liff.login({ redirectUri: `${location.origin}${location.pathname}${safeBookingLoginQuery(location.search)}` });
         return;
       }
-      if (active) router.replace(`/book/${slug}/details`);
+      if (active) router.replace(bookingAfterLogin(slug, location.search));
     }).catch((e) => active && setError(e instanceof Error ? e.message : asFailure(e).message));
     return () => { active = false; };
   }, [router, sdkLoaded, slug, liffId]);
@@ -101,7 +101,7 @@ function LiffLogin({ slug, liffId }: { slug: string; liffId?: string | null }) {
         <h1 className={styles.title}>เข้าสู่ระบบด้วย LINE</h1>
         <p className={styles.subtitle}>เพื่อจองโต๊ะและดูการจองของคุณ</p>
         <button type="button" className={styles.go} disabled={!sdk}
-          onClick={() => sdk?.login({ redirectUri: `${location.origin}${location.pathname}${location.search}` })}>เข้าสู่ระบบ</button>
+          onClick={() => sdk?.login({ redirectUri: `${location.origin}${location.pathname}${safeBookingLoginQuery(location.search)}` })}>เข้าสู่ระบบ</button>
         {error && <p role="alert" className={styles.error}>{error}</p>}
       </main>
     </div>
@@ -126,7 +126,7 @@ function DemoLogin({ slug }: { slug: string }) {
     setBusy(true); setError("");
     try {
       await api("/line/login", { method: "POST", body: { idToken: `mock:${userId}:${displayName}` } });
-      router.push(`/book/${slug}/details`);
+      router.push(bookingAfterLogin(slug, location.search));
     } catch (e) {
       setError(asFailure(e).message); setBusy(false);
     }

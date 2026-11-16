@@ -17,6 +17,13 @@ const schema = z.object({
   LINE_VERIFY_MODE: z.enum(["real", "mock"]).default("real"),
   LINE_SECRET_KEY: z.string().regex(/^[0-9a-f]{64}$/i),
   LINE_NOTIFICATIONS_ENABLED: z.enum(["true", "false"]).default("false").transform((value) => value === "true"),
+  BOOKING_PUBLIC_ORIGIN: z.preprocess((value) => value === "" ? undefined : value,
+    z.url({ protocol: /^https$/ }).refine((value) => {
+      try {
+        const url = new URL(value);
+        return url.pathname === "/" && !url.search && !url.hash && !url.username && !url.password;
+      } catch { return false; }
+    }).optional()),
   CRON_SECRET: z.preprocess((value) => value === "" ? undefined : value, z.string().min(32).optional()),
   // Base64 PKCS#8 DER Ed25519 private key, kept outside the database so signed audit checkpoints cannot be forged there.
   AUDIT_SIGNING_KEY: z.preprocess((value) => value === "" ? undefined : value, z.string().regex(/^[A-Za-z0-9+/]+={0,2}$/).optional()),

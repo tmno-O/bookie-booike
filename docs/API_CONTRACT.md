@@ -76,7 +76,7 @@ Owner `GET/PATCH .../settings` exposes `bookingReminderHours` and `specialRemind
 
 Owner `POST .../hours/special` also accepts `title` (120 characters) and `announce` (default false). Announcement requires a nonempty title and an open service night. Creation records the release and announcement under the venue lock. The audience (one outbox row per customer with a prior booking, excluding opt-out) is then queued in batches of 1,000 outside that lock, so booking decisions are not blocked; an interrupted fan-out resumes on the next drain. Delivery uses LINE multicast with up to 500 recipients per request; the batch id is the LINE retry key, and the LINE call runs outside any database transaction. Retrying the same special day returns `409 SPECIAL_DAY_EXISTS` without duplicating recipients. Hours responses include recipient/sent/failed counts.
 
-Session-scoped `GET /api/me/announcements` returns `{announcements: [{id,title,serviceDate,opensAt,timezone}], optedOut}`. Closed, deleted, replaced, or expired releases are hidden. `POST /api/me/announcements/opt-out` accepts `{optOut: boolean}`; opting out skips pending pushes. `POST /api/internal/notifications/drain` requires `Authorization: Bearer <CRON_SECRET>` and handles booking and announcement outboxes with bounded work, retries, and stale-job expiry. See DEPLOY.md for Supabase Cron configuration.
+Session-scoped `GET /api/me/announcements` returns `{announcements: [{id,title,serviceDate,opensAt,timezone}], optedOut}`. Closed, deleted, replaced, or expired releases are hidden. `POST /api/me/announcements/opt-out` accepts `{optOut: boolean}`; opting out skips pending pushes. `GET/POST /api/internal/notifications/drain` require `Authorization: Bearer <CRON_SECRET>` and handles booking and announcement outboxes with bounded work, retries, and stale-job expiry. See DEPLOY.md for Supabase Cron configuration.
 
 ## Audit trail and receipts
 
@@ -87,3 +87,5 @@ Staff `GET /api/staff/venues/{venueId}/audit?date=YYYY-MM-DD&limit=50&offset=0&q
 Booking views include nullable `receipt: {reference,queueSeq,receivedAt,decidedAt,verifyCode}`. `verifyCode` is the first 16 hex characters of the immutable confirmation/allocation-pending audit row hash. It remains stable after cancellation. Staff compare the request sequence, receipt and reference with stored evidence. Historical tickets remain in the audit log. Hash-chain limitations and pre-migration timestamp limitations are documented in README.md. Mock audit responses explicitly mark `simulated: true`.
 
 `GET /api/health` also includes `backlog: {pending,oldestAgeSeconds}` for queued/unpublished requests (null when DB check fails), without exposing venue/customer identifiers.
+
+`GET /api/health` includes `outbox: {pending,dead,oldestPendingAgeSeconds}` across booking, announcement and special-day reminder jobs. Future reminders are excluded from the pending count. Outbox metrics contain no customer or venue identifiers.

@@ -2,7 +2,9 @@ import { randomUUID } from "node:crypto";
 import { afterEach, expect, it, vi } from "vitest";
 import { encryptSecret } from "@/lib/crypto";
 import { sendLineMulticast, sendLinePush } from "@/server/line-push";
-import { POST as drain } from "../../app/api/internal/notifications/drain/route";
+import { bookingNoticeMessage, releaseNoticeMessage } from "@/server/notification-message";
+import { bookingAfterLogin, safeBookingLoginQuery } from "@/lib/booking-links";
+import { GET, POST } from "../../app/api/internal/notifications/drain/route";
 
 const config = vi.hoisted(() => ({ CRON_SECRET: "x".repeat(32), LINE_SECRET_KEY: "ab".repeat(32), LINE_NOTIFICATIONS_ENABLED: true, LINE_VERIFY_MODE: "real" }));
 const runDrain = vi.hoisted(() => vi.fn(async () => ({ bookings: 1, announcements: 2 })));
@@ -10,9 +12,9 @@ vi.mock("@/lib/env", () => ({ env: () => config }));
 vi.mock("@/server/services/notification-drain", () => ({ drainNotifications: runDrain }));
 afterEach(() => { config.CRON_SECRET = "x".repeat(32); config.LINE_NOTIFICATIONS_ENABLED = true; vi.clearAllMocks(); });
 
-it("rejects missing cron configuration and invalid credentials before draining", async () => {
+it.each([["GET", GET], ["POST", POST]] as const)("authenticates %s before draining", async (method, drain) => {
   const call = (authorization?: string) => drain(new Request("http://localhost/api/internal/notifications/drain", {
-    method: "POST", headers: authorization ? { authorization } : {},
+    method, headers: authorization ? { authorization } : {},
   }), { params: Promise.resolve({}) });
   config.CRON_SECRET = "";
   expect((await call()).status).toBe(503);
@@ -24,6 +26,28 @@ it("rejects missing cron configuration and invalid credentials before draining",
   config.LINE_NOTIFICATIONS_ENABLED = false;
   expect((await (await call(`Bearer ${config.CRON_SECRET}`)).json()).disabled).toBe(true);
   expect(runDrain).toHaveBeenCalledTimes(1);
+});
+
+it("builds a pending-booking message with the venue, reservation details and LIFF button", () => {
+  const message = bookingNoticeMessage({ kind: "received", name: "ร้านตัวอย่าง", slug: "test-store", liffId: "123-abc",
+    serviceDate: "2026-12-24", serviceTime: "20:30", zoneName: "VIP", partySize: 4, reference: "BL-2026-0001", resultCode: null, note: null });
+  expect(message.altText).toBe("ได้รับคำขอ รอร้านยืนยัน");
+  expect(message.contents.body.contents).toEqual(expect.arrayContaining([
+    expect.objectContaining({ text: "ร้านตัวอย่าง" }), expect.objectContaining({ text: expect.stringMatching(/24.*ธ\.ค\..*20:30/) }),
+    expect.objectContaining({ text: "โซน VIP" }), expect.objectContaining({ text: "จำนวน 4 คน" }),
+    expect.objectContaining({ text: "เลขอ้างอิง BL-2026-0001" }),
+  ]));
+  expect(message.contents.footer?.contents[0].action.uri).toBe("https://liff.line.me/123-abc/?next=bookings");
+});
+
+it("localizes special releases and preserves only known booking destinations", () => {
+  const message = releaseNoticeMessage({ title: "Festival", name: "Bookie", slug: "test-store", liffId: null,
+    serviceDate: "2026-12-24", opensAt: new Date("2026-12-23T18:30:00Z"), timezone: "Asia/Bangkok", reminder: false }, "https://bookie.example");
+  expect(message.contents.body.contents).toContainEqual(expect.objectContaining({ text: expect.stringMatching(/^เปิดจอง 24.*01:30/) }));
+  expect(message.contents.footer?.contents[0].action.uri).toBe("https://bookie.example/book/test-store/select?date=2026-12-24");
+  expect(bookingAfterLogin("test-store", "?next=select&date=2026-12-24")).toBe("/book/test-store/select?date=2026-12-24");
+  expect(bookingAfterLogin("test-store", "?next=https://example.com")).toBe("/book/test-store/details");
+  expect(safeBookingLoginQuery("?next=select&date=2026-02-30&liff.state=private")).toBe("?next=select");
 });
 
 it("uses stable LINE retry IDs and distinguishes retry, duplicate acceptance, permanent failure, and stale jobs", async () => {
