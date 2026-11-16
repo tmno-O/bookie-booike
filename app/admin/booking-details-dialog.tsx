@@ -5,6 +5,8 @@ import {
   adminApi, asFailure, CHANNEL_LABEL, formatPhone, PARTY_LABEL, shortThaiDate, STATUS_LABEL,
 } from "./admin-api";
 import styles from "./admin.module.css";
+import type { AuditEntry } from "@/contracts/audit";
+import { auditClock } from "./audit/audit-table";
 
 type Detail = {
   id: string; reference: string; name: string; phone: string; serviceDate: string; party: string; zoneName: string;
@@ -17,6 +19,9 @@ export default function BookingDetailsDialog({ bookingId, onClose }: { bookingId
   const [view, setView] = useState<"details" | "checked">("details");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [timeline, setTimeline] = useState<AuditEntry[]>();
+  const [timelineError, setTimelineError] = useState("");
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && !busy) onClose(); };
@@ -30,6 +35,14 @@ export default function BookingDetailsDialog({ bookingId, onClose }: { bookingId
       .catch((e) => active && setError(asFailure(e).status === 404 ? "ไม่พบการจองนี้" : asFailure(e).message));
     return () => { active = false; };
   }, [bookingId]);
+  useEffect(() => {
+    if (!booking) return;
+    let active = true;
+    adminApi<{ entries: AuditEntry[] }>(`/admin/bookings/${bookingId}/timeline`).then((r) => {
+      if (active) { setTimeline(r.entries); setTimelineError(""); }
+    }).catch(() => { if (active) setTimelineError("โหลดหลักฐานไม่สำเร็จ"); });
+    return () => { active = false; };
+  }, [bookingId, booking]);
 
   async function checkIn() {
     setBusy(true); setError("");
@@ -49,6 +62,13 @@ export default function BookingDetailsDialog({ bookingId, onClose }: { bookingId
   const row = (label: string, value: string) => (
     <div className={styles.dRow} key={label}><span className={styles.dLabel}>{label}</span><p className={styles.dValue}>{value}</p></div>
   );
+  async function cancel() {
+    setBusy(true); setError("");
+    try {
+      const result = await adminApi<{ booking: Detail }>(`/admin/bookings/${bookingId}`, { method: "PATCH", body: { status: "cancelled" } });
+      setBooking(result.booking); setConfirmCancel(false);
+    } catch (e) { setError(asFailure(e).message); } finally { setBusy(false); }
+  }
   const checked = view === "checked";
   const title = checked ? "เช็กอินเรียบร้อย" : booking ? `รายละเอียดการจอง · ${booking.name}` : "รายละเอียดการจอง";
   const sub = checked ? "สถานะการจองได้รับการปรับปรุง" : "ข้อมูลการจองและการเข้ารับบริการ";
@@ -78,13 +98,25 @@ export default function BookingDetailsDialog({ bookingId, onClose }: { bookingId
           </div>
         )}
         {error && <p role="alert" className={styles.dError}>{error}</p>}
+        {booking && <details style={{ marginTop: 20 }}>
+          <summary style={{ minHeight: 44, cursor: "pointer" }}>Timeline และรหัสตรวจสอบ</summary>
+          {timelineError && <p role="alert">{timelineError}</p>}
+          {timeline?.map((entry) => <p key={entry.id} style={{ overflowWrap: "anywhere" }}>
+            {auditClock(entry.createdAt)} · {entry.action}<br />ticket {entry.ticketSeq ?? "–"} · queue_seq {entry.queueSeq ?? "–"}<br />
+            {entry.resultCode ?? "–"} · <code>{entry.rowHash.slice(0, 16)}</code>
+          </p>)}
+        </details>}
+        {confirmCancel && <p role="status" className={styles.dError}>ยืนยันยกเลิก {booking?.reference}? โต๊ะจะเปิดให้ผู้อื่นจอง</p>}
         {booking && !checked && !booking.canCheckIn && booking.status === "confirmed" && (
-          <p className={styles.dError} style={{ color: "#77716c" }}>เช็กอินได้เฉพาะในคืนที่จองเท่านั้น</p>
+          <p className={styles.dError} style={{ color: "#77716c" }}>เช็กอินได้ตั้งแต่วันที่จองจนจบคืนบริการนั้น (รวมหลังเที่ยงคืน)</p>
         )}
 
         <div className={styles.dActions}>
           <button type="button" className={`${styles.btn} ${styles.btnGhost}`} disabled={busy}
             onClick={checked ? () => setView("details") : onClose}>กลับ</button>
+          {booking && (booking.status === "confirmed" || booking.status === "pending") && !checked &&
+            <button type="button" className={`${styles.btn} ${styles.btnOutline}`} disabled={busy} onClick={() => confirmCancel ? void cancel() : setConfirmCancel(true)}>{confirmCancel ? "ยืนยันยกเลิก" : "ยกเลิกการจอง"}</button>}
+          {confirmCancel && <button type="button" className={styles.btn} disabled={busy} onClick={() => setConfirmCancel(false)}>เก็บการจองไว้</button>}
           {checked
             ? <button type="button" className={`${styles.btn} ${styles.btnPrimary}`} onClick={onClose}>กลับไปยังรายการ</button>
             : booking && booking.status === "confirmed" &&

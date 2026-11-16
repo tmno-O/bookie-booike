@@ -26,7 +26,7 @@ npm run dev -- --port 3100
 
 - [หน้าจองของลูกค้า](http://localhost:3100/book/bookie-demo) เดินจาก login ถึงรับคิว เลือกคืนและโซน แล้วดูผลกับประวัติการจอง. ใช้หน้าต่างปกติคู่กับหน้าต่างส่วนตัว หรือใช้สองโปรไฟล์เบราว์เซอร์ เพื่อเห็นคิวขยับหลังส่งคำขอแรก.
 - [หน้าแอดมิน](http://localhost:3100/admin/login) ใช้ `owner@bookie.test` หรือ `staff@bookie.test` กับรหัส local `BookieDemo123!`. เจ้าของจัดการเวลาเปิดจอง ข้อมูลร้าน และคำเชิญ. ทั้งสอง role จัดการจอง คิว เช็กอิน และโซน.
-- [เดโมเลือกโต๊ะผ่าน API เดิม](http://localhost:3100/book/bookie-demo/demo) และ [สถานะ DB กับคิว](http://localhost:3100/api/health) ใช้ทดสอบระบบเดิมและการเชื่อมต่อ.
+- [เดโมเลือกโต๊ะผ่าน API เดิม](http://localhost:3100/book/bookie-demo/demo) (ต้องตั้ง `DIRECT_BOOKING_ENABLED=true` ในเครื่อง ไม่เช่นนั้นได้ `403 QUEUE_TICKET_REQUIRED`) และ [สถานะ DB กับคิว](http://localhost:3100/api/health) ใช้ทดสอบระบบเดิมและการเชื่อมต่อ.
 
 `NEXT_PUBLIC_API_MODE=mock` ใช้ JSON mock สำหรับทั้งสองหน้าจอและเป็นค่าเริ่มต้น. รีสตาร์ต Next.js เมื่อเปลี่ยนโหมด. ตัวอย่างขั้นตอนทั้งสองแบบอยู่ใน [คู่มือทดสอบ](docs/MOCK_TESTING.md).
 
@@ -43,7 +43,7 @@ Integration tests ใช้ Supabase, ElasticMQ (`docker compose up -d`) แล�
 
 ### k6 spike และ burst
 
-รันเมื่อเว็บทำงาน (และ booking worker ถ้าใช้โหมด `sqs`). เลือกคืนอนาคตสองคืนที่โต๊ะ A2 ของ `bookie-demo` ยังว่าง. แต่ละชุดจองโต๊ะเดียวและบันทึกผล contention ในฐานข้อมูล local.
+รันเมื่อเว็บทำงาน (และ booking worker ถ้าใช้โหมด `sqs`). สคริปต์จองโต๊ะตรงโดยไม่รับคิว จึงต้องเปิดเว็บด้วย `DIRECT_BOOKING_ENABLED=true` (ใช้ในเครื่องเท่านั้น production ปฏิเสธค่านี้). เลือกคืนอนาคตสองคืนที่โต๊ะ A2 ของ `bookie-demo` ยังว่าง. แต่ละชุดจองโต๊ะเดียวและบันทึกผล contention ในฐานข้อมูล local.
 
 ```powershell
 $env:BASE_URL = 'http://localhost:3100'
@@ -107,3 +107,14 @@ docker exec supabase_db_Hackathon-Final psql -U postgres -d postgres -c "select 
 - เปิด LINE push โดยตั้ง access token ของ Messaging API channel ที่ใช้ provider เดียวกับ LINE Login แล้วตั้ง `LINE_NOTIFICATIONS_ENABLED=true` และรัน `npm run worker:notifications`. เก็บ `LINE_SECRET_KEY` ใน secret store ของ environment.
 - การทดสอบ local ใช้ LINE mock กับ ElasticMQ. งานนอกขอบเขตเดโมคือการชำระเงิน มัดจำ คืนเงิน, rich menu publish, LINE webhook, ส่งอีเมลคำเชิญ และคืนโต๊ะเมื่อ no-show.
 .
+
+## การพิสูจน์ความถูกต้องของคิวและการจอง
+
+- `queue_tickets.seq` เป็น identity พร้อม unique constraint; active allocation หนึ่งโต๊ะต่อคืนถูกบังคับด้วย unique index การตัดสินและยกเลิกใช้ advisory lock ต่อร้าน/คืน
+- `queue_seq` คือเลขคำขอ DB; driver ประมวลผลหัวคิวที่ commit แล้วต่อร้าน/คืน คำขอที่ยังไม่ commit มองไม่เห็น ลำดับเลขที่จ่ายระหว่าง transaction พร้อมกันจึงไม่ใช่คำรับรองลำดับส่งจากอุปกรณ์ลูกค้า
+- `/admin/audit` แสดง ticket, queue_seq, เวลารับ/ตัดสินระดับมิลลิวินาที Asia/Bangkok, ผลปฏิเสธ, โต๊ะ/โซน และเบอร์ปิดบัง ค้นเลขอ้างอิงหรือเบอร์ 4 ตัวท้ายได้ Owner ส่งออก CSV ได้
+- ทุกแถว `audit_logs` ต่อ hash chain ต่อร้าน พร้อม seq และ SHA-256 ของข้อมูลมาตรฐาน UTC; trigger ปฏิเสธ UPDATE/DELETE/TRUNCATE ตรวจด้วย `verify_audit_chain()` หรือปุ่มในหน้า audit ลูกค้าเทียบรหัส 16 hex บนใบยืนยันกับแถว `booking.confirmed` / `booking.pending_allocation` ของร้าน
+- Hash chain ตรวจพบการเปลี่ยนข้อมูลหรือการขาดหายใน chain ที่เก็บอยู่ ผู้มีสิทธิ์ระดับผู้ดูแล DB ยังปิด trigger แล้วเขียน chain ใหม่หรือลบท้าย chain ได้ ต้องเก็บ checkpoint (`lastSeq`, `headHash`) หรือสำเนาภายนอกเพื่อพิสูจน์เทียบย้อนหลัง รหัสสั้นไม่ใช่ลายเซ็นดิจิทัลหรือการยืนยันตัวบุคคล
+- ประวัติก่อน migration เก็บ hash ของข้อมูลเดิม และใช้ `created_at` เดิมแทน `received_at`; ไม่สามารถสร้างรายละเอียด/เวลาจริงย้อนหลังที่เดิมไม่ได้เก็บ
+
+ผลทดสอบ 5,000 คำขอหลังเพิ่ม audit และข้อจำกัดการเทียบ performance: [evidence/audit](docs/evidence/audit/README.md). ขั้นตอนติดตั้ง migrations และ notification Cron: [DEPLOY.md](docs/DEPLOY.md).

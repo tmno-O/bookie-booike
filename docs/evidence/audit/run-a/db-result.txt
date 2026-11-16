@@ -1,0 +1,22 @@
+  status   |    result_code    | count
+-----------+-------------------+-------
+ confirmed |                   |     1
+ rejected  | TABLE_UNAVAILABLE |  4999
+(2 rows)
+
+ active_allocations
+--------------------
+                  1
+(1 row)
+
+          action          | count
+--------------------------+-------
+ booking.confirmed        |     1
+ booking.rejected         |  4999
+ booking.request_received |  5000
+(3 rows)
+
+ checked | first_bad_seq | first_bad_id | last_seq |                            head_hash
+---------+---------------+--------------+----------+------------------------------------------------------------------
+   10002 |               |              |    10002 | 55d64ea9570eacb50944e84feed277ed2c093f05ddc5aded0ab1f69d36b13aab
+(1 row)

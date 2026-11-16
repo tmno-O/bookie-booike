@@ -31,11 +31,12 @@ export async function getVenue(lookup: { venueId: string } | { slug: string }, s
     id: string; slug: string; name: string; description: string | null; contact: string | null;
     mapUrl: string | null; imageUrl: string | null; timezone: string; phone: string; address: string;
     entryPolicy: string; tableSelectionMode: "customer_picks" | "auto_assign";
-    cancelCutoffMinutes: number; liffId: string | null; allocationMode: "auto" | "manual";
+    cancelCutoffMinutes: number; customerCancelEnabled: boolean; largePartyMode: "staff_review" | "disabled"; liffId: string | null; allocationMode: "auto" | "manual";
   }[]>`
     select v.id, v.slug, v.name, v.description, v.contact, v.map_url, v.image_url, v.timezone,
            v.phone, v.address, v.entry_policy,
-           v.table_selection_mode, v.cancel_cutoff_minutes, l.liff_id, coalesce(s.allocation_mode, 'auto') as allocation_mode
+           v.table_selection_mode, v.cancel_cutoff_minutes, v.customer_cancel_enabled, l.liff_id, coalesce(s.allocation_mode, 'auto') as allocation_mode,
+           coalesce(s.large_party_mode, 'staff_review') as large_party_mode
     from venues v left join venue_line_integrations l on l.venue_id = v.id
     left join venue_settings s on s.venue_id = v.id
     where ${predicate}
@@ -63,11 +64,17 @@ export async function changeVenue(
 ) {
   if (!Object.keys(patch).length) throw new ApiError(400, "EMPTY_PATCH", "Provide a field to update");
   return staffChange(staff, async (tx) => {
-    const { allocationMode, ...fields } = patch as typeof patch & { allocationMode?: "auto" | "manual" };
+    const { allocationMode, largePartyMode, ...fields } = patch as typeof patch & {
+      allocationMode?: "auto" | "manual"; largePartyMode?: "staff_review" | "disabled";
+    };
     if (Object.keys(fields).length) await tx`update venues set ${tx(columns(fields))} where id = ${staff.venueId}`;
     if (allocationMode) {
       await tx`insert into venue_settings (venue_id, allocation_mode) values (${staff.venueId}, ${allocationMode})
         on conflict (venue_id) do update set allocation_mode = excluded.allocation_mode`;
+    }
+    if (largePartyMode) {
+      await tx`insert into venue_settings (venue_id, large_party_mode) values (${staff.venueId}, ${largePartyMode})
+        on conflict (venue_id) do update set large_party_mode = excluded.large_party_mode`;
     }
     await staffAudit(tx, staff, action, staff.venueId);
     return getVenue(staff, tx);

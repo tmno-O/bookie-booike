@@ -11,7 +11,7 @@ export const GET = route<Record<string, string>>(async (request) => {
   requireStaff(request);
   const date = input(z.string().regex(/^\d{4}-\d{2}-\d{2}$/), new URL(request.url).searchParams.get("date") ?? today());
   return json(await withDb((db) => {
-    const requests = db.bookings.filter((b) => b.serviceDate === date && b.channel === "line")
+    const requests = db.bookings.filter((b) => b.serviceDate === date && b.channel === "line" && b.status !== "cancelled")
       .sort((a, b) => (a.queueNo ?? 0) - (b.queueNo ?? 0)).map(queueRowView);
     return { serviceDate: date, today: today(), pending: requests.filter((r) => r.status === "pending").length, requests };
   }));

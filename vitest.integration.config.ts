@@ -10,5 +10,7 @@ export default defineConfig({
     include: ["tests/integration/**/*.test.ts"],
     fileParallelism: false,
     testTimeout: 60_000,
+    // Older suites drive table bookings without a queue ticket; the guard itself is covered by unit tests.
+    env: { DIRECT_BOOKING_ENABLED: "true" },
   },
 });

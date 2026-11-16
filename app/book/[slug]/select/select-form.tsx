@@ -15,7 +15,7 @@ const MAP_ZONES = ["VIP", "Indoor", "Outdoor"];
 type NightInfo = { zones: Zone[]; open: boolean; opensAt: string; closed?: boolean };
 const openText = (iso: string) =>
   new Intl.DateTimeFormat("th-TH-u-ca-gregory", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Bangkok" }).format(new Date(iso));
-type Venue = { today: string; maxAdvanceDays: number; openWeekdays: number[];
+type Venue = { today: string; maxAdvanceDays: number; openWeekdays: number[]; largePartyMode?: "staff_review" | "disabled";
   closedDates: { serviceDate: string; reason: string }[]; shop?: { name: string; entryPolicy: string } };
 
 const addDays = (date: string, days: number) => {
@@ -150,12 +150,14 @@ export default function SelectForm({ slug }: { slug: string }) {
 
         <span className={styles.label} id="party-label">จำนวนผู้เข้าร่วม</span>
         <div className={styles.party} role="group" aria-labelledby="party-label">
-          {PARTIES.map((p, i) => (
+          {PARTIES.map((p, i) => venue?.largePartyMode === "disabled" && p.value === "12+" ? null : (
             <button type="button" key={p.value} aria-pressed={party === i}
               className={`${styles.pill} ${party === i ? styles.pillOn : ""}`} disabled={busy || !!returnTo}
               onClick={() => { if (party !== i) { setParty(i); setZoneId(undefined); if (realApiMode) setZones([]); } }}>{p.label}</button>
           ))}
         </div>
+        {venue?.largePartyMode === "disabled" && <p className={styles.caption}>กลุ่มเกิน 12 คน กรุณาติดต่อร้านโดยตรง</p>}
+        {PARTIES[party].value === "12+" && <p className={styles.caption}>กลุ่มเกิน 12 คน ร้านจะยืนยันและจัดโต๊ะให้ภายหลัง</p>}
 
         <span className={styles.label} id="zone-label">โซนที่ต้องการ</span>
         {plan?.zones.length ? (

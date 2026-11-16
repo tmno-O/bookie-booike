@@ -3,7 +3,7 @@
 import Script from "next/script";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { api, asFailure, realApiMode } from "../flow";
+import { api, asFailure, loadCustomer, realApiMode } from "../flow";
 import styles from "./login.module.css";
 
 type Account = { userId: string; displayName: string };
@@ -54,10 +54,12 @@ function LiffLogin({ slug }: { slug: string }) {
         if (!RENEWABLE.has(failure.code) || storage()?.getItem(RELOGIN_KEY)) throw e;
         storage()?.setItem(RELOGIN_KEY, "1");
         liff.logout();
-        liff.login({ redirectUri: `${location.origin}${location.pathname}` });
+        // Keep only `next`; LINE's own callback parameters must not be replayed.
+        const next = new URLSearchParams(location.search).get("next");
+        liff.login({ redirectUri: `${location.origin}${location.pathname}${next ? `?next=${encodeURIComponent(next)}` : ""}` });
         return;
       }
-      if (active) router.replace(`/book/${slug}/details`);
+      if (active) router.replace(`/book/${slug}/${new URLSearchParams(window.location.search).get("next") === "waiting" && loadCustomer() ? "waiting" : "details"}`);
     }).catch((e) => active && setError(e instanceof Error ? e.message : asFailure(e).message));
     return () => { active = false; };
   }, [router, sdkLoaded, slug]);
@@ -71,7 +73,7 @@ function LiffLogin({ slug }: { slug: string }) {
         <h1 className={styles.title}>เข้าสู่ระบบด้วย LINE</h1>
         <p className={styles.subtitle}>เพื่อรับคิวและดูการจองของคุณ</p>
         <button type="button" className={styles.go} disabled={!sdk}
-          onClick={() => sdk?.login({ redirectUri: `${location.origin}${location.pathname}` })}>เข้าสู่ระบบ</button>
+          onClick={() => sdk?.login({ redirectUri: `${location.origin}${location.pathname}${location.search}` })}>เข้าสู่ระบบ</button>
         {error && <p role="alert" className={styles.error}>{error}</p>}
       </main>
     </div>

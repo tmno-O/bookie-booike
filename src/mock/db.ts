@@ -17,13 +17,13 @@ export type QueueEntry = {
 export type Booking = {
   id: string; reference: string; requestId: string; customerId: string; name: string; phone: string;
   serviceDate: string; party: string; zoneId: string; zoneName: string; createdAt: string;
-  status: BookingStatus; channel: "line" | "staff"; checkedInAt?: string;
+  status: BookingStatus; channel: "line" | "staff"; checkedInAt?: string; cancelledAt?: string;
   /** Queue request number and when it was sent (customer requests only). */
   queueNo?: number; requestedAt?: string;
 };
-export type BookingStatus = "pending" | "confirmed" | "checked_in";
+export type BookingStatus = "pending" | "confirmed" | "checked_in" | "cancelled";
 export type LineUser = { id: string; userId: string; displayName: string; createdAt: string };
-export type SpecialDay = { id: string; serviceDate: string; opensOn: string; time: string };
+export type SpecialDay = { id: string; serviceDate: string; opensOn: string; time: string; title?: string; announce?: boolean };
 export type Schedule = { standard: { daysBefore: number; time: string }; specials: SpecialDay[];
   openWeekdays: number[]; closures: { serviceDate: string; reason: string }[];
   /** Nightly service window, same for every open day (end <= start means it runs past midnight). */
@@ -41,12 +41,14 @@ export type Db = {
     /** Test hook: customers cannot join the queue before this instant (reset with opensInSeconds). */
     holdUntil: string;
     schedule: Schedule;
-    /** Customers can cancel only this many minutes or more before the booking starts. */
-    cancelCutoffMinutes: number;
   };
   zones: Zone[];
   lineUsers: LineUser[];
   profile: ShopProfile;
+  cancellation: { customerCancelEnabled: boolean; cancelCutoffMinutes: number };
+  largePartyMode: "staff_review" | "disabled";
+  announcements: { id: string; serviceDate: string; title: string; opensAt: string; recipients: string[] }[];
+  announcementOptOut: string[];
   invites: Invite[];
   floorPlan: { draft: FloorPlan | null; published: FloorPlan | null; publishedAt: string | null };
   queue: QueueEntry[];
@@ -89,12 +91,15 @@ export function seed(opts: { opensInSeconds?: number; queueStepSeconds?: number 
     venue: {
       slug: "bookie-demo", name: "Bookie lyon.", timezone: TZ, maxAdvanceDays: 6,
       holdUntil: new Date(now.getTime() + (opts.opensInSeconds ?? 0) * 1000).toISOString(),
-      schedule: structuredClone(DEFAULT_SCHEDULE), cancelCutoffMinutes: 120,
+      schedule: structuredClone(DEFAULT_SCHEDULE),
       queueStepSeconds: opts.queueStepSeconds ?? 2,
     },
     zones,
     lineUsers: [],
     profile: { ...DEFAULT_PROFILE },
+    cancellation: { customerCancelEnabled: true, cancelCutoffMinutes: 120 },
+    largePartyMode: "staff_review",
+    announcements: [], announcementOptOut: [],
     invites: [],
     floorPlan: { draft: null, published: null, publishedAt: null },
     queue: [],
@@ -120,6 +125,9 @@ async function load(): Promise<Db> {
     const db = JSON.parse(await readFile(file(), "utf8")) as Db;
     db.lineUsers ??= []; // databases saved before LINE login existed
     db.profile ??= { ...DEFAULT_PROFILE };
+    db.cancellation ??= { customerCancelEnabled: true, cancelCutoffMinutes: 120 };
+    db.largePartyMode ??= "staff_review";
+    db.announcements ??= []; db.announcementOptOut ??= [];
     db.invites ??= [];
     db.floorPlan ??= { draft: null, published: null, publishedAt: null }; // databases saved before floor plans existed
     const legacy = db.venue as Db["venue"] & { opensAt?: string };
@@ -128,7 +136,6 @@ async function load(): Promise<Db> {
     legacy.schedule.openWeekdays ??= [0,1,2,3,4,5,6];
     legacy.schedule.closures ??= [];
     legacy.schedule.service ??= { ...DEFAULT_SCHEDULE.service };
-    legacy.cancelCutoffMinutes ??= 120;
     const seats: Record<string, number> = { VIP: 24, Indoor: 48, Outdoor: 60 };
     for (const z of db.zones) { z.seats ??= seats[z.name] ?? 20; z.status ??= "open"; }
     for (const b of db.bookings) { b.status ??= "confirmed"; b.channel ??= "line"; }
@@ -169,7 +176,7 @@ export function queueState(db: Db, entry: QueueEntry, now = Date.now()) {
 
 export function zoneAvailability(db: Db, date: string) {
   return db.zones.map((zone) => {
-    const left = tablesFor(zone) - db.bookings.filter((b) => b.serviceDate === date && b.zoneId === zone.id && b.status !== "pending").length;
+    const left = tablesFor(zone) - db.bookings.filter((b) => b.serviceDate === date && b.zoneId === zone.id && (b.status === "confirmed" || b.status === "checked_in")).length;
     const closed = zone.status === "closed";
     return { id: zone.id, name: zone.name, tablesLeft: Math.max(0, left), available: left > 0 && !closed, closed };
   });

@@ -60,6 +60,15 @@ import { sqs } from "@/lib/sqs";
 import { consumeBookingMessage, receiveBookingMessage } from "../../worker/consume";
 import { reconcilePending } from "../../worker/recovery";
 import { deliverNextNotification } from "../../worker/notifications";
+import { deliverNextAnnouncement } from "../../worker/announcements";
+import { encryptSecret } from "@/lib/crypto";
+import { GET as announcements } from "../../app/api/me/announcements/route";
+import { POST as optOut } from "../../app/api/me/announcements/opt-out/route";
+import { GET as auditRead } from "../../app/api/staff/venues/[venueId]/audit/route";
+import { GET as auditVerify } from "../../app/api/staff/venues/[venueId]/audit/verify/route";
+import { GET as auditExport } from "../../app/api/staff/venues/[venueId]/audit/export.csv/route";
+import { GET as auditTimeline } from "../../app/api/staff/venues/[venueId]/bookings/[bookingId]/timeline/route";
+import { auditPage } from "@/contracts/audit";
 
 // This suite covers the optional SQS FIFO driver with the Node worker; db-queue.test.ts covers the default.
 process.env.QUEUE_DRIVER = "sqs";
@@ -478,7 +487,7 @@ it("lets only owners edit hours and applies Bangkok special releases to customer
     expect(await added.json()).toMatchObject({ special: { id: date, opensAt } });
     expect(await (await visibility()).json()).toMatchObject({ nightOpen: true, opensAt });
     const snapshot = hoursData.parse(await (await hours(request("GET", owner), params)).json());
-    expect(snapshot.specials).toContainEqual({ id: date, opensAt, ...special });
+    expect(snapshot.specials).toContainEqual({ id: date, opensAt, ...special, title: "", recipients: 0, sent: 0, failed: 0 });
     expect(await (await addSpecial(request("POST", { ...owner, data: special }), params)).json())
       .toMatchObject({ error: { code: "SPECIAL_DAY_EXISTS" } });
     expect((await deleteSpecial(request("DELETE", owner), specialParams)).status).toBe(200);
@@ -621,13 +630,18 @@ afterAll(async () => {
   const sql = db();
   try {
     await sql.begin(async (tx) => {
+      await tx`delete from announcement_outbox where venue_id in ${tx(venues)}`;
+      await tx`delete from release_announcements where venue_id in ${tx(venues)}`;
       await tx`delete from notification_outbox where venue_id in ${tx(venues)}`;
       await tx`delete from booking_events where venue_id in ${tx(venues)}`;
       await tx`delete from booking_allocations where venue_id in ${tx(venues)}`;
       await tx`update booking_requests set status = 'queued', booking_id = null, result_code = null where venue_id in ${tx(venues)}`;
       await tx`delete from bookings where venue_id in ${tx(venues)}`;
       await tx`delete from booking_requests where venue_id in ${tx(venues)}`;
+      // Test-only cleanup on verified local Supabase; production history stays append-only.
+      await tx`alter table audit_logs disable trigger audit_logs_immutable`;
       await tx`delete from audit_logs where venue_id in ${tx(venues)}`;
+      await tx`alter table audit_logs enable trigger audit_logs_immutable`;
       await tx`delete from booking_rules where venue_id in ${tx(venues)}`;
       await tx`delete from booking_releases where venue_id in ${tx(venues)}`;
       await tx`delete from venue_tables where venue_id in ${tx(venues)}`;
@@ -850,4 +864,70 @@ describe.sequential("Supabase + ElasticMQ booking", () => {
     const [sent] = await sql`select status, attempts from notification_outbox where id = ${job.id}`;
     expect(sent).toMatchObject({ status: "sent", attempts: 2 });
   });
+});
+
+
+it("keeps in-app announcements after LINE retry and stops delivery after opt-out", async () => {
+  const sql = db();
+  await sql`update venue_tables set status = 'active' where id = ${tableId}`;
+  const [past] = await sql`insert into booking_requests
+    (venue_id, customer_id, actor_type, actor_id, source, service_date, party_size, table_id, idempotency_key, payload_hash, status)
+    values (${venueId}, ${alice.customerId}, 'customer', ${alice.customerId}, 'liff', ${day(27)}, 2, ${tableId}, ${randomUUID()}, 'announcement-test', 'queued') returning id`;
+  await sql`select process_booking_request(${past.id})`;
+  const data = { serviceDate: day(29), opensOn: day(0), time: "00:00", title: "Festival", announce: true };
+  const response = await addSpecial(request("POST", { token: ownerToken, data }), context({ venueId }));
+  expect(response.status, await response.clone().text()).toBe(201);
+  const list = () => announcements(request("GET", { cookie: alice.cookie }), context({})).then((r) => r.json());
+  expect((await list()).announcements).toContainEqual(expect.objectContaining({ title: "Festival" }));
+  expect((await (await announcements(request("GET", { cookie: other.cookie }), context({}))).json()).announcements).toEqual([]);
+  await sql`update venue_line_integrations set access_token_ciphertext = ${encryptSecret("token", `${venueId}:access-token`)} where venue_id = ${venueId}`;
+  let firstKey = "";
+  const retry: typeof fetch = async (url, init) => {
+    expect(String(url)).toBe("https://api.line.me/v2/bot/message/multicast");
+    firstKey = new Headers(init?.headers).get("X-Line-Retry-Key")!;
+    return new Response(null, { status: 503 });
+  };
+  expect(await deliverNextAnnouncement(retry, venueId)).toBe(true);
+  const [leased] = await sql`select count(*)::int as sending from announcement_outbox where venue_id = ${venueId} and status = 'sending'`;
+  expect(leased.sending).toBe(0);
+  expect((await list()).announcements).toHaveLength(1);
+  await sql`update announcement_outbox set next_attempt_at = now() where venue_id = ${venueId} and status = 'pending'`;
+  const calls: string[] = [];
+  const send: typeof fetch = async (_url, init) => { calls.push(new Headers(init?.headers).get("X-Line-Retry-Key")!); return new Response(null, { status: 200 }); };
+  while (await deliverNextAnnouncement(send, venueId)) { /* drain this test audience */ }
+  expect(calls.length).toBeGreaterThan(0);
+  expect(new Set(calls).size).toBe(calls.length);
+  // The failed batch is retried with the same members and the same LINE retry key.
+  expect(calls[0]).toBe(firstKey);
+  const [delivered] = await sql`select count(*) filter (where status = 'sent')::int as sent,
+    count(*) filter (where status in ('pending', 'sending'))::int as open from announcement_outbox where venue_id = ${venueId}`;
+  expect(delivered).toMatchObject({ open: 0 });
+  expect(delivered.sent).toBeGreaterThan(0);
+  expect((await optOut(request("POST", { cookie: alice.cookie, data: { optOut: true } }), context({}))).status).toBe(200);
+  expect(await list()).toEqual({ announcements: [], optedOut: true });
+});
+
+
+it("scopes audit evidence, masks phone numbers, restricts exports, and matches customer receipts", async () => {
+  const [booking] = await db()`select b.id, b.reference, to_char(b.service_date, 'YYYY-MM-DD') as date
+    from bookings b where b.venue_id = ${venueId} and b.customer_id = ${alice.customerId}
+      and b.contact_phone = '0812345678' order by b.created_at limit 1`;
+  expect(booking).toBeDefined();
+  const path = `/api/staff/venues/${venueId}/audit?date=${booking.date}&q=${booking.reference}`;
+  const evidence = await auditRead(request("GET", { token: staffToken, path }), context({ venueId }));
+  expect(evidence.status, await evidence.clone().text()).toBe(200);
+  const data = auditPage.parse(await evidence.json());
+  expect(data.entries.length).toBeGreaterThanOrEqual(2);
+  expect(data.entries.every((e) => e.phone === '***5678')).toBe(true);
+  expect(JSON.stringify(data)).not.toContain('0812345678');
+  const receipt = bookingContract.parse(await (await readBooking(request("GET", { cookie: alice.cookie }), context({ bookingId: booking.id }))).json()).receipt;
+  expect(receipt).not.toBeNull();
+  const timeline = await (await auditTimeline(request("GET", { token: staffToken }), context({ venueId, bookingId: booking.id }))).json();
+  expect(timeline.entries).toContainEqual(expect.objectContaining({ action: 'booking.confirmed', rowHash: expect.stringMatching(new RegExp(`^${receipt!.verifyCode}`)) }));
+  expect((await auditTimeline(request("GET", { token: staffToken }), context({ venueId: otherVenueId, bookingId: booking.id }))).status).toBe(404);
+  expect((await (await auditVerify(request("GET", { token: staffToken }), context({ venueId }))).json()).valid).toBe(true);
+  expect((await auditExport(request("GET", { token: staffToken, path }), context({ venueId }))).status).toBe(403);
+  const csv = await auditExport(request("GET", { token: ownerToken, path }), context({ venueId }));
+  expect(csv.headers.get('content-type')).toContain('text/csv');
+  const body = await csv.text(); expect(body).toContain('***5678'); expect(body).not.toContain('0812345678');
 });

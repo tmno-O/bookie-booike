@@ -90,7 +90,19 @@ export async function createBookingRequest(booking: BookingSubmission, customerI
     }
 
     const skipRelease = actor.type === "staff" && Boolean(partyBucket);
-    const candidates = await tx<{ resultCode: string | null }[]>`
+    if (partyBucket === "12+") {
+      // Large parties may span several tables, so they are checked against the zone rather than one table.
+      const [large] = await tx<{ mode: string; code: string | null }[]>`
+        select coalesce((select large_party_mode from venue_settings where venue_id = ${venueId}), 'staff_review') as mode,
+          zone_fits_party(${venueId}, ${serviceDate}, ${zoneId!}, ${partySize}, clock_timestamp(), ${skipRelease}) as code
+      `;
+      if (large.mode === "disabled") return new ApiError(409, "LARGE_PARTY_DISABLED", "ร้านไม่รับจองออนไลน์สำหรับกลุ่มเกิน 12 คน กรุณาติดต่อร้าน");
+      if (large.code) {
+        const code = large.code === "TABLE_UNAVAILABLE" ? "ZONE_FULL" : large.code === "NOT_OPEN_YET" ? "NIGHT_NOT_OPEN" : large.code;
+        return new ApiError(409, code, "ไม่มีที่นั่งพอสำหรับกลุ่มนี้ในโซนที่เลือก");
+      }
+    }
+    const candidates = partyBucket === "12+" ? [{ resultCode: null }] : await tx<{ resultCode: string | null }[]>`
       select result_code from booking_candidates_for(
         ${venueId}, ${serviceDate}, ${tableId ?? null}, ${zoneId ?? null}, ${partySize}, ${startsAt},
         clock_timestamp(), ${skipRelease}

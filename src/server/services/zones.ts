@@ -29,16 +29,21 @@ export function getZone(venueId: string, zoneId: string) {
 async function assertCapacityCovers(
   tx: TransactionSql, venueId: string, zoneId: string, today: string, seats: number, managed: boolean,
 ) {
-  const [usage] = await tx<{ maxSeats: number; tables: number; maxParty: number }[]>`
+  // A large party may hold several tables, so tables are counted from active allocations per night.
+  const [usage] = await tx<{ maxSeats: number; tables: number }[]>`
     with upcoming as (
-      select service_date, table_id, party_size from bookings where venue_id = ${venueId} and zone_id = ${zoneId}
+      select service_date, party_size from bookings where venue_id = ${venueId} and zone_id = ${zoneId}
         and service_date >= ${today} and status in ('confirmed', 'checked_in')
+    ), held as (
+      select a.service_date, count(*) as tables from booking_allocations a
+      join venue_tables t on t.venue_id = a.venue_id and t.id = a.table_id
+      where a.venue_id = ${venueId} and t.zone_id = ${zoneId} and a.active and a.service_date >= ${today}
+      group by a.service_date
     )
     select coalesce((select max(n.seats) from (select sum(party_size) as seats from upcoming group by service_date) n), 0)::int as max_seats,
-      count(distinct table_id)::int as tables, coalesce(max(party_size), 0) as max_party
-    from upcoming
+      coalesce((select max(tables) from held), 0)::int as tables
   `;
-  if (usage.maxSeats > seats || (managed && (usage.tables > Math.ceil(seats / 12) || usage.maxParty > 12))) {
+  if (usage.maxSeats > seats || (managed && usage.tables > Math.ceil(seats / 12))) {
     throw new ApiError(409, "CAPACITY_BELOW_BOOKED", "ความจุหรือจำนวนโต๊ะน้อยกว่าที่จองไว้แล้ว");
   }
 }
@@ -50,8 +55,8 @@ async function syncTables(tx: TransactionSql, venueId: string, zoneId: string, t
       select t.id from venue_tables t
       where t.venue_id = ${venueId} and t.zone_id = ${zoneId}
       order by exists (
-        select 1 from bookings b where b.venue_id = t.venue_id and b.zone_id = t.zone_id and b.table_id = t.id
-          and b.service_date >= ${today} and b.status in ('confirmed', 'checked_in')
+        select 1 from booking_allocations a where a.venue_id = t.venue_id and a.table_id = t.id
+          and a.service_date >= ${today} and a.active
       ) desc, (t.status = 'active') desc, t.id limit ${target}
     )
     update venue_tables t set
