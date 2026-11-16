@@ -1,7 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { serviceDate } from "@/contracts/common";
 import type { FloorPlan } from "@/lib/floor-plan";
 import FloorPlanView from "@/ui/floor-plan-view";
 import { ActiveBookingNotice, useActiveBooking } from "../active-booking";
@@ -13,7 +14,7 @@ type Zone = { id: string; name: string; tablesLeft: number; available: boolean; 
 const MAP_ZONES = ["VIP", "Indoor", "Outdoor"];
 type NightInfo = { zones: Zone[]; open: boolean; opensAt: string; closed?: boolean };
 type Opening = { serviceDate: string; opensAt: string };
-type Venue = { openNights: string[]; upcomingNights: Opening[]; timezone: string; largePartyMode?: "staff_review" | "disabled";
+type Venue = { openNights: string[]; upcomingNights: Opening[]; timezone: string; nextDateAt: string; largePartyMode?: "staff_review" | "disabled";
   shop?: { name: string; entryPolicy: string } };
 
 const openText = (iso: string, timeZone?: string) =>
@@ -24,6 +25,7 @@ const countdown = (seconds: number) => [Math.floor(seconds / 3600), Math.floor(s
 
 export default function SelectForm({ slug }: { slug: string }) {
   const router = useRouter();
+  const requested = serviceDate.safeParse(useSearchParams().get("date")).data;
   const { active, refresh: refreshActive } = useActiveBooking(slug);
   const [venue, setVenue] = useState<Venue>();
   const [date, setDate] = useState("");
@@ -39,16 +41,25 @@ export default function SelectForm({ slug }: { slug: string }) {
   const [availabilityVersion, setAvailabilityVersion] = useState(0);
   const [now, setNow] = useState(Date.now);
   const attempt = useRef<BookingAttempt | null>(null);
+  const userPickedDate = useRef(false);
   const dates = venue?.openNights ?? [];
-  const next = venue?.upcomingNights.reduce<Opening | undefined>((first, entry) =>
+  const upcoming = venue?.upcomingNights ?? [];
+  const earliest = upcoming.reduce<Opening | undefined>((first, entry) =>
     !first || Date.parse(entry.opensAt) < Date.parse(first.opensAt) ? entry : first, undefined);
+  const next = upcoming.find((entry) => entry.serviceDate === requested) ?? earliest;
   const nextAt = next ? Date.parse(next.opensAt) : 0;
+  const boundaries = [earliest?.opensAt, venue?.nextDateAt].flatMap((value) => value ? [Date.parse(value)] : []);
+  const refreshAt = boundaries.length ? Math.min(...boundaries) : undefined;
   const remaining = Math.max(0, Math.ceil((nextAt - now) / 1000));
   const partyBucket = PARTIES[party].value;
   const availabilityKey = `${date}:${partyBucket}:${availabilityVersion}`;
   const night = availability?.key === availabilityKey ? availability : undefined;
   const zones = night?.zones ?? [];
   const closed = night?.closed === true;
+  const refreshSchedule = useCallback(() => {
+    setScheduleVersion((v) => v + 1);
+    setAvailabilityVersion((v) => v + 1);
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -56,7 +67,7 @@ export default function SelectForm({ slug }: { slug: string }) {
       if (controller.signal.aborted) return;
       const scope = `${slug}:${user.userId}`;
       const saved = loadCustomer(scope);
-      if (!saved) { router.replace(`/book/${slug}/details`); return; }
+      if (!saved) { router.replace(`/book/${slug}/details${requested ? `?date=${requested}` : ""}`); return; }
       setCustomer({ ...saved, scope });
       attempt.current = readAttempt(scope);
       setCanResume(attempt.current !== null);
@@ -64,32 +75,38 @@ export default function SelectForm({ slug }: { slug: string }) {
       if (!controller.signal.aborted && asFailure(e).status !== 401) setError(asFailure(e).message);
     });
     return () => controller.abort();
-  }, [router, slug]);
+  }, [requested, router, slug]);
 
   useEffect(() => {
     const controller = new AbortController();
     api<Venue>("/venue", { signal: controller.signal }).then((v) => {
       if (controller.signal.aborted) return;
       setVenue(v);
-      setDate((current) => v.openNights.includes(current) ? current : v.openNights[0] ?? "");
+      setDate((current) => {
+        if (!userPickedDate.current && requested && v.openNights.includes(requested)) return requested;
+        return v.openNights.includes(current) ? current : v.openNights[0] ?? "";
+      });
       setNow(Date.now());
     }).catch((e) => { if (!controller.signal.aborted) setError(asFailure(e).message); });
     return () => controller.abort();
-  }, [scheduleVersion, slug]);
+  }, [requested, scheduleVersion, slug]);
 
   useEffect(() => {
-    if (!nextAt) return;
-    const timer = setInterval(() => {
-      const current = Date.now();
-      setNow(current);
-      if (current >= nextAt) {
-        clearInterval(timer);
-        setScheduleVersion((v) => v + 1);
-        setAvailabilityVersion((v) => v + 1);
-      }
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [nextAt]);
+    if (!refreshAt) return;
+    const timer = setTimeout(refreshSchedule, Math.max(0, refreshAt - Date.now()) + 150);
+    const clock = nextAt ? setInterval(() => setNow(Date.now()), 1000) : undefined;
+    return () => { clearTimeout(timer); clearInterval(clock); };
+  }, [nextAt, refreshAt, refreshSchedule]);
+
+  useEffect(() => {
+    const visible = () => { if (document.visibilityState === "visible") refreshSchedule(); };
+    window.addEventListener("focus", refreshSchedule);
+    document.addEventListener("visibilitychange", visible);
+    return () => {
+      window.removeEventListener("focus", refreshSchedule);
+      document.removeEventListener("visibilitychange", visible);
+    };
+  }, [refreshSchedule]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -145,8 +162,7 @@ export default function SelectForm({ slug }: { slug: string }) {
         setAvailabilityVersion((v) => v + 1);
       }
       if (["NIGHT_NOT_OPEN", "BOOKING_CLOSED", "DATE_OUT_OF_RANGE", "CLOSED"].includes(failure.code)) {
-        setScheduleVersion((v) => v + 1);
-        setAvailabilityVersion((v) => v + 1);
+        refreshSchedule();
       }
     }
   }
@@ -176,7 +192,7 @@ export default function SelectForm({ slug }: { slug: string }) {
         <div className={styles.dateField}>
           <span>{date ? thaiDate(date) : venue ? "ยังไม่มีคืนเปิดจอง" : "กำลังโหลด…"}</span><span className={styles.chev} aria-hidden>⌄</span>
           {venue && <select id="date" className={styles.dateInput} value={date} disabled={busy || !dates.length}
-            onChange={(e) => { setDate(e.target.value); setZoneId(undefined); setError(""); }}>
+            onChange={(e) => { userPickedDate.current = true; setDate(e.target.value); setZoneId(undefined); setError(""); }}>
             {!dates.length && <option value="">ยังไม่มีคืนเปิดจอง</option>}
             {dates.map((day) => <option key={day} value={day}>{thaiDate(day)}</option>)}
           </select>}
@@ -229,6 +245,13 @@ export default function SelectForm({ slug }: { slug: string }) {
           <p>{thaiDate(next.serviceDate)} · เปิดจอง {openText(next.opensAt, venue?.timezone)} น.</p>
           <p role="timer" aria-label="เวลานับถอยหลังเปิดจอง">{countdown(remaining)}</p>
         </div>}
+        {upcoming.length > 1 && <details className={styles.caption}>
+          <summary>เวลาเปิดจองคืนอื่น</summary>
+          <ul>{upcoming.filter((entry) => entry !== next).map((entry) =>
+            <li key={entry.serviceDate}>{thaiDate(entry.serviceDate)} · เปิดจอง {openText(entry.opensAt, venue?.timezone)} น.</li>)}</ul>
+        </details>}
+        {requested && venue && !dates.includes(requested) && !upcoming.some((entry) => entry.serviceDate === requested)
+          && <p className={styles.caption}>คืนที่ลิงก์ระบุยังไม่อยู่ในช่วงเปิดจอง: {thaiDate(requested)}</p>}
         <p className={styles.hint}>แตะพื้นที่บนผังเพื่อเลือกโซน</p>
         {venue?.shop?.entryPolicy && <p className={styles.caption} style={{ marginTop: 16, fontSize: 12 }}>นโยบายการเข้าร้าน: {venue.shop.entryPolicy}</p>}
         {error && <p role="alert" className={styles.error}>{error}</p>}

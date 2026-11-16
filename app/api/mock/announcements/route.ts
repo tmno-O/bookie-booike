@@ -11,6 +11,6 @@ export const GET = route(async (request) => {
     return { optedOut, announcements: optedOut ? [] : db.announcements.filter((a) => a.recipients.includes(customer)
       && isServiceNightOpen(db, a.serviceDate) && db.venue.schedule.specials.some((s) => s.serviceDate === a.serviceDate)
       && Date.parse(a.opensAt) === opensAtFor(db, a.serviceDate) && Date.now() < Date.parse(`${a.serviceDate}T02:00:00+07:00`) + 86_400_000)
-      .map(({ id, title, serviceDate, opensAt }) => ({ id, title, serviceDate, opensAt })) };
+      .map(({ id, title, serviceDate, opensAt }) => ({ id, title, serviceDate, opensAt, timezone: db.venue.timezone })) };
   }));
 });

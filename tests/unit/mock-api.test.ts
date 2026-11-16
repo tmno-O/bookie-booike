@@ -667,12 +667,16 @@ describe("mock admin opening hours", () => {
 
   it("validates and saves the standard hours", async () => {
     const cookie = await owner();
-    for (const bad of [{ daysBefore: 31, time: "20:00" }, { daysBefore: -1, time: "20:00" }, { daysBefore: 1, time: "25:00" },
+    for (const bad of [{ daysBefore: 366, time: "20:00" }, { daysBefore: -1, time: "20:00" }, { daysBefore: 1, time: "25:00" },
       { daysBefore: 1.5, time: "20:00" }, { daysBefore: 1 }]) {
       expect((await putStandard(cookie, bad)).status).toBe(400);
     }
     expect((await putStandard(cookie, { daysBefore: 3, time: "18:30" })).status).toBe(200);
-    expect((await (await call(hoursGet, "/api/mock/admin/hours", { cookie })).json()).standard).toEqual({ daysBefore: 3, time: "18:30" });
+    expect(await (await call(hoursGet, "/api/mock/admin/hours", { cookie })).json())
+      .toMatchObject({ standard: { daysBefore: 3, time: "18:30" }, maxAdvanceDays: 3, timezone: "Asia/Bangkok" });
+    expect((await call(availability, "/api/mock/availability?date=2026-11-15")).status).toBe(422);
+    expect((await putStandard(cookie, { daysBefore: 365, time: "00:00" })).status).toBe(200);
+    expect((await venueNow()).maxAdvanceDays).toBe(365);
   });
 
   it("opens each night at the standard time and blocks customers until then", async () => {

@@ -21,6 +21,7 @@ export const specialHours = z.strictObject({ serviceDate, opensOn: serviceDate, 
   .refine((value) => !value.announce || !!value.title, "กรุณาระบุชื่อวันพิเศษก่อนแจ้งลูกค้า");
 export const hoursData = z.object({
   standard: standardHours,
+  maxAdvanceDays: z.number().int().min(0).max(365), timezone: z.string(),
   specials: z.array(z.object({ id: serviceDate, serviceDate, opensOn: serviceDate, time: clockTime, opensAt: instant,
     title: z.string(), recipients: z.number().int(), sent: z.number().int(), failed: z.number().int() })),
   canEdit: z.literal(true),

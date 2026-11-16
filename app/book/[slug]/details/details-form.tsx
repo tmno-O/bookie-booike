@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
+import { serviceDate } from "@/contracts/common";
 import { api, asFailure, clearCustomer, loadCustomer, realApiMode, saveCustomer, type LineUser } from "../flow";
 import { ActiveBookingNotice, useActiveBooking } from "../active-booking";
 import styles from "./details.module.css";
@@ -43,7 +44,8 @@ export default function DetailsForm({ slug }: { slug: string }) {
     if (!clean.name) return setError("กรุณากรอกชื่อลูกค้า");
     if (!/^0\d{8,9}$/.test(clean.phone)) return setError("เบอร์โทรศัพท์ต้องเป็นตัวเลข 9–10 หลัก ขึ้นต้นด้วย 0");
     saveCustomer(`${slug}:${user.userId}`, clean);
-    router.push(`/book/${slug}/select`);
+    const requested = serviceDate.safeParse(new URLSearchParams(window.location.search).get("date")).data;
+    router.push(`/book/${slug}/select${requested ? `?date=${requested}` : ""}`);
   }
 
   return (

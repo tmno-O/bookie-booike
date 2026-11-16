@@ -89,7 +89,7 @@ renaming updates existing bookings; a closed zone keeps its bookings but rejects
 ### Booking open times
 
 `/admin/hours` shows the standard rule ("ทุกคืน · เปิดจองล่วงหน้า 1 วัน · เวลา 20:00 น.") and a list of special days.
-"แก้ไขค่าเริ่มต้น" edits how many days before the night booking opens (0–7) and the time; "+ เพิ่มวันพิเศษ" adds a night with its
+"แก้ไขค่าเริ่มต้น" edits how many days before the night booking opens (0–365) and the time; "+ เพิ่มวันพิเศษ" adds a night with its
 own opening date and time (`opensOn` can't be after the night; one special day per night; "ลบ" removes it). Only the owner
 can edit (`403 FORBIDDEN` for `staff@bookie.test`, who sees the page read-only).
 APIs: `GET /api/mock/admin/hours`, `PUT .../hours/standard`, `POST .../hours/special`, `DELETE .../hours/special/{id}`.
@@ -119,7 +119,7 @@ Every admin page from the Figma Admin file is now built (dashboard, booking list
 
 - Zones: VIP 24 seats (2 tables), Indoor 48 (4), Outdoor 60 (5), per night.
 - Tonight has 6 sample bookings (เจ๊ม่อน, คุณเมย์, คุณนัท, คุณแพรว, คุณบาส, คุณแนน) as in the admin designs; 3 are pending allocation. VIP has 1 of 2 tables taken, so one more customer booking fills it.
-- Bookable window: today through today + 6 days.
+- Seeded booking window: today through today + 6 days. Saving standard hours uses the same advance-day value for both the release and the window.
 
 ## Test helper
 

@@ -413,7 +413,7 @@ it("lets only owners edit hours and applies Bangkok special releases to customer
   const owner = { token: ownerToken };
   const denied = { token: staffToken };
   const initial = hoursData.parse(await (await hours(request("GET", owner), params)).json());
-  const standard = { daysBefore: 1, time: "19:30" };
+  const standard = { daysBefore: 24, time: "19:30" };
   const special = { serviceDate: date, opensOn: day(0), time: "00:00" };
   const visibility = () => availability(request("GET", { path: `/?date=${date}&partyBucket=1-4` }), params);
   for (const response of [
@@ -428,7 +428,9 @@ it("lets only owners edit hours and applies Bangkok special releases to customer
 
   try {
     expect(await (await putHours(request("PUT", { ...owner, data: standard }), params)).json()).toEqual({ standard });
-    expect(await (await visibility()).json()).toMatchObject({ nightOpen: false });
+    expect(await (await visibility()).json()).toMatchObject({ opensAt: new Date(`${day(0)}T19:30:00+07:00`).toISOString() });
+    expect(await (await publicVenue(request("GET"), context({ slug: venueSlug }))).json()).toMatchObject({ maxAdvanceDays: 24 });
+    expect(await (await book(day(25))).json()).toMatchObject({ error: { code: "DATE_OUT_OF_RANGE" } });
     const added = await addSpecial(request("POST", { ...owner, data: special }), params);
     expect(added.status, await added.clone().text()).toBe(201);
     const opensAt = new Date(`${day(0)}T00:00:00+07:00`).toISOString();
@@ -439,7 +441,7 @@ it("lets only owners edit hours and applies Bangkok special releases to customer
     expect(await (await addSpecial(request("POST", { ...owner, data: special }), params)).json())
       .toMatchObject({ error: { code: "SPECIAL_DAY_EXISTS" } });
     expect((await deleteSpecial(request("DELETE", owner), specialParams)).status).toBe(200);
-    expect(await (await visibility()).json()).toMatchObject({ nightOpen: false });
+    expect(await (await visibility()).json()).toMatchObject({ opensAt: new Date(`${day(0)}T19:30:00+07:00`).toISOString() });
   } finally {
     await putHours(request("PUT", { ...owner, data: initial.standard }), params);
     await db()`delete from booking_releases where venue_id = ${venueId} and service_date = ${date}`;

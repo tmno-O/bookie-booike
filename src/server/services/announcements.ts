@@ -7,8 +7,9 @@ export async function customerAnnouncements(customer: Customer) {
     const [preference] = await tx`select announcements_opt_out as opted_out from venue_customers
       where venue_id = ${venueId} and customer_id = ${customerId}`;
     const announcements = await tx`
-      select a.id, a.title, to_char(a.service_date, 'YYYY-MM-DD') as service_date, a.opens_at
+      select a.id, a.title, to_char(a.service_date, 'YYYY-MM-DD') as service_date, a.opens_at, v.timezone
       from release_announcements a join announcement_outbox o on o.announcement_id = a.id
+      join venues v on v.id = a.venue_id
       join booking_releases r on r.venue_id = a.venue_id and r.service_date = a.service_date and r.opens_at = a.opens_at
       where o.venue_id = ${venueId} and o.customer_id = ${customerId} and not ${preference.optedOut}
         and service_night_open(a.venue_id, a.service_date)

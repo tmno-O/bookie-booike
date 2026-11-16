@@ -6,7 +6,7 @@ JSON ใช้ camelCase. ส่ง `Content-Type: application/json` เมื�
 
 | Method และ path | สัญญา |
 | --- | --- |
-| `GET /api/venues/by-slug/{slug}` | ข้อมูลร้าน, `liffId`, `opensAt`, `open`, `secondsUntilOpen`, `today`, `maxAdvanceDays`, `openNights`, `upcomingNights: [{serviceDate,opensAt}]` และ `shop` ที่มีชื่อ เบอร์ ที่อยู่ และนโยบายเข้าร้าน |
+| `GET /api/venues/by-slug/{slug}` | ข้อมูลร้าน, `liffId`, `opensAt`, `open`, `secondsUntilOpen`, `today`, `maxAdvanceDays`, `openNights`, `upcomingNights: [{serviceDate,opensAt}]`, `nextDateAt` และ `shop` ที่มีชื่อ เบอร์ ที่อยู่ และนโยบายเข้าร้าน |
 | `GET /api/venues/{venueId}/availability?date=YYYY-MM-DD&partyBucket=1-4` | `nightOpen`, `opensAt`, `zones[]` ที่มี `id,name,tablesLeft,available,closed` และ `tables[]` สำหรับ client เลือกโต๊ะ. `partyBucket` ใช้คำนวณความพร้อมของโซน |
 | `GET /api/venues/{venueId}/floor-plan` | คืน `{plan}` เป็นผังที่ร้านเผยแพร่แล้วเท่านั้น (`null` เมื่อยังไม่เคยเผยแพร่ ให้ใช้ผังมาตรฐานของแอป). `plan` คือ `{zones:[{zoneId,points[{x,y}]}], markers:[{id,kind:entrance\|stage,label,x,y,width,height}]}` บนผ้าใบ 600×420 |
 | `GET /api/venues/{venueId}/releases` | ช่วงเปิดรับที่ตั้งไว้รายคืน |
@@ -61,7 +61,7 @@ JSON ใช้ camelCase. ส่ง `Content-Type: application/json` เมื�
 เจ้าของร้านเปลี่ยน `slug` ด้วย `PATCH /api/staff/venues/{venueId}` หรือ `PATCH .../settings` โดยส่ง `{slug}`. รหัสซ้ำคืน `409 SLUG_TAKEN`. ถ้าเปลี่ยนรหัสร้านที่เชื่อม LINE แล้ว ให้ตั้ง LIFF Endpoint URL เป็น `<webUrl>/login` และอัปเดต Rich Menu. ถ้าเป็นร้านเริ่มต้น ให้ตั้ง `DEFAULT_VENUE_SLUG` ให้ตรงก่อน deploy ครั้งถัดไป.
 | `GET /customers?q=` | ค้น contact ภายในร้านจากชื่อ เลขท้ายเบอร์ หรือเบอร์เต็มที่ร้านบันทึก |
 
-Route เวลาเปิดจอง, โปรไฟล์ร้าน และการจัดการคำเชิญคืน `403 FORBIDDEN` เมื่อ role เป็น staff. เวลามาตรฐานกับวันพิเศษตีความตาม `Asia/Bangkok`. วันพิเศษมีผลเหนือค่ามาตรฐานต่อคืนบริการ.
+Route เวลาเปิดจอง, โปรไฟล์ร้าน และการจัดการคำเชิญคืน `403 FORBIDDEN` เมื่อ role เป็น staff. เวลามาตรฐานกับวันพิเศษตีความตาม timezone ของร้าน. วันพิเศษมีผลเหนือเวลาเปิดมาตรฐานในช่วงที่อนุญาตให้จอง. ดู [เวลาเปิดจอง](BOOKING_OPENING.md).
 # วันเปิดร้านและวันปิดพิเศษ
 
 Owner: `GET /api/staff/venues/{venueId}/hours` returns `openWeekdays` (Sunday=0) and `closures` with `serviceDate`, `reason`, `affectedBookings`. `PUT .../hours/closures` accepts `{openWeekdays: number[]}`; an empty array closes every weekday. `GET .../hours/closures?date=YYYY-MM-DD` previews affected bookings. `POST .../hours/closures` accepts `{serviceDate, reason, bookings?: "keep" | "cancel"}`. When the night has confirmed or pending bookings, `bookings` is required (`409 CLOSURE_HAS_BOOKINGS` otherwise): `keep` leaves them, `cancel` cancels them in the same transaction and queues a LINE cancellation that includes the reason. Checked-in bookings are never cancelled. The response adds `cancelledBookings`. `PUT .../hours/closures` returns `affectedBookings`, the upcoming bookings that now fall on a closed weekday. `DELETE .../hours/closures/{date}` reopens that night. Public venue adds `openWeekdays`, `closedDates`; `opensAt` is null when the bookable window contains no open nights. Closed nights reject requests with `CLOSED`, including requests already queued before closure.
@@ -76,7 +76,7 @@ Owner `GET/PATCH .../settings` exposes `bookingReminderHours` and `specialRemind
 
 Owner `POST .../hours/special` also accepts `title` (120 characters) and `announce` (default false). Announcement requires a nonempty title and an open service night. Creation records the release and announcement under the venue lock. The audience (one outbox row per customer with a prior booking, excluding opt-out) is then queued in batches of 1,000 outside that lock, so booking decisions are not blocked; an interrupted fan-out resumes on the next drain. Delivery uses LINE multicast with up to 500 recipients per request; the batch id is the LINE retry key, and the LINE call runs outside any database transaction. Retrying the same special day returns `409 SPECIAL_DAY_EXISTS` without duplicating recipients. Hours responses include recipient/sent/failed counts.
 
-Session-scoped `GET /api/me/announcements` returns `{announcements: [{id,title,serviceDate,opensAt}], optedOut}`. Closed, deleted, replaced, or expired releases are hidden. `POST /api/me/announcements/opt-out` accepts `{optOut: boolean}`; opting out skips pending pushes. `POST /api/internal/notifications/drain` requires `Authorization: Bearer <CRON_SECRET>` and handles booking and announcement outboxes with bounded work, retries, and stale-job expiry. See DEPLOY.md for Supabase Cron configuration.
+Session-scoped `GET /api/me/announcements` returns `{announcements: [{id,title,serviceDate,opensAt,timezone}], optedOut}`. Closed, deleted, replaced, or expired releases are hidden. `POST /api/me/announcements/opt-out` accepts `{optOut: boolean}`; opting out skips pending pushes. `POST /api/internal/notifications/drain` requires `Authorization: Bearer <CRON_SECRET>` and handles booking and announcement outboxes with bounded work, retries, and stale-job expiry. See DEPLOY.md for Supabase Cron configuration.
 
 ## Audit trail and receipts
 
