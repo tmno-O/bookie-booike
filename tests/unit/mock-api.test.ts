@@ -26,7 +26,8 @@ import { GET as hoursGet } from "../../app/api/mock/admin/hours/route";
 import { PUT as hoursStandard } from "../../app/api/mock/admin/hours/standard/route";
 import { POST as specialCreate } from "../../app/api/mock/admin/hours/special/route";
 import { DELETE as specialDelete } from "../../app/api/mock/admin/hours/special/[id]/route";
-import { GET as settingsGet, PUT as settingsPut } from "../../app/api/mock/admin/settings/route";
+import { GET as settingsGet, PATCH as settingsPatch, PUT as settingsPut } from "../../app/api/mock/admin/settings/route";
+import { PUT as serviceHoursSave } from "../../app/api/mock/admin/hours/service/route";
 import { GET as teamGet } from "../../app/api/mock/admin/team/route";
 import { POST as inviteCreate } from "../../app/api/mock/admin/team/invites/route";
 import { DELETE as inviteDelete } from "../../app/api/mock/admin/team/invites/[id]/route";
@@ -529,6 +530,34 @@ describe("mock admin opening hours", () => {
     expect((await putStandard(undefined, { daysBefore: 2, time: "19:00" })).status).toBe(401);
   });
 
+  it("saves open days and one service window, owner only", async () => {
+    const cookie = await owner();
+    expect((await (await call(hoursGet, "/api/mock/admin/hours", { cookie })).json()).service).toEqual({ start: "18:00", end: "02:00" });
+    const save = (who: string | undefined, body: object) => call(serviceHoursSave, "/api/mock/admin/hours/service", { method: "PUT", cookie: who, body });
+    const good = { openWeekdays: [1, 2, 3, 4, 5, 6], serviceStart: "17:30", serviceEnd: "03:00" };
+    expect((await save(undefined, good)).status).toBe(401);
+    expect((await save(await staffOnly(), good)).status).toBe(403);
+    for (const bad of [{ ...good, serviceEnd: "17:30" }, { ...good, serviceStart: "25:00" }, { ...good, openWeekdays: [1, 1] }, { openWeekdays: [] }]) {
+      expect((await save(cookie, bad)).status).toBe(400);
+    }
+    expect((await save(cookie, good)).status).toBe(200);
+    expect(await (await call(hoursGet, "/api/mock/admin/hours", { cookie })).json())
+      .toMatchObject({ openWeekdays: [1, 2, 3, 4, 5, 6], service: { start: "17:30", end: "03:00" } });
+  });
+
+  it("saves the cancellation cutoff, owner only", async () => {
+    const cookie = await owner();
+    expect(await (await call(settingsGet, "/api/mock/admin/settings", { cookie })).json()).toMatchObject({ cancelCutoffMinutes: 120 });
+    const patch = (who: string | undefined, body: object) => call(settingsPatch, "/api/mock/admin/settings", { method: "PATCH", cookie: who, body });
+    expect((await patch(undefined, { cancelCutoffMinutes: 60 })).status).toBe(401);
+    expect((await patch(await staffOnly(), { cancelCutoffMinutes: 60 })).status).toBe(403);
+    for (const bad of [{ cancelCutoffMinutes: -1 }, { cancelCutoffMinutes: 1.5 }, { cancelCutoffMinutes: 525601 }]) {
+      expect((await patch(cookie, bad)).status).toBe(400);
+    }
+    expect((await patch(cookie, { cancelCutoffMinutes: 4320 })).status).toBe(200);
+    expect(await (await call(settingsGet, "/api/mock/admin/settings", { cookie })).json()).toMatchObject({ cancelCutoffMinutes: 4320 });
+  });
+
   it("validates and saves the standard hours", async () => {
     const cookie = await owner();
     for (const bad of [{ daysBefore: 31, time: "20:00" }, { daysBefore: -1, time: "20:00" }, { daysBefore: 1, time: "25:00" },
@@ -611,6 +640,7 @@ describe("mock admin shop settings and team", () => {
     const asOwner = await (await call(settingsGet, "/api/mock/admin/settings", { cookie: await owner() })).json();
     expect(asOwner).toEqual({
       profile: { name: "ร้านตัวอย่าง", phone: "02 123 4567", address: "เชียงใหม่ ประเทศไทย", entryPolicy: "กรุณามาถึงตามเวลาที่ร้านกำหนด" },
+      cancelCutoffMinutes: 120,
       canEdit: true,
     });
     expect((await (await call(settingsGet, "/api/mock/admin/settings", { cookie: await staffOnly() })).json()).canEdit).toBe(false);

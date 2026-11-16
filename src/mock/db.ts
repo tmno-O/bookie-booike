@@ -25,9 +25,11 @@ export type BookingStatus = "pending" | "confirmed" | "checked_in";
 export type LineUser = { id: string; userId: string; displayName: string; createdAt: string };
 export type SpecialDay = { id: string; serviceDate: string; opensOn: string; time: string };
 export type Schedule = { standard: { daysBefore: number; time: string }; specials: SpecialDay[];
-  openWeekdays: number[]; closures: { serviceDate: string; reason: string }[] };
+  openWeekdays: number[]; closures: { serviceDate: string; reason: string }[];
+  /** Nightly service window, same for every open day (end <= start means it runs past midnight). */
+  service: { start: string; end: string } };
 export const DEFAULT_SCHEDULE: Schedule = { standard: { daysBefore: 1, time: "20:00" }, specials: [],
-  openWeekdays: [0,1,2,3,4,5,6], closures: [] };
+  openWeekdays: [0,1,2,3,4,5,6], closures: [], service: { start: "18:00", end: "02:00" } };
 export type ShopProfile = { name: string; phone: string; address: string; entryPolicy: string };
 export const DEFAULT_PROFILE: ShopProfile = {
   name: "ร้านตัวอย่าง", phone: "02 123 4567", address: "เชียงใหม่ ประเทศไทย", entryPolicy: "กรุณามาถึงตามเวลาที่ร้านกำหนด",
@@ -39,6 +41,8 @@ export type Db = {
     /** Test hook: customers cannot join the queue before this instant (reset with opensInSeconds). */
     holdUntil: string;
     schedule: Schedule;
+    /** Customers can cancel only this many minutes or more before the booking starts. */
+    cancelCutoffMinutes: number;
   };
   zones: Zone[];
   lineUsers: LineUser[];
@@ -85,7 +89,7 @@ export function seed(opts: { opensInSeconds?: number; queueStepSeconds?: number 
     venue: {
       slug: "bookie-demo", name: "Bookie lyon.", timezone: TZ, maxAdvanceDays: 6,
       holdUntil: new Date(now.getTime() + (opts.opensInSeconds ?? 0) * 1000).toISOString(),
-      schedule: structuredClone(DEFAULT_SCHEDULE),
+      schedule: structuredClone(DEFAULT_SCHEDULE), cancelCutoffMinutes: 120,
       queueStepSeconds: opts.queueStepSeconds ?? 2,
     },
     zones,
@@ -123,6 +127,8 @@ async function load(): Promise<Db> {
     legacy.schedule ??= structuredClone(DEFAULT_SCHEDULE);
     legacy.schedule.openWeekdays ??= [0,1,2,3,4,5,6];
     legacy.schedule.closures ??= [];
+    legacy.schedule.service ??= { ...DEFAULT_SCHEDULE.service };
+    legacy.cancelCutoffMinutes ??= 120;
     const seats: Record<string, number> = { VIP: 24, Indoor: 48, Outdoor: 60 };
     for (const z of db.zones) { z.seats ??= seats[z.name] ?? 20; z.status ??= "open"; }
     for (const b of db.bookings) { b.status ??= "confirmed"; b.channel ??= "line"; }

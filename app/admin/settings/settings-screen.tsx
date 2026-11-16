@@ -1,11 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { AdminShell } from "../admin-shell";
 import TeamDialog from "../team-dialog";
 import { adminApi, asFailure, type Staff } from "../admin-api";
 import styles from "../admin.module.css";
+import page from "./settings-pages.module.css";
 
 type Profile = { name: string; phone: string; address: string; entryPolicy: string };
 
@@ -107,6 +109,11 @@ export default function SettingsScreen() {
           <button type="button" className={styles.editLink} style={{ fontWeight: 500 }} onClick={() => setTeam(true)}>จัดการทีมและสิทธิ์ ›</button>
         </section>
       </form>
+
+      <nav className={page.links} aria-label="การตั้งค่าเพิ่มเติม">
+        <Link href="/admin/settings/hours" className={page.linkBtn}>เวลาเปิด–ปิดร้าน ›</Link>
+        <Link href="/admin/settings/cancellation" className={page.linkBtn}>เงื่อนไขการยกเลิก ›</Link>
+      </nav>
 
       {team && <TeamDialog onClose={() => setTeam(false)} onInvited={(m) => { setTeam(false); setNotice(m); }} />}
     </AdminShell>
