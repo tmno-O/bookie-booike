@@ -15,7 +15,7 @@ const MAP_ZONES = ["VIP", "Indoor", "Outdoor"];
 type NightInfo = { zones: Zone[]; open: boolean; opensAt: string; closed?: boolean };
 const openText = (iso: string) =>
   new Intl.DateTimeFormat("th-TH-u-ca-gregory", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Bangkok" }).format(new Date(iso));
-type Venue = { today: string; maxAdvanceDays: number; openWeekdays: number[]; largePartyMode?: "staff_review" | "disabled";
+type Venue = { today: string; maxAdvanceDays: number; openNights?: string[]; openWeekdays: number[]; largePartyMode?: "staff_review" | "disabled";
   closedDates: { serviceDate: string; reason: string }[]; shop?: { name: string; entryPolicy: string } };
 
 const addDays = (date: string, days: number) => {
@@ -23,6 +23,9 @@ const addDays = (date: string, days: number) => {
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
 };
+
+/** Nights the customer can pick: those the owner has already opened, else the whole booking window. */
+const nightsOf = (v: Venue) => v.openNights?.length ? v.openNights : Array.from({ length: v.maxAdvanceDays + 1 }, (_, i) => addDays(v.today, i));
 
 // Step 4 of 4 — pick night, party size and zone (Figma "04 · เลือกคืน จำนวนคน และโซน", node 169:388)
 export default function SelectForm({ slug }: { slug: string }) {
@@ -56,7 +59,7 @@ export default function SelectForm({ slug }: { slug: string }) {
         setBusy(true);
         const { booking } = await waitForBooking(`/api/me/booking-requests/${queue.bookingRequestId}`, controller.signal, true);
         if (!controller.signal.aborted) router.replace(`/book/${slug}/confirmed?b=${booking.id}`);
-      } else { setVenue(v); setDate(v.today); }
+      } else { setVenue(v); setDate(nightsOf(v)[0] ?? v.today); }
     }).catch((e) => {
       if (controller.signal.aborted) return;
       const failure = asFailure(e);
@@ -143,7 +146,7 @@ export default function SelectForm({ slug }: { slug: string }) {
           <span>{date ? thaiDate(date) : "กำลังโหลด…"}</span><span className={styles.chev} aria-hidden>⌄</span>
           {venue && <select id="date" className={styles.dateInput} value={date} disabled={busy || !!returnTo}
             onChange={(e) => { setDate(e.target.value); setZoneId(undefined); setZones([]); }}>
-            {Array.from({ length: venue.maxAdvanceDays + 1 }, (_, i) => addDays(venue.today, i)).map((day) =>
+            {nightsOf(venue).map((day) =>
               <option key={day} value={day} disabled={!!closureReason(day)}>{thaiDate(day)}{closureReason(day) ? ` · ร้านปิด: ${closureReason(day)}` : ""}</option>)}
           </select>}
         </div>
