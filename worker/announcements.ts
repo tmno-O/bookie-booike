@@ -113,13 +113,14 @@ export async function deliverNextAnnouncement(send: typeof fetch = fetch, venueI
     result = { status: "retry", error: "LINE_DELIVERY_ERROR" };
   }
   const sql = db();
+  // Bind the lease as text so the client preserves the database timestamp's microseconds.
   await sql`
     update ${sql(batch.outbox)} set
       status = case when ${result.status} = 'retry' then case when attempts < ${maxAttempts} then 'pending' else 'dead' end
         else ${result.status} end,
       next_attempt_at = clock_timestamp() + 30 * power(2, greatest(attempts - 1, 0)) * interval '1 second',
       last_error = ${result.error}, lease_until = null
-    where batch_id = ${batch.batchId} and status = 'sending' and lease_until = ${batch.leaseUntil}::timestamptz
+    where batch_id = ${batch.batchId} and status = 'sending' and lease_until = (${batch.leaseUntil}::text)::timestamptz
   `;
   if (result.status === "dead") console.error("LINE announcement batch failed permanently", batch.batchId, result.error);
   return true;

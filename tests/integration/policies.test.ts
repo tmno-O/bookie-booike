@@ -148,17 +148,12 @@ it("protects append-only history and detects the first tampered row independentl
   expect((await verify())[0]).toMatchObject({ checked: 2, firstBadSeq: "2" });
 }));
 
-it("records ticket issue, readiness, and expiry with a valid chain", () => fixture(async (tx, ids) => {
+it("retains legacy ticket storage without adding new ticket audit events", () => fixture(async (tx, ids) => {
   const [ticket] = await tx`insert into queue_tickets (venue_id, customer_id, contact_name, contact_phone)
     values (${ids.venue}, ${ids.customer}, 'Guest', '0812345678') returning id, seq`;
-  await tx`select advance_queue(${ids.venue})`;
-  await tx`update queue_tickets set ready_at = clock_timestamp() - interval '1 hour' where id = ${ticket.id}`;
-  await tx`select advance_queue(${ids.venue})`;
-  const events = await tx`select action, details from audit_logs where venue_id = ${ids.venue} order by seq`;
-  expect(events.map((r) => r.action)).toEqual(["queue.ticket_issued", "queue.ticket_ready", "queue.ticket_expired"]);
-  for (const row of events) expect(row.details.ticket_seq).toBe(ticket.seq);
-  const [chain] = await tx`select * from verify_audit_chain(${ids.venue})`;
-  expect(chain.firstBadSeq).toBeNull();
+  const [saved] = await tx`select status, seq from queue_tickets where id = ${ticket.id}`;
+  expect(saved).toMatchObject({ status: "waiting", seq: ticket.seq });
+  expect(await tx`select action from audit_logs where venue_id = ${ids.venue}`).toEqual([]);
 }));
 
 async function largeRequest(tx: TransactionSql, ids: { venue: string; customer: string; zone: string; date: string }) {
@@ -185,10 +180,16 @@ it("sends 12+ parties to staff review and joins the fewest free tables, or refus
   const held = await tx`select table_id from booking_allocations where booking_id = ${pending.bookingId} and active`;
   expect(held).toHaveLength(2);
   // 12 seats and one table remain, so another 15-person party cannot fit, but a small party still can.
-  const [full] = await tx`select (process_booking_request(${await largeRequest(tx, ids)})).*`;
+  const otherGuest = { ...ids, customer: randomUUID() };
+  await tx`insert into customers (id) values (${otherGuest.customer})`;
+  await tx`insert into venue_customers (venue_id, customer_id, display_name)
+    values (${ids.venue}, ${otherGuest.customer}, 'Another guest')`;
+  const [full] = await tx`select (process_booking_request(${await largeRequest(tx, otherGuest)})).*`;
   expect(full).toMatchObject({ status: "rejected", resultCode: "ZONE_FULL" });
-  const [small] = await tx`select (process_booking_request(${await submit(tx, { ...ids, table: (await tx`select id from venue_tables
-    where zone_id = ${ids.zone} and id not in (select table_id from booking_allocations where active)`)[0].id })})).*`;
+  const [freeTable] = await tx<{ id: string }[]>`select id from venue_tables
+    where zone_id = ${ids.zone} and id not in (select table_id from booking_allocations where active)`;
+  const smallRequest = await submit(tx, { ...otherGuest, table: freeTable.id });
+  const [small] = await tx`select (process_booking_request(${smallRequest})).*`;
   expect(small.status).toBe("confirmed");
   // Cancelling releases every joined table.
   await tx`select cancel_booking(${ids.venue}, ${pending.bookingId}, 'staff', ${staff})`;

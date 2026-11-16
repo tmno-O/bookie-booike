@@ -61,6 +61,7 @@ async function cleanup({ owner: { venueId, userId }, customers }: typeof fixture
     await tx`alter table audit_logs enable trigger audit_logs_immutable`;
     await tx`delete from booking_rules where venue_id = ${venueId}`;
     await tx`delete from booking_releases where venue_id = ${venueId}`;
+    await tx`delete from venue_closures where venue_id = ${venueId}`;
     await tx`delete from venue_tables where venue_id = ${venueId}`;
     await tx`delete from zones where venue_id = ${venueId}`;
     await tx`delete from venue_line_integrations where venue_id = ${venueId}`;
