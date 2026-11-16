@@ -43,7 +43,6 @@ export default function BookingsScreen({ slug }: { slug: string }) {
 
   return (
     <Shell slug={slug} back={`/book/${slug}/details`} cta={{ href: `/book/${slug}/details`, label: "เริ่มการจองใหม่" }}>
-      <p className={s.eyebrow}>การจอง</p>
       <h1 className={s.title}>การจองของฉัน</h1>
       <p className={s.subtitle}>ประวัติและสถานะการจอง</p>
       {error && <p role="alert" className={s.error}>{error}</p>}
