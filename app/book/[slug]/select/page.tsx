@@ -6,6 +6,8 @@ import styles from "./select.module.css";
 
 const plex = IBM_Plex_Sans_Thai({ subsets: ["thai", "latin"], weight: ["400", "600"] });
 
+export const metadata = { title: "เลือกคืนและโซน" };
+
 export default async function SelectPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   return (

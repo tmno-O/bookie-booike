@@ -1,5 +1,7 @@
 import BookingDemo from "../booking-demo";
 
+export const metadata = { title: "ทดลองจอง" };
+
 export default async function BookingDemoPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const mock = process.env.NODE_ENV !== "production" && process.env.LINE_VERIFY_MODE === "mock";
