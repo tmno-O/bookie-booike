@@ -46,7 +46,8 @@ it("schedules only this booking's confirmation after the response when LINE is e
   scheduleBookingConfirmation(venueId, bookingId);
   expect(deliver).not.toHaveBeenCalled();
   await afterResponse.mock.calls[0][0]();
-  expect(deliver.mock.calls).toEqual([[undefined, venueId, bookingId], [undefined, venueId, bookingId]]);
+  const kinds = ["received", "confirmed"];
+  expect(deliver.mock.calls).toEqual([[undefined, venueId, bookingId, kinds], [undefined, venueId, bookingId, kinds]]);
 });
 
 it("builds a pending-booking message with the venue, reservation details and LIFF button", () => {
@@ -113,5 +114,40 @@ describe("Messaging API token check", () => {
     expect(await checkMessagingToken("token", reply(500))).toEqual({ status: "unavailable" });
     expect(await checkMessagingToken("token", (async () => { throw new Error("offline"); }) as unknown as typeof fetch))
       .toEqual({ status: "unavailable" });
+  });
+});
+
+describe("visit notices", () => {
+  const notice = {
+    slug: "bookie-demo", name: "Bookie Demo", liffId: "123-abc", serviceDate: "2026-12-01", serviceTime: "19:00",
+    zoneName: "VIP", partySize: 4, reference: "BL-2026-0001", resultCode: null, note: null,
+    venueAddress: "99 ถนนสุขุมวิท", entryPolicy: "กรุณามาก่อนเวลา 15 นาที", cancelByDate: "2026-12-01", cancelByTime: "17:00",
+  };
+  const lines = (message: ReturnType<typeof bookingNoticeMessage>) =>
+    (message.contents.body.contents as { text: string }[]).map((line) => line.text);
+  const button = (message: ReturnType<typeof bookingNoticeMessage>) =>
+    (message.contents as { footer?: { contents: { action: { label: string; uri: string } }[] } }).footer?.contents[0].action;
+
+  it("sends the day-of reminder with the time, address and entry policy", () => {
+    const message = bookingNoticeMessage({ ...notice, kind: "day_of" });
+    expect(message.altText).toBe("วันนี้มีการจองของคุณ");
+    expect(lines(message)).toEqual(expect.arrayContaining([
+      "คืนนี้ เวลา 19:00 น.", "99 ถนนสุขุมวิท", "โซน VIP", "เลขอ้างอิง BL-2026-0001", "นโยบายเข้าร้าน: กรุณามาก่อนเวลา 15 นาที",
+    ]));
+    expect(button(message)).toMatchObject({ label: "ดูการจองของฉัน", uri: expect.stringContaining("liff.line.me/123-abc") });
+  });
+
+  it("tells the guest until when they can cancel", () => {
+    const message = bookingNoticeMessage({ ...notice, kind: "cancel_deadline" });
+    expect(message.altText).toBe("ใกล้หมดเวลายกเลิกการจอง");
+    expect(lines(message).some((line) => line.startsWith("ยกเลิกได้ถึง") && line.endsWith("เวลา 17:00 น."))).toBe(true);
+    expect(button(message)?.label).toBe("จัดการการจอง");
+  });
+
+  it("welcomes the guest at check-in and invites them back the next morning", () => {
+    expect(bookingNoticeMessage({ ...notice, kind: "checked_in" }).altText).toBe("เช็กอินแล้ว ยินดีต้อนรับ");
+    const thanks = bookingNoticeMessage({ ...notice, kind: "thank_you" });
+    expect(thanks.altText).toBe("ขอบคุณที่มาใช้บริการ");
+    expect(button(thanks)).toMatchObject({ label: "จองครั้งถัดไป", uri: expect.stringContaining("next=select") });
   });
 });

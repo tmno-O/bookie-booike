@@ -781,7 +781,7 @@ describe("mock admin shop settings and team", () => {
     expect(asOwner).toEqual({
       profile: { name: "ร้านตัวอย่าง", phone: "02 123 4567", address: "เชียงใหม่ ประเทศไทย", entryPolicy: "กรุณามาถึงตามเวลาที่ร้านกำหนด" },
       canEdit: true, customerCancelEnabled: true, cancelCutoffMinutes: 120, largePartyMode: "staff_review",
-      bookingReminderHours: 24, specialReminderHours: 24,
+      bookingReminderHours: 24, specialReminderHours: 24, dayOfReminderHours: 2, cancelDeadlineReminderHours: 3, checkInMessages: true,
     });
     expect((await (await call(settingsGet, "/api/mock/admin/settings", { cookie: await staffOnly() })).json()).canEdit).toBe(false);
     expect((await call(settingsGet, "/api/mock/admin/settings")).status).toBe(401);

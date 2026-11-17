@@ -7,6 +7,10 @@ const titles = {
   cancelled: "ยกเลิกการจองแล้ว",
   reminder: "เตือนก่อนถึงวันจอง",
   rejected: "จองไม่สำเร็จ",
+  day_of: "วันนี้มีการจองของคุณ",
+  cancel_deadline: "ใกล้หมดเวลายกเลิกการจอง",
+  checked_in: "เช็กอินแล้ว ยินดีต้อนรับ",
+  thank_you: "ขอบคุณที่มาใช้บริการ",
 };
 
 const rejectionReasons: Record<string, string> = {
@@ -25,7 +29,7 @@ const rejectionReasons: Record<string, string> = {
 type VenueLink = { slug: string; name: string; liffId: string | null };
 export type BookingNotice = VenueLink & {
   kind: keyof typeof titles; serviceDate: string; serviceTime: string | null; zoneName: string | null;
-  venueAddress?: string | null;
+  venueAddress?: string | null; entryPolicy?: string | null; cancelByDate?: string | null; cancelByTime?: string | null;
   partySize: number | null; reference: string | null; resultCode: string | null; note: string | null;
 };
 type ReleaseNotice = VenueLink & {
@@ -58,7 +62,40 @@ function flex(title: string, lines: object[], label: string, uri: string | null)
   };
 }
 
+const details = (data: BookingNotice) => [
+  ...(data.zoneName ? [text(`โซน ${data.zoneName}`)] : []),
+  ...(data.partySize ? [text(`จำนวน ${data.partySize} คน`)] : []),
+  ...(data.reference ? [text(`เลขอ้างอิง ${data.reference}`)] : []),
+];
+
+/** Messages for the visit itself: on the day, the cancellation deadline, check-in and the next morning. */
+function visitMessage(data: BookingNotice, origin?: string) {
+  const at = data.serviceTime ? ` เวลา ${data.serviceTime} น.` : "";
+  const address = data.venueAddress?.trim() ? [text(data.venueAddress.trim())] : [];
+  switch (data.kind) {
+    case "day_of":
+      return flex(titles.day_of, [text(data.name), text(`คืนนี้${at}`), ...address, ...details(data),
+        ...(data.entryPolicy?.trim() ? [text(`นโยบายเข้าร้าน: ${data.entryPolicy.trim()}`)] : [])],
+      "ดูการจองของฉัน", lineLink(data, "bookings", origin));
+    case "cancel_deadline":
+      return flex(titles.cancel_deadline, [text(data.name), text(`คืนบริการ ${serviceDate(data.serviceDate)}${at}`), ...details(data),
+        ...(data.cancelByDate && data.cancelByTime ? [text(`ยกเลิกได้ถึง ${serviceDate(data.cancelByDate)} เวลา ${data.cancelByTime} น.`)] : []),
+        text("หากไม่สะดวกมา กรุณายกเลิกเพื่อเปิดที่ให้ลูกค้าท่านอื่น")],
+      "จัดการการจอง", lineLink(data, "bookings", origin));
+    case "checked_in":
+      return flex(titles.checked_in, [text(data.name), ...details(data), text("ขอให้สนุกกับค่ำคืนนี้")],
+        "ดูการจองของฉัน", lineLink(data, "bookings", origin));
+    case "thank_you":
+      return flex(titles.thank_you, [text(data.name), text(`ขอบคุณที่มาเมื่อ ${serviceDate(data.serviceDate)}`),
+        text("หวังว่าจะได้พบกันอีก")], "จองครั้งถัดไป", lineLink(data, "select", origin));
+    default:
+      return null;
+  }
+}
+
 export function bookingNoticeMessage(data: BookingNotice, origin?: string) {
+  const visit = visitMessage(data, origin);
+  if (visit) return visit;
   const date = `${serviceDate(data.serviceDate)}${data.serviceTime ? ` เวลา ${data.serviceTime} น.` : ""}`;
   const detail = data.kind === "rejected"
     ? rejectionReasons[data.resultCode ?? ""] ?? "ไม่สามารถยืนยันการจองรอบนี้ได้ กรุณาลองใหม่"

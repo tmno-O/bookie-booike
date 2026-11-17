@@ -1,7 +1,12 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { DEFAULT_REMINDER_HOURS, type LineReminderSettings } from "@/contracts/venue";
+import { DEFAULT_CANCEL_DEADLINE_HOURS, DEFAULT_DAY_OF_REMINDER_HOURS, DEFAULT_REMINDER_HOURS, type LineReminderSettings } from "@/contracts/venue";
+
+export const DEFAULT_LINE_REMINDERS: LineReminderSettings = {
+  bookingReminderHours: DEFAULT_REMINDER_HOURS, specialReminderHours: DEFAULT_REMINDER_HOURS,
+  dayOfReminderHours: DEFAULT_DAY_OF_REMINDER_HOURS, cancelDeadlineReminderHours: DEFAULT_CANCEL_DEADLINE_HOURS, checkInMessages: true,
+};
 import type { FloorPlan } from "@/lib/floor-plan";
 
 // Mock JSON "database" for local end-to-end testing. Single-process only:
@@ -99,7 +104,7 @@ export function seed(opts: { opensInSeconds?: number } = {}): Db {
     lineUsers: [],
     profile: { ...DEFAULT_PROFILE },
     cancellation: { customerCancelEnabled: true, cancelCutoffMinutes: 120 },
-    lineReminders: { bookingReminderHours: DEFAULT_REMINDER_HOURS, specialReminderHours: DEFAULT_REMINDER_HOURS },
+    lineReminders: { ...DEFAULT_LINE_REMINDERS },
     largePartyMode: "staff_review",
     announcements: [], announcementOptOut: [],
     invites: [],
@@ -130,7 +135,7 @@ async function load(): Promise<Db> {
     db.bookingAttempts ??= [];
     db.profile ??= { ...DEFAULT_PROFILE };
     db.cancellation ??= { customerCancelEnabled: true, cancelCutoffMinutes: 120 };
-    db.lineReminders ??= { bookingReminderHours: DEFAULT_REMINDER_HOURS, specialReminderHours: DEFAULT_REMINDER_HOURS };
+    db.lineReminders = { ...DEFAULT_LINE_REMINDERS, ...db.lineReminders }; // saved before newer notices existed
     db.largePartyMode ??= "staff_review";
     db.announcements ??= []; db.announcementOptOut ??= [];
     db.invites ??= [];
