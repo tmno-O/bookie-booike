@@ -104,9 +104,11 @@ export async function createBookingRequest(booking: BookingSubmission, customerI
         return new ApiError(409, code, "ไม่มีที่นั่งพอสำหรับกลุ่มนี้ในโซนที่เลือก");
       }
     }
+    // A party bucket takes seats from the zone, so only the night's rules matter here, not one table's size.
+    // The queued decision checks the zone's free seats.
     const candidates = partyBucket === "12+" ? [{ resultCode: null }] : await tx<{ resultCode: string | null }[]>`
       select result_code from booking_candidates_for(
-        ${venueId}, ${serviceDate}, ${tableId ?? null}, ${zoneId ?? null}, ${partySize}, ${startsAt},
+        ${venueId}, ${serviceDate}, ${tableId ?? null}, ${zoneId ?? null}, ${partyBucket ? 1 : partySize}, ${startsAt},
         clock_timestamp(), ${skipRelease}
       ) order by capacity, id
     `;

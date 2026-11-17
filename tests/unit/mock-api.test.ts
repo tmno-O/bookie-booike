@@ -252,16 +252,23 @@ describe("mock booking API", () => {
     expect(other.status).toBe(404);
   });
 
-  it("fills a zone: VIP has 2 tables and 1 is pre-booked", async () => {
-    const first = await booker();
-    expect((await reserve(first, "zone-vip")).status).toBe(201);
-    // A second LINE customer tries to book the last table.
-    const res = await reserve(await booker("Umock0002"), "zone-vip");
-    expect(res.status).toBe(409);
-    expect((await res.json()).error.code).toBe("ZONE_FULL");
-
-    const avail = await (await call(availability, `/api/mock/availability?date=${today()}`)).json();
-    expect(avail.zones.find((z: { id: string }) => z.id === "zone-vip")).toMatchObject({ tablesLeft: 0, available: false });
+  it("fills a zone by seats: a group books while the zone has seats for its party bucket", async () => {
+    const vip = async (party: string) => (await (await call(availability, `/api/mock/availability?date=${today()}&partyBucket=${party}`)).json())
+      .zones.find((z: { id: string }) => z.id === "zone-vip");
+    // VIP seats 24 and a checked-in 1-4 group holds 4 of them.
+    expect(await vip("1-4")).toMatchObject({ seatsLeft: 20, tablesLeft: 5, available: true });
+    expect((await reserve(await booker(), "zone-vip", "9-12")).status).toBe(201);
+    // 8 seats left: a 9-12 group no longer fits, a 5-8 group still does.
+    expect(await vip("9-12")).toMatchObject({ seatsLeft: 8, tablesLeft: 0, available: false });
+    expect(await vip("5-8")).toMatchObject({ seatsLeft: 8, tablesLeft: 1, available: true });
+    const tooBig = await reserve(await booker("Umock0002"), "zone-vip", "9-12");
+    expect(tooBig.status).toBe(409);
+    expect((await tooBig.json()).error.code).toBe("ZONE_FULL");
+    expect((await reserve(await booker("Umock0003"), "zone-vip", "5-8")).status).toBe(201);
+    const full = await reserve(await booker("Umock0004"), "zone-vip", "1-4");
+    expect(full.status).toBe(409);
+    expect((await full.json()).error.code).toBe("ZONE_FULL");
+    expect(await vip("1-4")).toMatchObject({ seatsLeft: 0, tablesLeft: 0, available: false });
   });
 
   it("blocks concurrent bookings on different nights and allows a new booking after cancellation", async () => {
@@ -345,10 +352,13 @@ describe("mock admin dashboard", () => {
 
     it("shares zone capacity with customer bookings and validates input", async () => {
       const cookie = await staffCookie();
-      expect((await create(cookie, { ...payload, zoneId: "zone-vip" })).status).toBe(201); // fills VIP (2 tables)
-      const full = await create(cookie, { ...payload, zoneId: "zone-vip" });
+      // VIP has 20 free seats: 12 for this group leaves 8.
+      expect((await create(cookie, { ...payload, party: "9-12", zoneId: "zone-vip" })).status).toBe(201);
+      const full = await create(cookie, { ...payload, party: "9-12", zoneId: "zone-vip" });
       expect(full.status).toBe(409);
       expect((await full.json()).error.code).toBe("ZONE_FULL");
+      expect((await reserve(await booker(), "zone-vip", "9-12")).status).toBe(409);
+      expect((await create(cookie, { ...payload, party: "5-8", zoneId: "zone-vip" })).status).toBe(201); // fills VIP
       expect((await reserve(await booker(), "zone-vip")).status).toBe(409);
       expect((await create(cookie, { ...payload, phone: "12" })).status).toBe(400);
       expect((await create(cookie, { ...payload, serviceDate: "2000-01-01" })).status).toBe(422);
@@ -472,12 +482,13 @@ describe("mock admin booking queue", () => {
     expect(dash.zones.find((z: { name: string }) => z.name === "Indoor").booked).toBe(8);
   });
 
-  it("pending requests do not hold a table; a full zone blocks allocation until another zone is chosen", async () => {
+  it("pending requests hold no seats; a full zone blocks allocation until another zone is chosen", async () => {
     const cookie = await staff();
     const avail = (zone: string) => call(availability, `/api/mock/availability?date=${today()}`).then((r) => r.json())
       .then((d) => d.zones.find((z: { id: string }) => z.id === zone));
-    expect(await avail("zone-vip")).toMatchObject({ tablesLeft: 1 }); // pending คุณแนน (VIP) does not count
-    expect((await reserve(await booker(), "zone-vip")).status).toBe(201); // VIP now full
+    expect(await avail("zone-vip")).toMatchObject({ seatsLeft: 20 }); // pending คุณแนน (VIP, 5-8) does not count
+    expect((await reserve(await booker(), "zone-vip", "9-12")).status).toBe(201);
+    expect((await reserve(await booker("Umock0002"), "zone-vip", "5-8")).status).toBe(201); // VIP now full
     const blocked = await alloc(cookie, "seed-6"); // คุณแนน asked for VIP
     expect(blocked.status).toBe(409);
     expect((await blocked.json()).error.code).toBe("ZONE_FULL");
@@ -499,7 +510,7 @@ describe("mock admin zones", () => {
     call(zoneEdit, `/api/mock/admin/zones/${id}`, { method: "PATCH", cookie, body }, { id });
   const customerZones = async () =>
     (await (await call(availability, `/api/mock/availability?date=${today()}`)).json()).zones as
-      { id: string; name: string; available: boolean; closed: boolean; tablesLeft: number }[];
+      { id: string; name: string; available: boolean; closed: boolean; seatsLeft: number; tablesLeft: number }[];
 
   it("requires staff", async () => {
     expect((await call(zoneList, "/api/mock/admin/zones")).status).toBe(401);
@@ -523,7 +534,7 @@ describe("mock admin zones", () => {
     expect(made.status).toBe(201);
     const zone = (await made.json()).zone;
     expect(zone).toMatchObject({ name: "Rooftop", seats: 24, tables: 2, tablesUsed: 0 });
-    expect((await customerZones()).find((z) => z.id === zone.id)).toMatchObject({ available: true, tablesLeft: 2 });
+    expect((await customerZones()).find((z) => z.id === zone.id)).toMatchObject({ available: true, seatsLeft: 24 });
     expect((await reserve(await booker(), zone.id)).status).toBe(201);
     const dup = await create(cookie, { name: "rooftop", seats: 10, status: "open" });
     expect(dup.status).toBe(409);
@@ -547,17 +558,18 @@ describe("mock admin zones", () => {
     expect((await edit(cookie, "zone-indoor", {})).status).toBe(400);
   });
 
-  it("changing capacity changes table availability but not below existing bookings", async () => {
+  it("changing capacity changes free seats but not below the seats already booked", async () => {
     const cookie = await owner();
-    expect((await edit(cookie, "zone-vip", { seats: 12 })).status).toBe(200); // 1 table, 1 booked
-    expect((await customerZones()).find((z) => z.id === "zone-vip")).toMatchObject({ available: false, tablesLeft: 0 });
-    expect((await edit(cookie, "zone-vip", { seats: 36 })).status).toBe(200); // 3 tables
-    expect((await customerZones()).find((z) => z.id === "zone-vip")).toMatchObject({ available: true, tablesLeft: 2 });
-    await reserve(await booker(), "zone-vip");
-    await reserve(await booker("Umock0002"), "zone-vip"); // VIP now has 3 bookings
+    expect((await edit(cookie, "zone-vip", { seats: 4 })).status).toBe(200); // the checked-in 1-4 group fills it
+    expect((await customerZones()).find((z) => z.id === "zone-vip")).toMatchObject({ available: false, seatsLeft: 0 });
+    expect((await edit(cookie, "zone-vip", { seats: 36 })).status).toBe(200);
+    expect((await customerZones()).find((z) => z.id === "zone-vip")).toMatchObject({ available: true, seatsLeft: 32 });
+    await reserve(await booker(), "zone-vip", "9-12");
+    await reserve(await booker("Umock0002"), "zone-vip", "9-12"); // VIP now holds 4 + 12 + 12 = 28 seats
     const low = await edit(cookie, "zone-vip", { seats: 24 });
     expect(low.status).toBe(409);
     expect((await low.json()).error.code).toBe("CAPACITY_BELOW_BOOKED");
+    expect((await edit(cookie, "zone-vip", { seats: 28 })).status).toBe(200);
   });
 
   it("closing a zone blocks new customer, staff and allocated bookings but keeps existing ones", async () => {

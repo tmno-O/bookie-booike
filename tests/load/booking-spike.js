@@ -21,10 +21,10 @@ export const options = {
 };
 
 export function setup() {
-  if (!date) throw new Error("Set SERVICE_DATE to an bookable service date with one table left in the selected zone");
+  if (!date) throw new Error("Set SERVICE_DATE to an bookable service date with room for one more 1-4 group in the selected zone");
   const availability = http.get(`${base}/api/venues/${venueId}/availability?date=${date}&partyBucket=1-4`);
   if (availability.status !== 200 || !availability.json("zones").some((zone) => zone.id === zoneId && zone.available && zone.tablesLeft === 1)) {
-    throw new Error("Use an open zone with exactly one eligible table");
+    throw new Error("Use an open zone with room for exactly one more 1-4 group (4 to 7 seats left)");
   }
 }
 

@@ -17,7 +17,7 @@ export const POST = route<{ id: string }>(async (request, params) => {
     const found = db.bookings.find((b) => b.id === params.id && b.channel === "line");
     if (!found) notFound("Request");
     if (found.status !== "pending") throw new ApiError(409, "ALREADY_ALLOCATED", "This request is already allocated");
-    const zone = ensureCapacity(db, found.serviceDate, zoneId ?? found.zoneId);
+    const zone = ensureCapacity(db, found.serviceDate, zoneId ?? found.zoneId, found.party);
     found.zoneId = zone.id;
     found.zoneName = zone.name;
     found.status = "confirmed";

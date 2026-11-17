@@ -42,7 +42,7 @@ export const POST = route<Record<string, string>>(async (request) => {
     const active = activeBooking(db, customer);
     if (active) throw new ApiError(409, "ACTIVE_BOOKING_EXISTS", "คุณมีการจองที่ยังใช้งานอยู่",
       { bookingId: active.id, serviceDate: active.serviceDate });
-    const zone = checkSlot(db, payload.serviceDate, payload.zoneId);
+    const zone = checkSlot(db, payload.serviceDate, payload.zoneId, payload.partyBucket);
     if (!isNightOpen(db, payload.serviceDate)) throw new ApiError(409, "NIGHT_NOT_OPEN", "Booking has not opened for this night yet");
     const made = addBooking(db, {
       requestId: randomUUID(), customerId: customer, name: payload.contactName, phone: payload.contactPhone,

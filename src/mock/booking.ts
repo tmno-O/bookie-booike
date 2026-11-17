@@ -9,21 +9,21 @@ export function activeBooking(db: Db, customerId: string) {
     .sort((a, b) => a.serviceDate.localeCompare(b.serviceDate) || a.createdAt.localeCompare(b.createdAt))[0];
 }
 
-/** Shared slot check: bookable date window, known zone, free table. Throws an ApiError otherwise. */
-export function checkSlot(db: Db, serviceDate: string, zoneId: string): Zone {
+/** Shared slot check: bookable date window, known zone, enough free seats. Throws an ApiError otherwise. */
+export function checkSlot(db: Db, serviceDate: string, zoneId: string, party: string): Zone {
   if (serviceDate < today() || serviceDate > addDays(today(), db.venue.maxAdvanceDays)) {
     throw new ApiError(422, "DATE_OUT_OF_RANGE", "Date is outside the bookable window");
   }
-  return ensureCapacity(db, serviceDate, zoneId);
+  return ensureCapacity(db, serviceDate, zoneId, party);
 }
 
-/** Known zone with a free table that night (pending requests do not hold tables). */
-export function ensureCapacity(db: Db, serviceDate: string, zoneId: string): Zone {
+/** Known zone with enough free seats for the party that night (pending requests hold no seats). */
+export function ensureCapacity(db: Db, serviceDate: string, zoneId: string, party: string): Zone {
   if (!isServiceNightOpen(db, serviceDate)) throw new ApiError(409, "CLOSED", "ร้านปิดในคืนนี้");
   const zone = db.zones.find((z) => z.id === zoneId);
   if (!zone) throw new ApiError(422, "ZONE_NOT_FOUND", "Zone not found");
   if (zone.status === "closed") throw new ApiError(409, "ZONE_CLOSED", "This zone is not open for booking");
-  if (!zoneAvailability(db, serviceDate).find((z) => z.id === zone.id)!.available) {
+  if (!zoneAvailability(db, serviceDate, party).find((z) => z.id === zone.id)!.available) {
     throw new ApiError(409, "ZONE_FULL", "This zone is full for the selected night");
   }
   return zone;

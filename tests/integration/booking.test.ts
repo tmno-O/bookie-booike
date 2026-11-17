@@ -251,7 +251,7 @@ it("reads staff booking details, filters by contact and reference, and counts se
   const dashboard = await staffDashboard(request("GET", { token: staffToken, path: `/?date=${date}` }), context({ venueId }));
   expect(dashboardData.parse(await dashboard.json())).toMatchObject({
     serviceDate: date, metrics: { bookings: 1, guests: 4, pendingRequests: 0, checkedIn: 0 },
-    zones: [{ id: zoneId, seats: 12, booked: 4 }],
+    zones: [{ id: zoneId, seats: 4, booked: 4 }],
   });
 });
 
@@ -352,8 +352,8 @@ it("allocates competing pending requests atomically and can move the other to a 
   const detail = await staffQueueItem(request("GET", { token: staffToken }), context({ venueId, bookingId: remaining.id }));
   expect(await detail.json()).toMatchObject({
     request: { status: "pending", zoneId }, zones: expect.arrayContaining([
-      { id: zoneId, name: "Zone", available: false, tablesLeft: 0, closed: false },
-      { id: fallbackZoneId, name: "Fallback", available: true, tablesLeft: 1, closed: false },
+      { id: zoneId, name: "Zone", available: false, seatsLeft: 0, tablesLeft: 0, closed: false },
+      { id: fallbackZoneId, name: "Fallback", available: true, seatsLeft: 4, tablesLeft: 1, closed: false },
     ]),
   });
   const moved = await allocate(remaining.id, fallbackZoneId);
@@ -399,7 +399,8 @@ it("syncs twelve-seat tables while protecting upcoming reservations and closed z
 
   const list = await listZones(request("GET", { token: staffToken, path: `/?date=${date}` }), context({ venueId }));
   expect(await list.json()).toMatchObject({ zones: expect.arrayContaining([
-    expect.objectContaining({ id: zone.id, bookedSeats: 4, tablesUsed: 1 }),
+    // A party bucket takes seats, not a table.
+    expect.objectContaining({ id: zone.id, bookedSeats: 4, tablesUsed: 0 }),
   ]) });
   const publicView = await availability(request("GET", { path: `/?date=${date}&partyBucket=1-4` }), context({ venueId }));
   expect(await publicView.json()).toMatchObject({ zones: expect.arrayContaining([
@@ -578,7 +579,8 @@ beforeAll(async () => {
     (${venueId}, ${venueSlug}, 'Integration venue'), (${otherVenueId}, ${otherSlug}, 'Other venue')`;
   await sql`insert into venue_line_integrations (venue_id, provider_id, channel_id, liff_id) values
     (${venueId}, ${venueSlug}, '123', '123-abc'), (${otherVenueId}, ${venueSlug}, '123', '123-def')`;
-  await sql`insert into zones (id, venue_id, name, capacity) values (${zoneId}, ${venueId}, 'Zone', 12)`;
+  // Four seats: one 1-4 group fills the zone, so contenders compete for the last place.
+  await sql`insert into zones (id, venue_id, name, capacity) values (${zoneId}, ${venueId}, 'Zone', 4)`;
   await sql`insert into venue_tables (id, venue_id, zone_id, name, capacity) values
     (${tableId}, ${venueId}, ${zoneId}, 'Table 4', 4), (${smallTableId}, ${venueId}, ${zoneId}, 'Table 2', 2)`;
   await sql`insert into venue_members (venue_id, user_id, role) values
@@ -782,7 +784,7 @@ describe.sequential("Supabase + ElasticMQ booking", () => {
     }), context({ venueId }))).status).toBe(200);
   });
 
-  it("cancels atomically, enforces cutoff and preserves bookings when closing a table", async () => {
+  it("cancels atomically, enforces cutoff and preserves bookings when closing the zone's tables", async () => {
     const date = day(6);
     const submitted = await book(date);
     expect(submitted.status, await submitted.clone().text()).toBe(202);
@@ -805,7 +807,10 @@ describe.sequential("Supabase + ElasticMQ booking", () => {
     expect(await history("/?limit=1")).toMatchObject({ bookings: [{ id: replacement.bookingId }], nextOffset: null });
     expect(await history("/?status=cancelled")).toEqual({ bookings: [], nextOffset: null });
     expect((await closeTable(request("DELETE", { token: staffToken }), context({ venueId, tableId }))).status).toBe(200);
-    expect((await book(day(7), bob.cookie)).status).toBe(409);
+    // Seats are shared by the zone, so the zone takes groups while any of its tables is open.
+    expect((await closeTable(request("DELETE", { token: staffToken }), context({ venueId, tableId: smallTableId }))).status).toBe(200);
+    expect(await (await book(day(7), bob.cookie)).json()).toMatchObject({ error: { code: "ZONE_FULL" } });
+    await db()`update venue_tables set status = 'active' where id = ${smallTableId}`;
     expect((await getStatus(second.requestId)).status).toBe("confirmed");
     await db()`update venues set cancel_cutoff_minutes = 20000 where id = ${venueId}`;
     expect((await cancel(request("POST", { cookie: alice.cookie }), context({ bookingId: replacement.bookingId }))).status).toBe(409);

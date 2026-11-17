@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { TransactionSql } from "postgres";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { db } from "@/lib/db";
+import { zoneAvailability } from "@/server/services/availability";
 
 beforeAll(() => {
   if (new URL(process.env.DATABASE_URL!).hostname !== "127.0.0.1") throw new Error("Local database required");
@@ -215,4 +216,35 @@ it("refuses an allocation whose night differs from its booking", () => fixture(a
   const [booking] = await tx`select (process_booking_request(${await submit(tx, ids)})).*`;
   await expect(tx.savepoint(async (sub) => sub`insert into booking_allocations (venue_id, booking_id, table_id, service_date)
     values (${ids.venue}, ${booking.bookingId}, ${ids.table}, ${ids.date}::date + 1)`)).rejects.toThrow("ALLOCATION_NIGHT_MISMATCH");
+}));
+
+it("fills a zone by seats: party buckets book until too few seats are left for their group", () => fixture(async (tx, ids) => {
+  // One 15-seat table in a 15-seat zone: the table no longer limits the zone to one booking.
+  await tx`update zones set capacity = 15 where id = ${ids.zone}`;
+  await tx`update venue_tables set capacity = 15 where id = ${ids.table}`;
+  const sizes = { "1-4": 4, "5-8": 8, "9-12": 12 } as const;
+  const book = async (party: keyof typeof sizes) => {
+    const customer = randomUUID();
+    await tx`insert into customers (id) values (${customer})`;
+    await tx`insert into venue_customers (venue_id, customer_id, display_name) values (${ids.venue}, ${customer}, 'Guest')`;
+    const [row] = await tx`insert into booking_requests
+      (venue_id, customer_id, actor_type, actor_id, source, service_date, party_size, zone_id, party_bucket,
+        contact_name, contact_phone, idempotency_key, payload_hash, status)
+      values (${ids.venue}, ${customer}, 'customer', ${customer}, 'liff', ${ids.date}, ${sizes[party]}, ${ids.zone}, ${party},
+        'Guest', '0812345678', ${randomUUID()}, 'test', 'queued') returning id`;
+    const [decided] = await tx`select (process_booking_request(${row.id})).*`;
+    return decided;
+  };
+  const zone = async (party: keyof typeof sizes) => (await zoneAvailability(tx, ids.venue, ids.date, sizes[party]))[0];
+
+  expect(await book("1-4")).toMatchObject({ status: "confirmed" });
+  expect(await book("1-4")).toMatchObject({ status: "confirmed" });
+  // 7 of 15 seats are left: a 1-4 group still fits, a 5-8 group does not and its zone is shown unavailable.
+  expect(await zone("1-4")).toMatchObject({ seatsLeft: 7, tablesLeft: 1, available: true });
+  expect(await zone("5-8")).toMatchObject({ seatsLeft: 7, tablesLeft: 0, available: false });
+  expect(await book("5-8")).toMatchObject({ status: "rejected", resultCode: "ZONE_FULL" });
+  expect(await book("1-4")).toMatchObject({ status: "confirmed" });
+  expect(await zone("1-4")).toMatchObject({ seatsLeft: 3, tablesLeft: 0, available: false });
+  expect(await book("1-4")).toMatchObject({ status: "rejected", resultCode: "ZONE_FULL" });
+  expect(await tx`select 1 from booking_allocations where table_id = ${ids.table} and active`).toHaveLength(0);
 }));

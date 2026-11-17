@@ -18,17 +18,16 @@ export function assertNameFree(db: Db, name: string, exceptId?: string) {
   }
 }
 
-/** Capacity can't drop below what is already booked on any upcoming night. */
+/** Capacity can't drop below the seats already booked on any upcoming night. */
 export function assertCapacityCovers(db: Db, zone: Zone, seats: number) {
-  const tables = Math.max(1, Math.ceil(seats / 12));
   const perNight = new Map<string, number>();
   for (const b of db.bookings) {
     if (b.zoneId === zone.id && (b.status === "confirmed" || b.status === "checked_in") && b.serviceDate >= today()) {
-      perNight.set(b.serviceDate, (perNight.get(b.serviceDate) ?? 0) + 1);
+      perNight.set(b.serviceDate, (perNight.get(b.serviceDate) ?? 0) + PARTY_SIZE[b.party]);
     }
   }
   const worst = Math.max(0, ...perNight.values());
-  if (worst > tables) {
-    throw new ApiError(409, "CAPACITY_BELOW_BOOKED", `Capacity is too low: ${worst} tables are already booked on one night`);
+  if (worst > seats) {
+    throw new ApiError(409, "CAPACITY_BELOW_BOOKED", `Capacity is too low: ${worst} seats are already booked on one night`);
   }
 }

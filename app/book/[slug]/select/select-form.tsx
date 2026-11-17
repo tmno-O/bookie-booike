@@ -6,11 +6,13 @@ import { serviceDate } from "@/contracts/common";
 import type { FloorPlan } from "@/lib/floor-plan";
 import FloorPlanView from "@/ui/floor-plan-view";
 import { ActiveBookingNotice, useActiveBooking } from "../active-booking";
-import { api, asFailure, loadCustomer, readAttempt, saveAttempt, thaiDate, type BookingAttempt, type LineUser } from "../flow";
+import { api, asFailure, loadCustomer, partyLabel, readAttempt, saveAttempt, thaiDate, type BookingAttempt, type LineUser } from "../flow";
 import styles from "./select.module.css";
 
 const PARTIES = [{ label: "1–4", value: "1-4" }, { label: "5–8", value: "5-8" }, { label: "9–12", value: "9-12" }, { label: "12+", value: "12+" }];
-type Zone = { id: string; name: string; tablesLeft: number; available: boolean; closed?: boolean };
+type Zone = { id: string; name: string; seatsLeft?: number; tablesLeft: number; available: boolean; closed?: boolean };
+// Greyed zones say why: closed, no seats left, or too few seats for the chosen group (4 is the smallest group).
+const zoneBadge = (zone: Zone) => zone.available ? undefined : zone.closed ? "ปิด" : (zone.seatsLeft ?? 0) >= 4 ? "ที่ไม่พอ" : "เต็ม";
 const MAP_ZONES = ["VIP", "Indoor", "Outdoor"];
 type NightInfo = { zones: Zone[]; open: boolean; opensAt: string; closed?: boolean };
 type Opening = { serviceDate: string; opensAt: string };
@@ -175,7 +177,7 @@ export default function SelectForm({ slug }: { slug: string }) {
       <button type="button" key={name} aria-pressed={selected} disabled={!zone || full || !night?.open || closed || busy || active !== null}
         className={`${styles.zone} ${className} ${selected ? styles.zoneOn : ""} ${full ? styles.zoneFull : ""}`}
         onClick={() => zone && setZoneId(zone.id)}>
-        {name}{full && <span className={styles.full}>{zone?.closed ? "ปิด" : "เต็ม"}</span>}
+        {name}{full && zone && <span className={styles.full}>{zoneBadge(zone)}</span>}
       </button>
     );
   };
@@ -215,7 +217,7 @@ export default function SelectForm({ slug }: { slug: string }) {
             <div role="group" aria-labelledby="zone-label">
               <FloorPlanView plan={plan} selectedId={zoneId} onSelect={setZoneId}
                 zones={Object.fromEntries(zones.map((z) => [z.id, {
-                  name: z.name, badge: z.available ? undefined : z.closed ? "ปิด" : "เต็ม",
+                  name: z.name, badge: zoneBadge(z),
                   disabled: !z.available || !night?.open || closed || busy || active !== null,
                 }]))} />
             </div>
@@ -239,6 +241,9 @@ export default function SelectForm({ slug }: { slug: string }) {
               </div>
             )}
           </>
+        )}
+        {!closed && zones.some((z) => zoneBadge(z) === "ที่ไม่พอ") && (
+          <p className={styles.caption}>โซนสีทึบมีที่นั่งเหลือไม่พอสำหรับ {partyLabel(partyBucket)} ลองเลือกโซนอื่นหรือจำนวนคนที่น้อยลง</p>
         )}
         {closed && <p role="status" className={styles.error}>ร้านปิด · {"คืนนี้ปิดรับจอง"}</p>}
         {next && remaining > 0 && <div className={styles.caption}>

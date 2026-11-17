@@ -8,7 +8,7 @@ import type { FloorPlan } from "@/lib/floor-plan";
 // writes are serialised with an in-memory lock and saved atomically to one JSON file.
 
 export type Zone = { id: string; name: string; seats: number; status: "open" | "closed" };
-/** A zone holds one booking per table; one table seats 12 people. */
+/** Seat-managed zones show staff one 12-seat table per 12 seats; bookings draw on the zone's seats. */
 export const TABLE_SEATS = 12;
 export const tablesFor = (zone: Zone) => Math.max(1, Math.ceil(zone.seats / TABLE_SEATS));
 export type Booking = {
@@ -100,8 +100,8 @@ export function seed(opts: { opensInSeconds?: number } = {}): Db {
     invites: [],
     floorPlan: { draft: null, published: null, publishedAt: null },
     bookingAttempts: [],
-    // Tonight's sample bookings (same as the admin designs). Pending requests do not hold a table until
-    // staff allocate them. VIP (24 seats = 2 tables) has 1 of 2 tables taken, so one more customer booking fills it.
+    // Tonight's sample bookings (same as the admin designs). Pending requests hold no seats until staff
+    // allocate them. VIP has 24 seats and a checked-in 1-4 group, so 20 seats are left.
     bookings: [
       existing(1, "เจ๊ม่อน", "0919119911", "12+", outdoor, "confirmed", "line", 9, "20:00:00"),
       existing(2, "คุณเมย์", "0812345678", "5-8", indoor, "pending", "line", 12, "20:00:02"),
@@ -166,10 +166,17 @@ export function withDb<T>(fn: (db: Db) => T | Promise<T>): Promise<T> {
 
 export const reset = (opts?: Parameters<typeof seed>[0]) => withDb((db) => { Object.assign(db, seed(opts)); });
 
-export function zoneAvailability(db: Db, date: string) {
+/**
+ * A zone takes groups until its seats run out (pending requests hold no seats). A group counts as the top of
+ * its party bucket. `tablesLeft` is how many more groups of that size still fit.
+ */
+export function zoneAvailability(db: Db, date: string, party?: string) {
+  const need = party ? PARTY_SIZE[party] : 1;
   return db.zones.map((zone) => {
-    const left = tablesFor(zone) - db.bookings.filter((b) => b.serviceDate === date && b.zoneId === zone.id && (b.status === "confirmed" || b.status === "checked_in")).length;
+    const booked = db.bookings.filter((b) => b.serviceDate === date && b.zoneId === zone.id && (b.status === "confirmed" || b.status === "checked_in"))
+      .reduce((sum, b) => sum + PARTY_SIZE[b.party], 0);
+    const seatsLeft = Math.max(0, zone.seats - booked);
     const closed = zone.status === "closed";
-    return { id: zone.id, name: zone.name, tablesLeft: Math.max(0, left), available: left > 0 && !closed, closed };
+    return { id: zone.id, name: zone.name, seatsLeft, tablesLeft: Math.floor(seatsLeft / need), available: seatsLeft >= need && !closed, closed };
   });
 }

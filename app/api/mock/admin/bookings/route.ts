@@ -41,7 +41,7 @@ export const POST = route<Record<string, string>>(async (request) => {
   requireStaff(request);
   const input = await body(request, staffBookingInput);
   const booking = await withDb((db) => {
-    const zone = checkSlot(db, input.serviceDate, input.zoneId);
+    const zone = checkSlot(db, input.serviceDate, input.zoneId, input.party);
     return addBooking(db, {
       requestId: `staff-${randomUUID()}`, customerId: `staff-${randomUUID()}`, name: input.name, phone: input.phone,
       serviceDate: input.serviceDate, party: input.party, zone, channel: "staff",

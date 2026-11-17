@@ -79,7 +79,8 @@ beforeAll(async () => {
   await sql`insert into venues (id, slug, name) values (${venueId}, ${slug}, 'DB queue venue')`;
   await sql`insert into venue_line_integrations (venue_id, provider_id, channel_id, liff_id)
     values (${venueId}, ${slug}, '123', '123-dbq')`;
-  await sql`insert into zones (id, venue_id, name, capacity) values (${zoneId}, ${venueId}, 'Zone', 12)`;
+  // Four seats: one 1-4 group fills the zone.
+  await sql`insert into zones (id, venue_id, name, capacity) values (${zoneId}, ${venueId}, 'Zone', 4)`;
   await sql`insert into venue_tables (id, venue_id, zone_id, name, capacity) values (${tableId}, ${venueId}, ${zoneId}, 'T1', 4)`;
 }, 60_000);
 
@@ -323,7 +324,8 @@ describe.sequential("Database booking queue", () => {
     expect(rows.filter((r) => r.status === "confirmed")).toHaveLength(1);
     expect(rows.filter((r) => r.resultCode === "ZONE_FULL")).toHaveLength(49);
     const [allocation] = await db()`select count(*)::int as total from booking_allocations where table_id = ${tableId} and service_date = ${date} and active`;
-    expect(allocation.total).toBe(1);
+    // Party buckets take seats from the zone and hold no table.
+    expect(allocation.total).toBe(0);
     const events = await db()`select details from audit_logs where venue_id = ${venueId}
       and details->>'service_date' = ${date} and action in ('booking.confirmed', 'booking.rejected')
       order by (details->>'queue_seq')::bigint`;
