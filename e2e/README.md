@@ -41,3 +41,4 @@ python e2e/run_tests.py --start-server --production
 Each run saves screenshots, `report.md`, and `results.json` under `e2e/YYYY-MM-DD_HH-MM-SS/`. GitHub Actions uploads the folder as `playwright-report`. A failing step has a `-FAILED.png` screenshot. The script exits with code 1 when a step fails.
 
 See `README.md` at the repo root for project setup.
+.
