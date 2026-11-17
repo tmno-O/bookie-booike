@@ -106,7 +106,7 @@ it("sends one multicast per batch with the batch id as retry key and caps recipi
 describe("Messaging API token check", () => {
   const reply = (status: number, body: unknown = {}) => (async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch;
   it("accepts a token LINE recognises and reports the bot name", async () => {
-    expect(await checkMessagingToken("token", reply(200, { displayName: "Bookie" }))).toEqual({ status: "valid", botName: "Bookie" });
+    expect(await checkMessagingToken("token", reply(200, { displayName: "Bookie" }))).toEqual({ status: "valid", botName: "Bookie", basicId: null });
   });
   it("refuses a token LINE rejects and separates outages", async () => {
     expect(await checkMessagingToken("token", reply(401))).toEqual({ status: "invalid" });

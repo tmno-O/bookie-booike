@@ -73,3 +73,21 @@
 .bookingQr { display: block; margin-top: 16px; }
 .lineFacts { margin: 0; }
 .lineFacts dd { margin: 0; font-size: 14px; color: #25211f; overflow-wrap: anywhere; }
+.lineHealth { margin-top: 16px; padding: 16px; border: 1px solid #e8e5e1; border-radius: 8px; background: #fbfaf8; }
+.lineHealthHead { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.lineHealthTitle { margin: 0; font-size: 15px; font-weight: 600; }
+.lineSummary { margin: 12px 0 0; padding: 10px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; }
+.lineSummaryOk { background: #e8f4eb; color: #456a53; }
+.lineSummaryBad { background: #fbeee6; color: #9a4a26; }
+.lineChecks { margin: 12px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.lineCheck { display: grid; grid-template-columns: 26px 1fr; gap: 10px; align-items: start; }
+.lineMark { display: inline-flex; width: 22px; height: 22px; align-items: center; justify-content: center; border-radius: 50%; font-size: 12px; font-weight: 700; color: #fff; }
+.line_ok .lineMark { background: #4f8a63; }
+.line_warn .lineMark { background: #c98a1b; }
+.line_fail .lineMark { background: #b3261e; }
+.line_unknown .lineMark { background: #a39d97; }
+.lineCheckTitle { margin: 1px 0 0; font-size: 14px; font-weight: 600; color: #25211f; }
+.lineCheckState { font-weight: 400; color: #77716c; }
+.lineCheckDetail { margin: 2px 0 0; font-size: 13px; color: #4d4743; overflow-wrap: anywhere; }
+.lineFix { margin: 4px 0 0; font-size: 13px; color: #9a4a26; overflow-wrap: anywhere; }
+.lineFriend { margin-top: 14px; padding-top: 12px; border-top: 1px solid #e8e5e1; }

@@ -13,6 +13,7 @@ import { POST as lineLogout } from "../../app/api/mock/line/logout/route";
 import { GET as me } from "../../app/api/mock/me/route";
 import { POST as staffLogin } from "../../app/api/mock/admin/login/route";
 import { GET as lineGet, PATCH as linePatch } from "../../app/api/mock/admin/line-integration/route";
+import { GET as lineHealthGet } from "../../app/api/mock/admin/line-integration/health/route";
 import { GET as dashboard } from "../../app/api/mock/admin/dashboard/route";
 import { POST as staffBook } from "../../app/api/mock/admin/bookings/route";
 import { GET as bookingDetail } from "../../app/api/mock/admin/bookings/[id]/route";
@@ -894,5 +895,10 @@ describe("mock LINE settings", () => {
     const removed = await call(linePatch, "/api/mock/admin/line-integration", { method: "PATCH", cookie: owner, body: { channelAccessToken: null } });
     expect(await removed.json()).toMatchObject({ integration: { hasAccessToken: false } });
     expect((await call(linePatch, "/api/mock/admin/line-integration", { method: "PATCH", cookie: owner, body: {} })).status).toBe(400);
+    const health = async () => (await call(lineHealthGet, "/api/mock/admin/line-integration/health", { cookie: owner })).json();
+    expect(await health()).toMatchObject({ ready: false, bot: null });
+    await call(linePatch, "/api/mock/admin/line-integration", { method: "PATCH", cookie: owner, body: { channelAccessToken: "secret-token" } });
+    expect(await health()).toMatchObject({ bot: { addFriendUrl: expect.stringContaining("line.me") } });
+    expect((await call(lineHealthGet, "/api/mock/admin/line-integration/health", { cookie: staff })).status).toBe(403);
   });
 });

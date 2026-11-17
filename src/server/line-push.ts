@@ -40,7 +40,7 @@ export function sendLineMulticast(
   return sendLine("multicast", sender, { to: recipients, messages }, send);
 }
 
-export type MessagingTokenCheck = { status: "valid"; botName: string | null } | { status: "invalid" | "unavailable" };
+export type MessagingTokenCheck = { status: "valid"; botName: string | null; basicId: string | null } | { status: "invalid" | "unavailable" };
 
 /** Asks LINE which bot a Messaging API channel access token belongs to, so a wrong token is refused before it is saved. */
 export async function checkMessagingToken(token: string, send: typeof fetch = fetch): Promise<MessagingTokenCheck> {
@@ -53,6 +53,18 @@ export async function checkMessagingToken(token: string, send: typeof fetch = fe
   if (response.status === 401 || response.status === 403) return { status: "invalid" };
   if (!response.ok) return { status: "unavailable" };
   const info: unknown = await response.json().catch(() => null);
-  const botName = info && typeof info === "object" && "displayName" in info && typeof info.displayName === "string" ? info.displayName : null;
-  return { status: "valid", botName };
+  const text = (key: string) => info && typeof info === "object" && key in info
+    && typeof (info as Record<string, unknown>)[key] === "string" ? (info as Record<string, string>)[key] : null;
+  return { status: "valid", botName: text("displayName"), basicId: text("basicId") };
+}
+
+/** True when the user has added the bot as a friend. LINE only knows the user when the bot shares the LINE Login provider. */
+export async function isBotFriend(token: string, userId: string, send: typeof fetch = fetch): Promise<boolean | null> {
+  try {
+    const response = await send(`https://api.line.me/v2/bot/profile/${encodeURIComponent(userId)}`, {
+      headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(5_000), cache: "no-store",
+    });
+    if (response.ok) return true;
+    return response.status === 404 ? false : null;
+  } catch { return null; }
 }
