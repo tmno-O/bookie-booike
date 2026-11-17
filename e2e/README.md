@@ -20,6 +20,8 @@ python e2e/run_tests.py --start-server --headed
 python e2e/run_tests.py --start-server --headed --slow 400
 ```
 
+Headed runs pause 270 ms between actions by default. Pass `--slow MS` to change it (`--slow 0` for full speed).
+
 `--start-server` launches a mock dev server on port 3100 with an isolated database. Use `--base-url http://localhost:3115` to select a different port. When pointed to a running server, the suite resets that server's mock DB at the start and end. Use an instance dedicated to testing.
 
 To use the same production build as CI, set `MOCK_API=1` and `NEXT_PUBLIC_API_MODE=mock` in the shell, then run:

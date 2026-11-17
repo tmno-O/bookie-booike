@@ -598,7 +598,7 @@ def main() -> int:
     parser.add_argument("--base-url", default="http://localhost:3100")
     parser.add_argument("--headed", action="store_true", help="show the browser window")
     parser.add_argument("--chrome", action="store_true", help="use the installed Google Chrome (implies --headed)")
-    parser.add_argument("--slow", type=int, default=0, metavar="MS", help="slow down every action (ms)")
+    parser.add_argument("--slow", type=int, default=0, metavar="MS", help="slow down every action (ms); headed runs default to 270")
     parser.add_argument("--start-server", action="store_true", help="start a local mock Next.js server if needed")
     parser.add_argument("--production", action="store_true", help="start from an existing mock production build")
     parser.add_argument("--repo", type=Path, default=DEFAULT_REPO, help="app folder used by --start-server")
@@ -620,8 +620,8 @@ def run_tests(args, mock_db: Path) -> int:
 
     global HEADED
     HEADED = args.headed or args.chrome
-    if args.chrome and args.slow == 0:
-        args.slow = 900  # visible runs default to a calm pace
+    if HEADED and args.slow == 0:
+        args.slow = 270  # visible runs default to a calm pace (0.9 s cut by 70%); --slow overrides
     began = time.time()
     try:
         api(base, "/reset", {})  # fresh seed data
