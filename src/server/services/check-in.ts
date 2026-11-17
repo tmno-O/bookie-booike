@@ -2,6 +2,7 @@ import type { Staff } from "@/lib/auth/staff-auth";
 import { db } from "@/lib/db";
 import { ApiError, notFound } from "@/lib/errors";
 import { getStaffBooking } from "./bookings";
+import { scheduleBookingNotice } from "./notification-drain";
 
 const failures = {
   ALREADY_CHECKED_IN: "การจองนี้เช็กอินแล้ว",
@@ -15,5 +16,6 @@ export async function checkInBooking(staff: Staff, bookingId: string) {
   }[]>`select check_in_booking(${staff.venueId}, ${bookingId}, ${staff.userId}) as code`;
   if (result.code === "NOT_FOUND") notFound("Booking");
   if (result.code !== "CHECKED_IN") throw new ApiError(409, result.code, failures[result.code]);
+  scheduleBookingNotice(staff.venueId, bookingId, ["checked_in"], "check-in welcome");
   return getStaffBooking(staff.venueId, bookingId);
 }

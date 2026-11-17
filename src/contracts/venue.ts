@@ -32,9 +32,18 @@ export const shopProfileInput = z.strictObject({
 export const DEFAULT_REMINDER_HOURS = 24;
 export const MAX_REMINDER_HOURS = 365 * 24;
 const reminderHours = z.number().int().min(1).max(MAX_REMINDER_HOURS).nullable();
+export const DEFAULT_DAY_OF_REMINDER_HOURS = 2;
+export const MAX_DAY_OF_REMINDER_HOURS = 24;
+export const DEFAULT_CANCEL_DEADLINE_HOURS = 3;
 export const lineReminderSettings = z.strictObject({
   bookingReminderHours: reminderHours,
   specialReminderHours: reminderHours,
+  /** On the day of the booking, this many hours before it starts. */
+  dayOfReminderHours: z.number().int().min(1).max(MAX_DAY_OF_REMINDER_HOURS).nullable(),
+  /** This many hours before the customer can no longer cancel. */
+  cancelDeadlineReminderHours: reminderHours,
+  /** A welcome at check-in and a thank-you the next morning. */
+  checkInMessages: z.boolean(),
 });
 export type LineReminderSettings = z.infer<typeof lineReminderSettings>;
 

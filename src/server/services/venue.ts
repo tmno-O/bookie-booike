@@ -39,7 +39,8 @@ export async function getVenue(lookup: { venueId: string } | { slug: string }, s
            v.phone, v.address, v.entry_policy,
            v.table_selection_mode, v.cancel_cutoff_minutes, v.customer_cancel_enabled, l.liff_id, coalesce(s.allocation_mode, 'auto') as allocation_mode,
            coalesce(s.large_party_mode, 'staff_review') as large_party_mode,
-           v.booking_reminder_hours, v.special_reminder_hours
+           v.booking_reminder_hours, v.special_reminder_hours, v.day_of_reminder_hours, v.cancel_deadline_reminder_hours,
+           v.check_in_messages
     from venues v left join venue_line_integrations l on l.venue_id = v.id
     left join venue_settings s on s.venue_id = v.id
     where ${predicate}

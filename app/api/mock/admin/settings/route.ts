@@ -18,13 +18,17 @@ export const PATCH = route(async (request) => {
   assertMockEnabled(); requireOwner(request);
   const patch = await body(request, z.union([venueSlugPatch, settingsPatch.pick({
     customerCancelEnabled: true, cancelCutoffMinutes: true, largePartyMode: true, bookingReminderHours: true, specialReminderHours: true,
+    dayOfReminderHours: true, cancelDeadlineReminderHours: true, checkInMessages: true,
   })]));
   if ("slug" in patch) return json(await withDb((db) => ({ slug: db.venue.slug = patch.slug })));
-  const { largePartyMode, bookingReminderHours, specialReminderHours, ...cancellation } = patch;
+  const { largePartyMode, bookingReminderHours, specialReminderHours, dayOfReminderHours, cancelDeadlineReminderHours,
+    checkInMessages, ...cancellation } = patch;
   return json(await withDb((db) => {
     if (largePartyMode) db.largePartyMode = largePartyMode;
-    if (bookingReminderHours !== undefined) db.lineReminders.bookingReminderHours = bookingReminderHours;
-    if (specialReminderHours !== undefined) db.lineReminders.specialReminderHours = specialReminderHours;
+    const reminders = { bookingReminderHours, specialReminderHours, dayOfReminderHours, cancelDeadlineReminderHours, checkInMessages };
+    for (const [key, value] of Object.entries(reminders)) {
+      if (value !== undefined) Object.assign(db.lineReminders, { [key]: value });
+    }
     return { ...Object.assign(db.cancellation, cancellation), ...db.lineReminders, largePartyMode: db.largePartyMode };
   }));
 });

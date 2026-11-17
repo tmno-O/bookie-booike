@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { encryptSecret } from "@/lib/crypto";
 import { checkMessagingToken, sendLineMulticast, sendLinePush } from "@/server/line-push";
-import { bookingNoticeMessage, releaseNoticeMessage } from "@/server/notification-message";
+import { bookingNoticeMessage, flexTexts, releaseNoticeMessage } from "@/server/notification-message";
 import { bookingAfterLogin, safeBookingLoginQuery } from "@/lib/booking-links";
 import { scheduleBookingConfirmation } from "@/server/services/notification-drain";
 import { GET, POST } from "../../app/api/internal/notifications/drain/route";
@@ -46,25 +46,25 @@ it("schedules only this booking's confirmation after the response when LINE is e
   scheduleBookingConfirmation(venueId, bookingId);
   expect(deliver).not.toHaveBeenCalled();
   await afterResponse.mock.calls[0][0]();
-  expect(deliver.mock.calls).toEqual([[undefined, venueId, bookingId], [undefined, venueId, bookingId]]);
+  const kinds = ["received", "confirmed"];
+  expect(deliver.mock.calls).toEqual([[undefined, venueId, bookingId, kinds], [undefined, venueId, bookingId, kinds]]);
 });
 
 it("builds a pending-booking message with the venue, reservation details and LIFF button", () => {
   const message = bookingNoticeMessage({ kind: "received", name: "ร้านตัวอย่าง", slug: "test-store", liffId: "123-abc",
     serviceDate: "2026-12-24", serviceTime: "20:30", zoneName: "VIP", partySize: 4, reference: "BL-2026-0001", resultCode: null, note: null });
   expect(message.altText).toBe("ได้รับคำขอ รอร้านยืนยัน");
-  expect(message.contents.body.contents).toEqual(expect.arrayContaining([
-    expect.objectContaining({ text: "ร้านตัวอย่าง" }), expect.objectContaining({ text: expect.stringMatching(/24.*ธ\.ค\..*20:30/) }),
-    expect.objectContaining({ text: "โซน VIP" }), expect.objectContaining({ text: "จำนวน 4 คน" }),
-    expect.objectContaining({ text: "เลขอ้างอิง BL-2026-0001" }),
+  expect(flexTexts(message)).toEqual(expect.arrayContaining([
+    "ร้านตัวอย่าง", expect.stringMatching(/^วันที่ .*24 ธ\.ค\./), "เวลา 20:30 น.", "โซน VIP", "จำนวน 4 คน", "เลขอ้างอิง", "BL-2026-0001",
   ]));
+  expect(message.contents.header.backgroundColor).toBe("#B7791F");
   expect(message.contents.footer?.contents[0].action.uri).toBe("https://liff.line.me/123-abc/?next=bookings");
 });
 
 it("localizes special releases and preserves only known booking destinations", () => {
   const message = releaseNoticeMessage({ title: "Festival", name: "Bookie", slug: "test-store", liffId: null,
     serviceDate: "2026-12-24", opensAt: new Date("2026-12-23T18:30:00Z"), timezone: "Asia/Bangkok", reminder: false }, "https://bookie.example");
-  expect(message.contents.body.contents).toContainEqual(expect.objectContaining({ text: expect.stringMatching(/^เปิดจอง 24.*01:30/) }));
+  expect(flexTexts(message)).toContainEqual(expect.stringMatching(/^เปิดจอง 24.*01:30/));
   expect(message.contents.footer?.contents[0].action.uri).toBe("https://bookie.example/book/test-store/select?date=2026-12-24");
   expect(bookingAfterLogin("test-store", "?next=select&date=2026-12-24")).toBe("/book/test-store/select?date=2026-12-24");
   expect(bookingAfterLogin("test-store", "?next=https://example.com")).toBe("/book/test-store/details");
@@ -113,5 +113,39 @@ describe("Messaging API token check", () => {
     expect(await checkMessagingToken("token", reply(500))).toEqual({ status: "unavailable" });
     expect(await checkMessagingToken("token", (async () => { throw new Error("offline"); }) as unknown as typeof fetch))
       .toEqual({ status: "unavailable" });
+  });
+});
+
+describe("visit notices", () => {
+  const notice = {
+    slug: "bookie-demo", name: "Bookie Demo", liffId: "123-abc", serviceDate: "2026-12-01", serviceTime: "19:00",
+    zoneName: "VIP", partySize: 4, reference: "BL-2026-0001", resultCode: null, note: null,
+    venueAddress: "99 ถนนสุขุมวิท", entryPolicy: "กรุณามาก่อนเวลา 15 นาที", cancelByDate: "2026-12-01", cancelByTime: "17:00",
+  };
+  const lines = flexTexts;
+  const button = (message: ReturnType<typeof bookingNoticeMessage>) =>
+    (message.contents as { footer?: { contents: { action: { label: string; uri: string } }[] } }).footer?.contents[0].action;
+
+  it("sends the day-of reminder with the time, address and entry policy", () => {
+    const message = bookingNoticeMessage({ ...notice, kind: "day_of" });
+    expect(message.altText).toBe("วันนี้มีการจองของคุณ");
+    expect(lines(message)).toEqual(expect.arrayContaining([
+      "พบกันคืนนี้ 19:00 น.", "สถานที่ 99 ถนนสุขุมวิท", "โซน VIP", "BL-2026-0001", "นโยบายเข้าร้าน: กรุณามาก่อนเวลา 15 นาที",
+    ]));
+    expect(button(message)).toMatchObject({ label: "ดูการจองของฉัน", uri: expect.stringContaining("liff.line.me/123-abc") });
+  });
+
+  it("tells the guest until when they can cancel", () => {
+    const message = bookingNoticeMessage({ ...notice, kind: "cancel_deadline" });
+    expect(message.altText).toBe("ใกล้หมดเวลายกเลิกการจอง");
+    expect(lines(message).some((line) => line.startsWith("ยกเลิกได้ถึง") && line.endsWith("เวลา 17:00 น."))).toBe(true);
+    expect(button(message)?.label).toBe("จัดการการจอง");
+  });
+
+  it("welcomes the guest at check-in and invites them back the next morning", () => {
+    expect(bookingNoticeMessage({ ...notice, kind: "checked_in" }).altText).toBe("เช็กอินแล้ว ยินดีต้อนรับ");
+    const thanks = bookingNoticeMessage({ ...notice, kind: "thank_you" });
+    expect(thanks.altText).toBe("ขอบคุณที่มาใช้บริการ");
+    expect(button(thanks)).toMatchObject({ label: "จองครั้งถัดไป", uri: expect.stringContaining("next=select") });
   });
 });
