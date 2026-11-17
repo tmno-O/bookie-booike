@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { adminApi, asFailure } from "../admin-api";
+import LineHealth from "./line-health";
 import styles from "../admin.module.css";
 import page from "./settings-pages.module.css";
 
@@ -15,6 +16,7 @@ export default function LineSettings() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [checkVersion, setCheckVersion] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -30,6 +32,7 @@ export default function LineSettings() {
       const r = await adminApi<{ integration: Integration }>(path, { method: "PATCH", body: { channelAccessToken: value } });
       setIntegration(r.integration);
       setToken("");
+      setCheckVersion((v) => v + 1);
       setNotice(value ? "บันทึก token แล้ว การจองถัดไปจะได้รับแจ้งเตือนทาง LINE" : "ลบ token แล้ว ระบบหยุดส่งข้อความ LINE");
     } catch (e) {
       setError(asFailure(e).message);
@@ -51,6 +54,7 @@ export default function LineSettings() {
       <h2 id="line-settings-title" className={styles.cardTitle}>การแจ้งเตือน LINE</h2>
       <p className={styles.cardSub}>ใส่ channel access token ของ Messaging API channel เพื่อส่งข้อความยืนยัน ยกเลิก และเตือนก่อนถึงวันจอง</p>
       {integration === undefined && !error && <p className={page.hint}>กำลังโหลด…</p>}
+      {integration !== undefined && <LineHealth version={checkVersion} />}
       {integration === null && <p className={page.hint}>ร้านยังไม่ได้เชื่อม LINE Login กรุณาตั้ง LINE Login channel และ LIFF ก่อน</p>}
       {integration && <>
         <dl className={`${page.bookingLinkFields} ${page.lineFacts}`}>
