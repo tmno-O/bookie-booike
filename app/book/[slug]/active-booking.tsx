@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { api, thaiDate, type Booking } from "./flow";
-import styles from "./shell.module.css";
+import styles from "./active-booking.module.css";
 
 type Active = Pick<Booking, "id" | "serviceDate" | "canCancel">;
 
@@ -32,9 +32,21 @@ export function useActiveBooking(slug: string) {
 export function ActiveBookingNotice({ slug, booking }: { slug: string; booking: Active }) {
   const detail = `/book/${slug}/confirmed?b=${encodeURIComponent(booking.id)}`;
   return (
-    <aside aria-label="การจองเดิม" className={`${styles.card} ${styles.cardAccent}`} style={{ marginBlock: 16 }}>
-      <p>คุณมีการจองวันที่ {thaiDate(booking.serviceDate)} แล้ว จองใหม่ได้หลังวันนั้น หรือเมื่อยกเลิกการจองเดิม</p>
-      <p><Link href={detail}>ดูการจองเดิม</Link>{booking.canCancel && <> · <Link href={`${detail}#cancel-booking`}>ไปที่การยกเลิก</Link></>}</p>
+    <aside aria-label="การจองเดิม" className={styles.notice}>
+      <div className={styles.summary}>
+        <span className={styles.icon} aria-hidden="true"><span className={styles.calendar} /></span>
+        <div>
+          <p className={styles.label}>คุณมีการจองอยู่แล้ว</p>
+          <time className={styles.date} dateTime={booking.serviceDate}>{thaiDate(booking.serviceDate)}</time>
+        </div>
+      </div>
+      <p className={styles.message}>
+        {booking.canCancel ? "จองใหม่ได้หลังวันจองเดิม หรือเมื่อยกเลิกการจองนี้" : "จองใหม่ได้หลังวันจองเดิม"}
+      </p>
+      <div className={styles.actions}>
+        <Link className={styles.primary} href={detail}>ดูการจองเดิม</Link>
+        {booking.canCancel && <Link className={styles.secondary} href={`${detail}#cancel-booking`}>ไปที่การยกเลิก</Link>}
+      </div>
     </aside>
   );
 }
