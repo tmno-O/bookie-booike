@@ -9,7 +9,13 @@
 .cancelDialog { border: 1px solid #ded8d1; border-radius: 16px; padding: 24px; max-width: min(90vw, 440px); color: #25211f; background: #fffdf8; }
 .cancelDialog::backdrop { background: rgb(0 0 0 / 45%); }
 .cancelActions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
-.cancelActions button { min-height: 44px; padding: 8px 16px; cursor: pointer; }
+/* Same button language as .cancelBtn (secondary) and the shell .cta (primary). Thai glyphs sit high, hence the +2.5px top padding. */
+.keepBtn, .confirmBtn { flex: 1 1 140px; display: flex; align-items: center; justify-content: center; box-sizing: border-box; height: 48px; padding: 2.5px 16px 0; border-radius: 8px; font: inherit; font-size: 15px; font-weight: 600; line-height: 1; cursor: pointer; }
+.keepBtn { border: 1px solid #e8e5e1; background: #f1efec; color: #25211f; }
+.confirmBtn { border: 0; background: #b94e29; color: #fff; }
+.confirmBtn:active:not(:disabled) { background: #823018; }
+.keepBtn:focus-visible, .confirmBtn:focus-visible { outline: 2px solid #b94e29; outline-offset: 2px; }
+.keepBtn:disabled, .confirmBtn:disabled { opacity: .5; cursor: not-allowed; }
 .cancelBtn { display: flex; align-items: center; justify-content: center; box-sizing: border-box; height: 48px; margin: 30px 0 0; padding: 2.5px 20px 0; /* Thai glyphs sit high in the line box, so nudge down to equalise the visible top/bottom space */ border: 1px solid #e8e5e1; border-radius: 8px; background: #f1efec; color: #25211f; font: inherit; font-size: 15px; font-weight: 600; line-height: 1; cursor: pointer; }
 .cancelBtn:focus-visible { outline: 2px solid #b94e29; outline-offset: 2px; }
 .cancelBtn:disabled { opacity: .5; cursor: not-allowed; }

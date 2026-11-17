@@ -41,8 +41,8 @@ export function CancelBooking({ booking, onChanged }: { booking: Booking; onChan
       <p>{booking.reference} · ยกเลิกแล้วโต๊ะจะเปิดให้ผู้อื่นจอง</p>
       {error && <p role="alert">{error}</p>}
       <div className={styles.cancelActions}>
-        <button type="button" disabled={busy} onClick={() => dialog.current?.close()}>เก็บการจองไว้</button>
-        <button type="button" disabled={busy} onClick={cancel}>{busy ? "กำลังยกเลิก…" : "ยืนยันยกเลิก"}</button>
+        <button type="button" className={styles.keepBtn} disabled={busy} onClick={() => dialog.current?.close()}>เก็บการจองไว้</button>
+        <button type="button" className={styles.confirmBtn} disabled={busy} onClick={cancel}>{busy ? "กำลังยกเลิก…" : "ยืนยันยกเลิก"}</button>
       </div>
     </dialog>
   </>;
