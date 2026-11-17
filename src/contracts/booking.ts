@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { id, instant, serviceDate, slug } from "./common";
+import { clockTime, id, instant, serviceDate, slug } from "./common";
 import { partyBucket } from "./party";
 import { contactInput } from "./queue";
 
@@ -43,6 +43,7 @@ export const bookingReceipt = z.object({ reference: z.string(), queueSeq: z.stri
 export const booking = z.object({
   id, venueId: id, customerId: id, tableId: id.nullable(), zoneId: id,
   serviceDate, serviceAt: instant, partySize: z.number().int().positive(),
+  serviceTime: clockTime, venueName: z.string(), venueAddress: z.string(),
   status: bookingStatus,
   createdAt: instant, cancelledAt: instant.nullable(), checkedInAt: instant.nullable(),
   reference: z.string().regex(/^BL-\d{4}-\d{4,}$/),

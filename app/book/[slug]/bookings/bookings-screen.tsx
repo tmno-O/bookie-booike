@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Shell, shellStyles as s } from "../shell";
 import { api, asFailure, bookingStatusLabel, partyLabel, thaiDate, type Booking } from "../flow";
 import styles from "./bookings.module.css";
@@ -13,6 +13,9 @@ export default function BookingsScreen({ slug }: { slug: string }) {
   const [error, setError] = useState("");
   const [nextOffset, setNextOffset] = useState<number | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [revision, setRevision] = useState(0);
+  const moreRequest = useRef<AbortController | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -20,25 +23,42 @@ export default function BookingsScreen({ slug }: { slug: string }) {
       if (active) { setBookings(r.bookings); setNextOffset(r.nextOffset ?? null); }
     })
       .catch((e) => active && setError(asFailure(e).message));
-    return () => { active = false; };
-  }, []);
+    return () => { active = false; moreRequest.current?.abort(); };
+  }, [revision]);
 
   async function loadMore() {
     if (nextOffset === null) return;
+    const request = new AbortController();
+    moreRequest.current = request;
     setLoadingMore(true);
     setError("");
     try {
-      const result = await api<{ bookings: Booking[]; nextOffset: number | null }>(`/bookings?offset=${nextOffset}`);
+      const result = await api<{ bookings: Booking[]; nextOffset: number | null }>(`/bookings?offset=${nextOffset}`, { signal: request.signal });
+      if (request.signal.aborted) return;
       setBookings((current) => {
         const seen = new Set(current?.map(({ id }) => id));
         return [...(current ?? []), ...result.bookings.filter(({ id }) => !seen.has(id))];
       });
       setNextOffset(result.nextOffset);
     } catch (e) {
-      setError(asFailure(e).message);
+      if (!request.signal.aborted) setError(asFailure(e).message);
     } finally {
-      setLoadingMore(false);
+      if (!request.signal.aborted) setLoadingMore(false);
     }
+  }
+
+  function updateBooking(updated: Booking) {
+    if (updated.status !== "cancelled") {
+      setBookings((rows) => rows?.map((row) => row.id === updated.id ? updated : row));
+      return;
+    }
+    moreRequest.current?.abort();
+    setLoadingMore(false);
+    setBookings((rows) => rows?.filter((row) => row.id !== updated.id));
+    setNextOffset(null);
+    setNotice(`${bookingStatusLabel.cancelled} · ${updated.reference}`);
+    // Removing a row shifts the server's offsets. Reload page one before fetching another page.
+    setRevision((previous) => previous + 1);
   }
 
   return (
@@ -46,6 +66,7 @@ export default function BookingsScreen({ slug }: { slug: string }) {
       <h1 className={s.title} style={{ marginTop: 0 }}>การจองของฉัน</h1>
       <p className={s.subtitle}>ประวัติและสถานะการจอง</p>
       {error && <p role="alert" className={s.error}>{error}</p>}
+      {notice && <p role="status" className={s.note}>{notice}</p>}
       {bookings?.length === 0 && <p className={s.note} style={{ padding: "57px 0 0" }}>ยังไม่มีการจอง</p>}
       {bookings?.map((b, i) => (
         <section key={b.id} aria-label={b.reference}>
@@ -57,7 +78,7 @@ export default function BookingsScreen({ slug }: { slug: string }) {
             {b.status && <div><dt className={styles.dl}>สถานะ</dt><dd className={styles.dd}>{bookingStatusLabel[b.status]}</dd></div>}
           </dl>
           <Link href={`/book/${slug}/confirmed?b=${b.id}`} className={styles.secondary}>ดูรายละเอียดการจอง</Link>
-          <CancelBooking booking={b} onChanged={(updated) => setBookings((rows) => rows?.map((row) => row.id === updated.id ? updated : row))} />
+          <CancelBooking booking={b} onChanged={updateBooking} />
           <BookingReceipt booking={b} />
         </section>
       ))}

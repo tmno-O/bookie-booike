@@ -14,14 +14,14 @@ JSON ใช้ camelCase. ส่ง `Content-Type: application/json` เมื�
 | `GET /api/me`, `POST /api/session/logout` | อ่าน `{user:{userId,displayName}}` หรือลบ session |
 | `POST /api/booking-requests` | รับ `{venueId,zoneId,serviceDate,partyBucket,contactName,contactPhone}` พร้อม `Idempotency-Key`. คืน `202 {requestId}` เมื่อรับคำขอแล้ว (`db`: commit ลงฐานข้อมูล, `sqs`: broker รับแล้ว) |
 | `GET /api/me/booking-requests/{requestId}` | คืน `{requestId,status,resultCode,bookingId}`. สถานะ `pending_publish` (เฉพาะ `sqs`), `queued`, `confirmed`, `rejected` |
-| `GET /api/me/bookings`, `GET /api/me/bookings/{bookingId}` | คืนรายการแบบ `{bookings,nextOffset}` หรือ booking เดี่ยว. รองรับ `date`, `limit` 1–100 (ค่าเริ่มต้น 50), `offset`. `?active=1` คืนการจอง LINE ที่ยังใช้งานอยู่หนึ่งรายการหรือรายการว่าง |
+| `GET /api/me/bookings`, `GET /api/me/bookings/{bookingId}` | คืนรายการแบบ `{bookings,nextOffset}` หรือ booking เดี่ยว. รายการลูกค้ากรอง `cancelled` ออกก่อนแบ่งหน้า ส่วน staff ดูรายการที่ยกเลิกได้. รองรับ `date`, `limit` 1–100 (ค่าเริ่มต้น 50), `offset`. `?active=1` คืนการจอง LINE ที่ยังใช้งานอยู่หนึ่งรายการหรือรายการว่าง |
 | `POST /api/me/bookings/{bookingId}/cancel` | ยกเลิกตาม cutoff ของร้าน. การจองที่เช็กอินแล้วคืน `409 ALREADY_CHECKED_IN` |
 
 - `partyBucket` แปลง `1-4` เป็น 4, `5-8` เป็น 8, `9-12` เป็น 12 และ `12+` เป็น 15. การรับ `12+` เป็นค่าตั้งของร้าน (`largePartyMode`): `staff_review` (ค่าเริ่มต้น) รับคำขอเป็น `pending_allocation` เมื่อโต๊ะว่างรวมกันในโซนนั่งพอ แล้วพนักงานยืนยันและระบบจองหลายโต๊ะในโซนเดียวกันให้; `disabled` ปฏิเสธด้วย `409 LARGE_PARTY_DISABLED`. ข้อมูลร้านสาธารณะมี `largePartyMode`.
 - ส่งได้หลัง LINE login และเมื่อคืนนั้นเปิดรับ. ก่อนเปิดได้ `409 NIGHT_NOT_OPEN`, นอกช่วงจองได้ `422 DATE_OUT_OF_RANGE`, ร้านปิดได้ `409 CLOSED` และโซนปิดได้ `409 ZONE_CLOSED`. Rate limit นับตามลูกค้าต่อร้าน.
 - ลูกค้าจองผ่าน LINE ได้หนึ่งรายการต่อร้าน รวมคำขอที่กำลังตัดสิน. รายการ `pending_allocation`, `confirmed` และ `checked_in` ตั้งแต่วันปัจจุบันตามเวลาร้านนับโควตา. ยกเลิกแล้วจองใหม่ได้ทันที. `409 ACTIVE_BOOKING_EXISTS` มี `error.details: {serviceDate, bookingId}` หรือ `{serviceDate, requestId}`. รายการที่ร้านจองแทนไม่นับโควตา.
 - Worker โหมด `auto` เลือกโต๊ะว่างขนาดเล็กสุดที่รองรับกลุ่มในโซน. โต๊ะไม่พอได้ `rejected/ZONE_FULL`. โหมด `manual` สร้าง booking สถานะ `pending_allocation` และเริ่มถือโต๊ะเมื่อร้านจัดสรรสำเร็จ. ค่า `confirmed` ใน **booking request** หมายถึงสร้าง booking แล้ว ให้ดูสถานะการจัดสรรจาก **booking**.
-- Booking คืน `reference` รูปแบบ `BL-YYYY-NNNN` (เลขรันอาจยาวเกิน 4 หลัก), `name`, `phone`, `zoneName`, `party`, `source`, `status` และ `checkedInAt`. สถานะ booking คือ `pending_allocation`, `confirmed`, `checked_in`, `cancelled`. รายการเก่าที่บันทึกเพียงเลขท้ายเบอร์โทรคืน `phone: ""`.
+- Booking คืน `reference` รูปแบบ `BL-YYYY-NNNN` (เลขรันอาจยาวเกิน 4 หลัก), `name`, `phone`, `zoneName`, `party`, `source`, `status` และ `checkedInAt`. `serviceTime` คือเวลาเข้าร้านใน timezone ของร้าน (`HH:mm`). `venueName` และ `venueAddress` ใช้แสดงสถานที่จอง. สถานะ booking คือ `pending_allocation`, `confirmed`, `checked_in`, `cancelled`. รายการเก่าที่บันทึกเพียงเลขท้ายเบอร์โทรคืน `phone: ""`.
 - โหมด `sqs` อาจได้ `503 QUEUE_UNAVAILABLE` ให้ส่ง payload เดิมด้วย key เดิม. โหมด `db` ไม่มีขั้น publish จึงไม่มี error นี้. Key เดิมกับ payload ต่างได้ `422 IDEMPOTENCY_CONFLICT`.
 
 ## ระบบ

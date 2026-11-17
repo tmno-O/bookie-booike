@@ -1,6 +1,26 @@
+import { after } from "next/server";
+import { env } from "@/lib/env";
 import { deliverNextNotification } from "../../../worker/notifications";
 import { deliverNextAnnouncement } from "../../../worker/announcements";
 import { fanoutPendingAnnouncements } from "./announcements";
+
+export function scheduleBookingConfirmation(venueId: string, bookingId: string) {
+  const config = env();
+  if (!config.LINE_NOTIFICATIONS_ENABLED || config.LINE_VERIFY_MODE !== "real") return;
+  try {
+    after(async () => {
+      try {
+        const processed = await deliverNextNotification(undefined, venueId, bookingId);
+        // An obsolete received notice may be ahead of the confirmation in the same booking's outbox.
+        if (processed) await deliverNextNotification(undefined, venueId, bookingId);
+      } catch (error) {
+        console.error("LINE confirmation will retry", error instanceof Error ? error.name : "UnknownError");
+      }
+    });
+  } catch {
+    // Outside a Next.js request scope the existing Cron can pick up the persisted job.
+  }
+}
 
 export async function drainNotifications(maxMs = 20_000) {
   const deadline = Date.now() + Math.min(maxMs, 20_000);

@@ -103,7 +103,7 @@ export default function BookingsListScreen({ initialDate, bookingId }: { initial
           </div>
           <select className={styles.select} aria-label="กรองตามสถานะ" value={status} onChange={(e) => { setStatus(e.target.value); setOffset(0); }}>
             <option value="">ทุกสถานะ</option>
-            {(Object.keys(STATUS_LABEL) as Status[]).filter((s) => realApiMode || s !== "cancelled").map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+            {(Object.keys(STATUS_LABEL) as Status[]).map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
           </select>
           <select className={styles.select} aria-label="กรองตามโซน" value={zone} onChange={(e) => { setZone(e.target.value); setOffset(0); }}>
             <option value="">ทุกโซน</option>

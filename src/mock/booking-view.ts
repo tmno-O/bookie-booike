@@ -5,7 +5,8 @@ import { mockBookingHash } from "./audit";
 export function customerBookingView(db: Db, b: Booking) {
   const deadline = db.cancellation.customerCancelEnabled
     ? new Date(Date.parse(`${b.serviceDate}T18:00:00+07:00`) - db.cancellation.cancelCutoffMinutes * 60_000).toISOString() : null;
-  return { ...b, cancellableUntil: deadline, receipt: { reference: b.reference, queueSeq: b.queueNo ? String(b.queueNo) : null,
+  return { ...b, venueName: db.profile.name, venueAddress: db.profile.address, serviceTime: db.venue.schedule.service.start,
+    cancellableUntil: deadline, receipt: { reference: b.reference, queueSeq: b.queueNo ? String(b.queueNo) : null,
     receivedAt: b.requestedAt ?? b.createdAt, decidedAt: b.createdAt, verifyCode: mockBookingHash(b).slice(0, 16) },
     canCancel: (b.status === "confirmed" || b.status === "pending") && !!deadline && Date.now() < Date.parse(deadline) };
 }

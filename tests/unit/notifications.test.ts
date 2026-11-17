@@ -4,12 +4,19 @@ import { encryptSecret } from "@/lib/crypto";
 import { sendLineMulticast, sendLinePush } from "@/server/line-push";
 import { bookingNoticeMessage, releaseNoticeMessage } from "@/server/notification-message";
 import { bookingAfterLogin, safeBookingLoginQuery } from "@/lib/booking-links";
+import { scheduleBookingConfirmation } from "@/server/services/notification-drain";
 import { GET, POST } from "../../app/api/internal/notifications/drain/route";
 
 const config = vi.hoisted(() => ({ CRON_SECRET: "x".repeat(32), LINE_SECRET_KEY: "ab".repeat(32), LINE_NOTIFICATIONS_ENABLED: true, LINE_VERIFY_MODE: "real" }));
 const runDrain = vi.hoisted(() => vi.fn(async () => ({ bookings: 1, announcements: 2 })));
+const afterResponse = vi.hoisted(() => vi.fn<(task: () => Promise<void>) => void>());
+const deliver = vi.hoisted(() => vi.fn<(send?: typeof fetch, venueId?: string, bookingId?: string) => Promise<boolean>>().mockResolvedValue(false));
 vi.mock("@/lib/env", () => ({ env: () => config }));
-vi.mock("@/server/services/notification-drain", () => ({ drainNotifications: runDrain }));
+vi.mock("next/server", () => ({ after: afterResponse }));
+vi.mock("../../worker/notifications", () => ({ deliverNextNotification: deliver }));
+vi.mock("@/server/services/notification-drain", async (original) => ({
+  ...await original<typeof import("@/server/services/notification-drain")>(), drainNotifications: runDrain,
+}));
 afterEach(() => { config.CRON_SECRET = "x".repeat(32); config.LINE_NOTIFICATIONS_ENABLED = true; vi.clearAllMocks(); });
 
 it.each([["GET", GET], ["POST", POST]] as const)("authenticates %s before draining", async (method, drain) => {
@@ -26,6 +33,20 @@ it.each([["GET", GET], ["POST", POST]] as const)("authenticates %s before draini
   config.LINE_NOTIFICATIONS_ENABLED = false;
   expect((await (await call(`Bearer ${config.CRON_SECRET}`)).json()).disabled).toBe(true);
   expect(runDrain).toHaveBeenCalledTimes(1);
+});
+
+it("schedules only this booking's confirmation after the response when LINE is enabled", async () => {
+  const venueId = randomUUID(), bookingId = randomUUID();
+  config.LINE_NOTIFICATIONS_ENABLED = false;
+  scheduleBookingConfirmation(venueId, bookingId);
+  expect(afterResponse).not.toHaveBeenCalled();
+
+  config.LINE_NOTIFICATIONS_ENABLED = true;
+  deliver.mockResolvedValueOnce(true);
+  scheduleBookingConfirmation(venueId, bookingId);
+  expect(deliver).not.toHaveBeenCalled();
+  await afterResponse.mock.calls[0][0]();
+  expect(deliver.mock.calls).toEqual([[undefined, venueId, bookingId], [undefined, venueId, bookingId]]);
 });
 
 it("builds a pending-booking message with the venue, reservation details and LIFF button", () => {
