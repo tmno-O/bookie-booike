@@ -249,6 +249,10 @@ def customer_flow(run: Run, browser: Browser, base: str) -> dict:
         page.wait_for_url(re.compile(r"/confirmed\?b="))
         expect(page.get_by_role("heading", name="ยืนยันการจองแล้ว")).to_be_visible()
         expect(page).to_have_title("จองสำเร็จ · Bookie lyon.")
+        expect(page.get_by_text("คืนที่จอง", exact=True)).to_be_visible()
+        expect(page.get_by_text("18:00 น.", exact=True)).to_be_visible()
+        expect(page.get_by_text("สถานที่จอง", exact=True)).to_be_visible()
+        expect(page.get_by_text("เชียงใหม่ ประเทศไทย")).to_be_visible()
         reference = page.get_by_text(re.compile(r"BL-\d{4}-\d{4}")).first
         expect(reference).to_be_visible()
         shared["reference"] = reference.inner_text().strip()
@@ -354,6 +358,9 @@ def admin_flow(run: Run, browser: Browser, base: str, reference: str) -> None:
         dialog.get_by_role("button", name="ยืนยันยกเลิก", exact=True).click()
         expect(dialog.get_by_text("ยกเลิกแล้ว", exact=True)).to_be_visible()
         dialog.get_by_role("button", name="กลับ", exact=True).click()
+        nav("รายการจอง").click()
+        page.get_by_role("combobox", name="กรองตามสถานะ").select_option("cancelled")
+        expect(page.get_by_role("row", name=re.compile("คุณทดสอบ")).get_by_text("ยกเลิกแล้ว")).to_be_visible()
 
     flow.step("staff-cancel-booking", cancel_staff_booking)
 
@@ -552,6 +559,20 @@ def countdown_and_rebook(run: Run, browser: Browser, base: str) -> None:
         assert page.url != selection["first_booking"], "Rebooking must produce a new booking"
 
     flow.step("rebook-after-cancellation", rebook)
+
+    def remove_from_history():
+        page.get_by_role("link", name="ดูการจองของฉัน").click()
+        booking_cards = page.get_by_role("region", name=re.compile(r"^BL-"))
+        expect(booking_cards).to_have_count(1)
+        booking_cards.get_by_role("button", name="ยกเลิกการจอง", exact=True).click()
+        page.get_by_role("dialog").get_by_role("button", name="ยืนยันยกเลิก", exact=True).click()
+        expect(page.get_by_role("status")).to_contain_text("ยกเลิกการจองแล้ว")
+        expect(booking_cards).to_have_count(0)
+        page.reload()
+        expect(page.get_by_text("ยังไม่มีการจอง", exact=True)).to_be_visible()
+        expect(booking_cards).to_have_count(0)
+
+    flow.step("cancelled-bookings-hidden-from-history", remove_from_history)
     context.close()
 
 

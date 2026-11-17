@@ -19,8 +19,8 @@ export const GET = route<Record<string, string>>(async (request) => {
       const active = activeBooking(db, customer);
       return active ? [customerBookingView(db, active)] : [];
     }
-    return db.bookings.filter((b) => b.customerId === customer)
-    .sort((a, b) => a.serviceDate.localeCompare(b.serviceDate) || a.createdAt.localeCompare(b.createdAt)).map((b) => customerBookingView(db, b));
+    return db.bookings.filter((b) => b.customerId === customer && b.status !== "cancelled")
+      .sort((a, b) => a.serviceDate.localeCompare(b.serviceDate) || a.createdAt.localeCompare(b.createdAt)).map((b) => customerBookingView(db, b));
   });
   return json({ bookings, nextOffset: null });
 });

@@ -25,6 +25,7 @@ const rejectionReasons: Record<string, string> = {
 type VenueLink = { slug: string; name: string; liffId: string | null };
 export type BookingNotice = VenueLink & {
   kind: keyof typeof titles; serviceDate: string; serviceTime: string | null; zoneName: string | null;
+  venueAddress?: string | null;
   partySize: number | null; reference: string | null; resultCode: string | null; note: string | null;
 };
 type ReleaseNotice = VenueLink & {
@@ -62,7 +63,13 @@ export function bookingNoticeMessage(data: BookingNotice, origin?: string) {
   const detail = data.kind === "rejected"
     ? rejectionReasons[data.resultCode ?? ""] ?? "ไม่สามารถยืนยันการจองรอบนี้ได้ กรุณาลองใหม่"
     : data.note;
-  const lines = [text(data.name), text(`คืนบริการ ${date}`),
+  const summary = data.kind === "confirmed" ? [
+    text(`วันจอง ${serviceDate(data.serviceDate)}`),
+    ...(data.serviceTime ? [text(`เวลา ${data.serviceTime} น.`)] : []),
+    text(`สถานที่จอง ${data.name}`),
+    ...(data.venueAddress?.trim() ? [text(data.venueAddress.trim())] : []),
+  ] : [text(data.name), text(`คืนบริการ ${date}`)];
+  const lines = [...summary,
     ...(data.zoneName ? [text(`โซน ${data.zoneName}`)] : []),
     ...(data.partySize ? [text(`จำนวน ${data.partySize} คน`)] : []),
     ...(data.reference ? [text(`เลขอ้างอิง ${data.reference}`)] : []), ...(detail ? [text(detail)] : [])];

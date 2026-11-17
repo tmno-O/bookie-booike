@@ -10,11 +10,16 @@ type Notification = BookingNotice & LineRecipient & {
   attempts: number; bookingStatus: string | null; reminderExpired: boolean; reminderChanged: boolean;
 };
 
-async function claimNotification(venueId?: string) {
+async function claimNotification(venueId?: string, confirmationBookingId?: string) {
   return db().begin(async (tx) => {
     const venue = venueId ? tx`and n.venue_id = ${venueId}` : tx``;
+    // Prior received jobs are now obsolete once the booking is confirmed, even if backed off.
+    const confirmation = confirmationBookingId ? tx`and n.booking_id = ${confirmationBookingId}
+      and b.status in ('confirmed', 'checked_in') and n.kind in ('received', 'confirmed')` : tx``;
+    const obsoleteReceived = confirmationBookingId ? tx`or (n.kind = 'received' and n.status = 'pending')` : tx``;
     const [job] = await tx<Notification[]>`
       select n.id, n.venue_id, n.kind, n.attempts, i.subject, l.access_token_ciphertext, l.liff_id, v.slug, v.name,
+        v.address as venue_address,
         to_char(coalesce(b.service_date, r.service_date), 'YYYY-MM-DD') as service_date,
         to_char(coalesce(b.service_at, r.service_at) at time zone v.timezone, 'HH24:MI') as service_time,
         b.status as booking_status, b.reference, coalesce(b.party_size, r.party_size) as party_size,
@@ -34,7 +39,7 @@ async function claimNotification(venueId?: string) {
         order by subject limit 1
       ) i on true
       where ((n.status in ('pending', 'scheduled') and n.next_attempt_at <= now())
-          or (n.status = 'sending' and n.lease_until <= now())) ${venue}
+          or (n.status = 'sending' and n.lease_until <= now()) ${obsoleteReceived}) ${venue} ${confirmation}
         and not exists (
           select 1 from notification_outbox prior where prior.booking_id = n.booking_id
             and prior.status in ('pending', 'sending')
@@ -58,8 +63,8 @@ async function claimNotification(venueId?: string) {
   });
 }
 
-export async function deliverNextNotification(send: typeof fetch = fetch, venueId?: string) {
-  const claim = await claimNotification(venueId);
+export async function deliverNextNotification(send: typeof fetch = fetch, venueId?: string, confirmationBookingId?: string) {
+  const claim = await claimNotification(venueId, confirmationBookingId);
   if (!claim) return false;
   if (claim === "exhausted") return true;
 

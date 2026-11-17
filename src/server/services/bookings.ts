@@ -13,6 +13,7 @@ type Access = { venueId: string; customerId?: string };
 type BookingRow = {
   id: string; venueId: string; customerId: string; tableId: string | null; zoneId: string; zoneName: string;
   serviceDate: string; serviceAt: Date; partySize: number; status: z.infer<typeof bookingStatus>;
+  serviceTime: string; venueName: string; venueAddress: string;
   createdAt: Date; cancelledAt: Date | null; checkedInAt: Date | null;
   reference: string; name: string; phone: string; source: "liff" | "staff_assisted";
   cancellableUntil: Date | null; canCancel: boolean;
@@ -21,7 +22,9 @@ type BookingRow = {
 
 function bookingFields(sql: ISql) {
   return sql`select b.id, b.venue_id, b.customer_id, b.table_id, b.zone_id, z.name as zone_name,
-    to_char(b.service_date, 'YYYY-MM-DD') as service_date, b.service_at, b.party_size, b.status,
+    to_char(b.service_date, 'YYYY-MM-DD') as service_date, b.service_at,
+    to_char(b.service_at at time zone v.timezone, 'HH24:MI') as service_time,
+    v.name as venue_name, v.address as venue_address, b.party_size, b.status,
     b.created_at, b.cancelled_at, b.checked_in_at, b.reference, b.contact_name as name,
     coalesce(b.contact_phone, '') as phone, b.source,
     case when v.customer_cancel_enabled then b.service_at - make_interval(mins => v.cancel_cutoff_minutes) end as cancellable_until,
@@ -54,7 +57,7 @@ export async function listBookings(access: Access, request: Request) {
     `;
     return { bookings: row ? [bookingView(row)] : [], nextOffset: null };
   }
-  const ownership = access.customerId ? sql`and b.customer_id = ${access.customerId}` : sql``;
+  const ownership = access.customerId ? sql`and b.customer_id = ${access.customerId} and b.status <> 'cancelled'` : sql``;
   const service = date ? sql`and b.service_date = ${date}` : sql``;
   const state = status ? sql`and b.status = ${status === "pending" ? "pending_allocation" : status}` : sql``;
   const area = zone ? sql`and b.zone_id = ${zone}` : sql``;

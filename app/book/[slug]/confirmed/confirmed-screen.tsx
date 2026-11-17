@@ -39,14 +39,17 @@ export default function ConfirmedScreen({ slug }: { slug: string }) {
         </div>
         <dl className={styles.details}>
           <div className={styles.wide}><dt className={styles.dl}>คืนที่จอง</dt><dd className={`${styles.dd} ${styles.lg}`}>{thaiDate(booking.serviceDate)}</dd></div>
+          {booking.serviceTime && <div><dt className={styles.dl}>เวลา</dt><dd className={styles.dd}>{booking.serviceTime} น.</dd></div>}
           <div><dt className={styles.dl}>จำนวนผู้เข้าร่วม</dt><dd className={styles.dd}>{partyLabel(booking.party)}</dd></div>
           <div><dt className={styles.dl}>{pending ? "โซนที่ขอ" : "โซน"}</dt><dd className={styles.dd}>{booking.zoneName}</dd></div>
+          {booking.venueName && <div className={styles.wide}>
+            <dt className={styles.dl}>สถานที่จอง</dt>
+            <dd className={styles.dd}>{booking.venueName}{booking.venueAddress && <><br />{booking.venueAddress}</>}</dd>
+          </div>}
         </dl>
         <p className={styles.contact}><b>ชื่อลูกค้า</b>{booking.name}<br /><span style={{ fontWeight: 400 }}>เบอร์โทร&nbsp; {booking.phone}</span></p>
         <div id="cancel-booking"><CancelBooking booking={booking} onChanged={setBooking} /></div>
         <BookingReceipt booking={booking} />
-        <p className={styles.line}>การแจ้งเตือน LINE</p>
-        <p className={styles.lineNote}>ยังไม่มีข้อมูลการส่งข้อความ</p>
       </>}
     </Shell>
   );

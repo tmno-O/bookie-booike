@@ -794,12 +794,16 @@ describe.sequential("Supabase + ElasticMQ booking", () => {
     const cancelled = await cancel(request("POST", { cookie: alice.cookie }), context({ bookingId }));
     expect(await cancelled.json()).toMatchObject({ status: "cancelled" });
     expect((await cancel(request("POST", { cookie: alice.cookie }), context({ bookingId }))).status).toBe(200);
+    const history = (path = "/") => readBookings(request("GET", { cookie: alice.cookie, path }), context({})).then((response) => response.json());
+    expect(await history()).toEqual({ bookings: [], nextOffset: null });
 
     const again = await book(date);
     const second = await again.json();
     await consumeBookingMessage(await nextMessage());
     const replacement = await getStatus(second.requestId);
     expect(replacement.status).toBe("confirmed");
+    expect(await history("/?limit=1")).toMatchObject({ bookings: [{ id: replacement.bookingId }], nextOffset: null });
+    expect(await history("/?status=cancelled")).toEqual({ bookings: [], nextOffset: null });
     expect((await closeTable(request("DELETE", { token: staffToken }), context({ venueId, tableId }))).status).toBe(200);
     expect((await book(day(7), bob.cookie)).status).toBe(409);
     expect((await getStatus(second.requestId)).status).toBe("confirmed");
@@ -809,6 +813,14 @@ describe.sequential("Supabase + ElasticMQ booking", () => {
       token: staffToken, data: { status: "cancelled" },
     }), context({ venueId, bookingId: replacement.bookingId }));
     expect(await staffCancelled.json()).toMatchObject({ status: "cancelled" });
+    expect(await history()).toEqual({ bookings: [], nextOffset: null });
+    const staffHistory = await staffBookings(request("GET", {
+      token: staffToken, path: `/?date=${date}&status=cancelled`,
+    }), context({ venueId }));
+    expect(await staffHistory.json()).toMatchObject({ bookings: expect.arrayContaining([
+      expect.objectContaining({ id: bookingId, status: "cancelled" }),
+      expect.objectContaining({ id: replacement.bookingId, status: "cancelled" }),
+    ]) });
   });
 
   it("retries LINE outbox delivery without rolling back the confirmed booking", async () => {

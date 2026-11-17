@@ -25,7 +25,7 @@ async function setup() {
       select today::text, (today + 5)::text as booking_night, (today + 7)::text as special_night
       from (select (now() at time zone 'Asia/Bangkok')::date as today) d
     `;
-    await tx`insert into venues (id, slug, name) values (${venueId}, ${venueId}, 'Notification test')`;
+    await tx`insert into venues (id, slug, name, address) values (${venueId}, ${venueId}, 'Notification test', '99 ถนนสุขุมวิท')`;
     await tx`insert into auth.users (id) values (${userId})`;
     await tx`insert into venue_members (venue_id, user_id, role) values (${venueId}, ${userId}, 'owner')`;
     const staffToken = randomBytes(32).toString("base64url");
@@ -120,7 +120,7 @@ function messageAt(send: ReturnType<typeof mockLine>, index: number) {
 }
 
 it("delivers confirmed and rejected results once to the right customers and holds the booking reminder until due", async () => {
-  const { owner: { venueId }, customers } = fixture;
+  const { owner: { venueId }, customers, bookingNight } = fixture;
   const winner = await book(customers.booker);
   const rejected = await book(customers.newcomer);
   expect(winner.status).toBe("confirmed");
@@ -132,7 +132,15 @@ it("delivers confirmed and rejected results once to the right customers and hold
   expect(await deliverNextNotification(send, venueId)).toBe(true);
   expect(await deliverNextNotification(send, venueId)).toBe(true);
   expect(await deliverNextNotification(send, venueId)).toBe(false);
-  expect(messageAt(send, 0)).toMatchObject({ to: "booker", title: "ยืนยันการจองแล้ว" });
+  const date = new Intl.DateTimeFormat("th-TH-u-ca-gregory", { dateStyle: "medium", timeZone: "UTC" })
+    .format(new Date(`${bookingNight}T00:00:00Z`));
+  expect(messageAt(send, 0)).toMatchObject({ to: "booker", title: "ยืนยันการจองแล้ว",
+    contents: expect.arrayContaining([
+      expect.objectContaining({ text: `วันจอง ${date}` }),
+      expect.objectContaining({ text: "เวลา 18:00 น." }),
+      expect.objectContaining({ text: "สถานที่จอง Notification test" }),
+      expect.objectContaining({ text: "99 ถนนสุขุมวิท" }),
+    ]) });
   expect(messageAt(send, 1)).toMatchObject({ to: "newcomer", title: "จองไม่สำเร็จ" });
   expect(messageAt(send, 1).contents).toContainEqual(expect.objectContaining({ text: "โต๊ะที่เลือกไม่ว่าง" }));
 
@@ -186,6 +194,32 @@ it("delivers pending allocation, confirms allocation, then sends the closure can
   expect(await deliverNextNotification(send, owner.venueId)).toBe(true);
   expect(messageAt(send, 2)).toMatchObject({ to: "booker", title: "ยกเลิกการจองแล้ว",
     contents: expect.arrayContaining([expect.objectContaining({ text: "ร้านปิดคืนนี้: ซ่อมร้าน" })]) });
+});
+
+it("expedites only the allocated booking and skips its obsolete received retry", async () => {
+  const { owner, zone, customers, bookingNight, specialNight } = fixture;
+  const sql = db();
+  const unrelated = await book(customers.newcomer, specialNight);
+  await sql`insert into venue_settings (venue_id, allocation_mode) values (${owner.venueId}, 'manual')`;
+  const [request] = await sql<{ id: string }[]>`insert into booking_requests
+    (venue_id, customer_id, actor_type, actor_id, source, service_date, party_size, zone_id, party_bucket, idempotency_key, payload_hash, status)
+    values (${owner.venueId}, ${customers.booker}, 'customer', ${customers.booker}, 'liff', ${bookingNight}, 4, ${zone}, '1-4', ${randomUUID()}, 'line-test', 'queued') returning id`;
+  const { bookingId } = await decide(request.id);
+  expect(bookingId).toBeTruthy();
+  const send = mockLine();
+  expect(await deliverNextNotification(send, owner.venueId, bookingId!)).toBe(false);
+
+  await sql`update notification_outbox set next_attempt_at = now() + interval '1 hour', attempts = 1
+    where booking_id = ${bookingId} and kind = 'received'`;
+  const [allocated] = await sql`select allocate_booking(${owner.venueId}, ${bookingId}, ${owner.userId}, ${zone}) as code`;
+  expect(allocated.code).toBe("ALLOCATED");
+  expect(await deliverNextNotification(send, owner.venueId, bookingId!)).toBe(true);
+  expect(send).not.toHaveBeenCalled();
+  expect(await deliverNextNotification(send, owner.venueId, bookingId!)).toBe(true);
+  expect(messageAt(send, 0)).toMatchObject({ to: "booker", title: "ยืนยันการจองแล้ว" });
+  expect(await deliverNextNotification(send, owner.venueId, bookingId!)).toBe(false);
+  const [otherJob] = await sql`select status from notification_outbox where booking_id = ${unrelated.bookingId} and kind = 'confirmed'`;
+  expect(otherJob.status).toBe("pending");
 });
 
 it("commits the notification lease before I/O and recovers an expired lease with the same LINE retry key", async () => {

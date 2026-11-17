@@ -113,6 +113,10 @@ describe("mock cancellation", () => {
     expect((await (await cancel(who.cookie)).json()).error.code).toBe("CANCELLATION_CUTOFF_PASSED");
     const staff = await call(cancelByStaff, `/api/mock/admin/bookings/${id}`, { method: "PATCH", cookie, body: { status: "cancelled" } }, { id });
     expect((await staff.json()).booking.status).toBe("cancelled");
+    const history = await call(listBookings, "/api/mock/bookings", { cookie: who.cookie });
+    expect(await history.json()).toEqual({ bookings: [], nextOffset: null });
+    const adminList = await call(bookingsList, `/api/mock/admin/bookings?date=${today()}&status=cancelled`, { cookie });
+    expect(await adminList.json()).toMatchObject({ bookings: [{ id, status: "cancelled" }] });
     expect((await cancel(who.cookie)).status).toBe(200);
     expect((await reserve(await booker("Umock0002"), "zone-vip")).status).toBe(201);
   });
