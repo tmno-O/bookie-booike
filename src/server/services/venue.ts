@@ -7,6 +7,8 @@ import { db } from "@/lib/db";
 import { ApiError, notFound } from "@/lib/errors";
 import { liffChannel } from "@/lib/auth/line-verify";
 import { encryptSecret } from "@/lib/crypto";
+import { env } from "@/lib/env";
+import { checkMessagingToken } from "@/server/line-push";
 import type { Staff } from "@/lib/auth/staff-auth";
 import { staffAudit } from "./audit";
 import { bookingSchedule } from "./schedule";
@@ -178,6 +180,12 @@ export async function lineIntegration(venueId: string) {
 
 export async function saveLineIntegration(staff: Staff, patch: z.infer<typeof lineIntegrationPatch>) {
   if (!Object.keys(patch).length) throw new ApiError(400, "EMPTY_PATCH", "Provide a field to update");
+  // Refuse a token LINE does not accept, so every later notification is not skipped or dead.
+  if (patch.channelAccessToken && env().LINE_VERIFY_MODE === "real") {
+    const check = await checkMessagingToken(patch.channelAccessToken);
+    if (check.status === "invalid") throw new ApiError(422, "LINE_TOKEN_INVALID", "LINE ไม่ยอมรับ token นี้ กรุณาออก channel access token ใหม่จาก Messaging API channel");
+    if (check.status === "unavailable") throw new ApiError(503, "LINE_UNAVAILABLE", "ตรวจ token กับ LINE ไม่สำเร็จ กรุณาลองใหม่");
+  }
   await staffChange(staff, async (tx) => {
     const [old] = await tx`
       select provider_id, channel_id, liff_id, channel_secret_ciphertext, access_token_ciphertext

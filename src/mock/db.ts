@@ -31,6 +31,10 @@ export type ShopProfile = { name: string; phone: string; address: string; entryP
 export const DEFAULT_PROFILE: ShopProfile = {
   name: "ร้านตัวอย่าง", phone: "02 123 4567", address: "เชียงใหม่ ประเทศไทย", entryPolicy: "กรุณามาถึงตามเวลาที่ร้านกำหนด",
 };
+export type MockLineIntegration = { providerId: string; channelId: string; liffId: string; hasChannelSecret: boolean; hasAccessToken: boolean };
+export const DEFAULT_LINE_INTEGRATION: MockLineIntegration = {
+  providerId: "bookie-demo-provider", channelId: "1234567890", liffId: "1234567890-BookieDemo", hasChannelSecret: false, hasAccessToken: false,
+};
 export type Invite = { id: string; email: string; role: "staff"; createdAt: string };
 export type Db = {
   venue: {
@@ -48,6 +52,7 @@ export type Db = {
   announcements: { id: string; serviceDate: string; title: string; opensAt: string; recipients: string[] }[];
   announcementOptOut: string[];
   invites: Invite[];
+  lineIntegration: MockLineIntegration;
   floorPlan: { draft: FloorPlan | null; published: FloorPlan | null; publishedAt: string | null };
   bookings: Booking[];
   bookingAttempts: { customerId: string; key: string; payloadHash: string; bookingId: string }[];
@@ -98,6 +103,7 @@ export function seed(opts: { opensInSeconds?: number } = {}): Db {
     largePartyMode: "staff_review",
     announcements: [], announcementOptOut: [],
     invites: [],
+    lineIntegration: { ...DEFAULT_LINE_INTEGRATION },
     floorPlan: { draft: null, published: null, publishedAt: null },
     bookingAttempts: [],
     // Tonight's sample bookings (same as the admin designs). Pending requests do not hold a table until
@@ -128,6 +134,7 @@ async function load(): Promise<Db> {
     db.largePartyMode ??= "staff_review";
     db.announcements ??= []; db.announcementOptOut ??= [];
     db.invites ??= [];
+    db.lineIntegration ??= { ...DEFAULT_LINE_INTEGRATION };
     db.floorPlan ??= { draft: null, published: null, publishedAt: null }; // databases saved before floor plans existed
     const legacy = db.venue as Db["venue"] & { opensAt?: string };
     legacy.holdUntil ??= legacy.opensAt ?? new Date(0).toISOString();

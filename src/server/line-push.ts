@@ -39,3 +39,20 @@ export function sendLineMulticast(
   if (recipients.length > MULTICAST_LIMIT) throw new Error("Too many multicast recipients");
   return sendLine("multicast", sender, { to: recipients, messages }, send);
 }
+
+export type MessagingTokenCheck = { status: "valid"; botName: string | null } | { status: "invalid" | "unavailable" };
+
+/** Asks LINE which bot a Messaging API channel access token belongs to, so a wrong token is refused before it is saved. */
+export async function checkMessagingToken(token: string, send: typeof fetch = fetch): Promise<MessagingTokenCheck> {
+  let response: Response;
+  try {
+    response = await send("https://api.line.me/v2/bot/info", {
+      headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(5_000), cache: "no-store",
+    });
+  } catch { return { status: "unavailable" }; }
+  if (response.status === 401 || response.status === 403) return { status: "invalid" };
+  if (!response.ok) return { status: "unavailable" };
+  const info: unknown = await response.json().catch(() => null);
+  const botName = info && typeof info === "object" && "displayName" in info && typeof info.displayName === "string" ? info.displayName : null;
+  return { status: "valid", botName };
+}
