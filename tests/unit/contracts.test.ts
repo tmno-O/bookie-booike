@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 import { customerBookingInput, requestStatus } from "@/contracts/booking";
 import { errorResponse } from "@/contracts/common";
-import { availability, venuePublic } from "@/contracts/venue";
+import { availability, venueBookingProfile } from "@/contracts/venue";
 import booking from "../../docs/fixtures/booking-request.json";
 import status from "../../docs/fixtures/booking-status.json";
 import error from "../../docs/fixtures/error.json";
@@ -27,7 +27,7 @@ it("validates client fixtures", () => {
   expect(customerBookingInput.parse(booking)).toEqual(booking);
   expect(requestStatus.parse(status)).toEqual(status);
   expect(errorResponse.parse(error)).toEqual(error);
-  expect(venuePublic.parse(venue)).toEqual(venue);
+  expect(venueBookingProfile.parse(venue)).toEqual(venue);
   expect(availability.parse(tables)).toEqual(tables);
 });
 it("rejects legacy table selections and impossible dates", () => {

@@ -107,6 +107,7 @@ export const availabilityQuery = z.object({ date: serviceDate, partyBucket: part
 export const availability = z.object({
   venueId: id, serviceDate,
   nightOpen: z.boolean().optional(),
+  closed: z.boolean().optional(),
   opensAt: instant.optional(),
   zones: z.array(z.object({
     id, name: label, tablesLeft: z.number().int().nonnegative(), available: z.boolean(), closed: z.boolean(),
