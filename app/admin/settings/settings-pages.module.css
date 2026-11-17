@@ -71,3 +71,5 @@
 .bookingLink { margin-top: 24px; }
 .bookingLinkFields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 16px; }
 .bookingQr { display: block; margin-top: 16px; }
+.lineFacts { margin: 0; }
+.lineFacts dd { margin: 0; font-size: 14px; color: #25211f; overflow-wrap: anywhere; }

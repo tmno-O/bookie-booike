@@ -12,6 +12,7 @@ import { POST as lineLogin } from "../../app/api/mock/line/login/route";
 import { POST as lineLogout } from "../../app/api/mock/line/logout/route";
 import { GET as me } from "../../app/api/mock/me/route";
 import { POST as staffLogin } from "../../app/api/mock/admin/login/route";
+import { GET as lineGet, PATCH as linePatch } from "../../app/api/mock/admin/line-integration/route";
 import { GET as dashboard } from "../../app/api/mock/admin/dashboard/route";
 import { POST as staffBook } from "../../app/api/mock/admin/bookings/route";
 import { GET as bookingDetail } from "../../app/api/mock/admin/bookings/[id]/route";
@@ -873,5 +874,25 @@ describe("mock admin booking list", () => {
     expect(await names("")).not.toContain("คุณพรุ่งนี้");
     expect((await list(cookie, "?status=done")).status).toBe(400);
     expect((await list(cookie, "?date=tonight")).status).toBe(400);
+  });
+});
+
+describe("mock LINE settings", () => {
+  beforeEach(async () => { await call(resetDb, "/api/mock/reset", { method: "POST", body: {} }); });
+  const as = async (email: string) => cookieOf(await call(staffLogin, "/api/mock/admin/login", { method: "POST", body: { email } }));
+
+  it("lets only the owner set and remove the Messaging API token without returning it", async () => {
+    const staff = await as("staff@bookie.test");
+    expect((await call(lineGet, "/api/mock/admin/line-integration", { cookie: staff })).status).toBe(403);
+    const owner = await as("owner@bookie.test");
+    expect(await (await call(lineGet, "/api/mock/admin/line-integration", { cookie: owner })).json())
+      .toMatchObject({ integration: { hasAccessToken: false } });
+    const saved = await call(linePatch, "/api/mock/admin/line-integration", { method: "PATCH", cookie: owner, body: { channelAccessToken: "secret-token" } });
+    const text = await saved.text();
+    expect(text).not.toContain("secret-token");
+    expect(JSON.parse(text)).toMatchObject({ integration: { hasAccessToken: true } });
+    const removed = await call(linePatch, "/api/mock/admin/line-integration", { method: "PATCH", cookie: owner, body: { channelAccessToken: null } });
+    expect(await removed.json()).toMatchObject({ integration: { hasAccessToken: false } });
+    expect((await call(linePatch, "/api/mock/admin/line-integration", { method: "PATCH", cookie: owner, body: {} })).status).toBe(400);
   });
 });

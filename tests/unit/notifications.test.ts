@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { encryptSecret } from "@/lib/crypto";
-import { sendLineMulticast, sendLinePush } from "@/server/line-push";
+import { checkMessagingToken, sendLineMulticast, sendLinePush } from "@/server/line-push";
 import { bookingNoticeMessage, releaseNoticeMessage } from "@/server/notification-message";
 import { bookingAfterLogin, safeBookingLoginQuery } from "@/lib/booking-links";
 import { scheduleBookingConfirmation } from "@/server/services/notification-drain";
@@ -101,4 +101,17 @@ it("sends one multicast per batch with the batch id as retry key and caps recipi
   expect((await sendLineMulticast(sender, [], [], send)).status).toBe("skipped");
   expect(() => sendLineMulticast(sender, Array.from({ length: 501 }, (_, i) => `U${i}`), [], send)).toThrow();
   expect((await sendLineMulticast({ ...sender, accessTokenCiphertext: null }, ["U1"], [], send)).status).toBe("skipped");
+});
+
+describe("Messaging API token check", () => {
+  const reply = (status: number, body: unknown = {}) => (async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch;
+  it("accepts a token LINE recognises and reports the bot name", async () => {
+    expect(await checkMessagingToken("token", reply(200, { displayName: "Bookie" }))).toEqual({ status: "valid", botName: "Bookie" });
+  });
+  it("refuses a token LINE rejects and separates outages", async () => {
+    expect(await checkMessagingToken("token", reply(401))).toEqual({ status: "invalid" });
+    expect(await checkMessagingToken("token", reply(500))).toEqual({ status: "unavailable" });
+    expect(await checkMessagingToken("token", (async () => { throw new Error("offline"); }) as unknown as typeof fetch))
+      .toEqual({ status: "unavailable" });
+  });
 });

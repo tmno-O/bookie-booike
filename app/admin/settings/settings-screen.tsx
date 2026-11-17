@@ -7,6 +7,7 @@ import { AdminShell } from "../admin-shell";
 import TeamDialog from "../team-dialog";
 import { adminApi, asFailure, type Staff } from "../admin-api";
 import BookingLinkSettings from "./booking-link-settings";
+import LineSettings from "./line-settings";
 import styles from "../admin.module.css";
 import page from "./settings-pages.module.css";
 
@@ -131,6 +132,7 @@ export default function SettingsScreen() {
       </form>
 
       {canEdit && <BookingLinkSettings />}
+      {canEdit && <LineSettings />}
 
       <nav className={page.links} aria-label="การตั้งค่าเพิ่มเติม">
         <Link href="/admin/settings/hours" className={page.linkBtn}>เวลาเปิด–ปิดร้าน ›</Link>
