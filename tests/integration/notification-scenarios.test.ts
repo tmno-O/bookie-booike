@@ -7,6 +7,7 @@ import { customerAnnouncements, fanoutAnnouncement } from "@/server/services/ann
 import { addClosure, addSpecialHours, deleteSpecialHours, saveServiceHours } from "@/server/services/booking-hours";
 import { deliverNextAnnouncement } from "../../worker/announcements";
 import { deliverNextNotification } from "../../worker/notifications";
+import { flexTexts } from "@/server/notification-message";
 
 let fixture: Awaited<ReturnType<typeof setup>>;
 
@@ -115,7 +116,7 @@ async function saveReminders(patch: Record<string, number | boolean | null>) {
 function messageAt(send: ReturnType<typeof mockLine>, index: number) {
   const [url, init] = send.mock.calls[index];
   const { to, messages } = JSON.parse(String(init?.body));
-  return { url, to, title: messages[0].altText, contents: messages[0].contents.body.contents,
+  return { url, to, title: messages[0].altText, contents: flexTexts(messages[0]),
     retryKey: new Headers(init?.headers).get("X-Line-Retry-Key") };
 }
 
@@ -132,17 +133,14 @@ it("delivers confirmed and rejected results once to the right customers and hold
   expect(await deliverNextNotification(send, venueId)).toBe(true);
   expect(await deliverNextNotification(send, venueId)).toBe(true);
   expect(await deliverNextNotification(send, venueId)).toBe(false);
-  const date = new Intl.DateTimeFormat("th-TH-u-ca-gregory", { dateStyle: "medium", timeZone: "UTC" })
+  const date = new Intl.DateTimeFormat("th-TH-u-ca-gregory", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })
     .format(new Date(`${bookingNight}T00:00:00Z`));
   expect(messageAt(send, 0)).toMatchObject({ to: "booker", title: "ยืนยันการจองแล้ว",
     contents: expect.arrayContaining([
-      expect.objectContaining({ text: `วันจอง ${date}` }),
-      expect.objectContaining({ text: "เวลา 18:00 น." }),
-      expect.objectContaining({ text: "สถานที่จอง Notification test" }),
-      expect.objectContaining({ text: "99 ถนนสุขุมวิท" }),
+      "Notification test", "แล้วพบกันที่ Notification test", `วันที่ ${date}`, "เวลา 18:00 น.", "สถานที่ 99 ถนนสุขุมวิท",
     ]) });
   expect(messageAt(send, 1)).toMatchObject({ to: "newcomer", title: "จองไม่สำเร็จ" });
-  expect(messageAt(send, 1).contents).toContainEqual(expect.objectContaining({ text: "โต๊ะที่เลือกไม่ว่าง" }));
+  expect(messageAt(send, 1).contents).toContain("โต๊ะที่เลือกไม่ว่าง");
 
   const [job] = await db()`select n.id, n.status, n.next_attempt_at = b.service_at - interval '24 hours' as correct
     from notification_outbox n join bookings b on b.id = n.booking_id where n.booking_id = ${winner.bookingId} and n.kind = 'reminder'`;
@@ -193,7 +191,7 @@ it("delivers pending allocation, confirms allocation, then sends the closure can
   expect(closed.cancelledBookings).toBe(1);
   expect(await deliverNextNotification(send, owner.venueId)).toBe(true);
   expect(messageAt(send, 2)).toMatchObject({ to: "booker", title: "ยกเลิกการจองแล้ว",
-    contents: expect.arrayContaining([expect.objectContaining({ text: "ร้านปิดคืนนี้: ซ่อมร้าน" })]) });
+    contents: expect.arrayContaining(["ร้านปิดคืนนี้: ซ่อมร้าน"]) });
 });
 
 it("expedites only the allocated booking and skips its obsolete received retry", async () => {
@@ -371,7 +369,7 @@ it("schedules the day-of and cancellation-deadline notices and sends them when d
   const titles = await deliverAll(send);
   expect(titles.sort()).toEqual(["ใกล้หมดเวลายกเลิกการจอง", "วันนี้มีการจองของคุณ"].sort());
   const deadlineMessage = messageAt(send, send.mock.calls.findIndex((_, i) => messageAt(send, i).title === "ใกล้หมดเวลายกเลิกการจอง"));
-  expect(deadlineMessage.contents).toContainEqual(expect.objectContaining({ text: expect.stringMatching(/^ยกเลิกได้ถึง .+ เวลา 16:00 น\.$/) }));
+  expect(deadlineMessage.contents).toContainEqual(expect.stringMatching(/^ยกเลิกได้ถึง .+ เวลา 16:00 น\.$/));
 });
 
 it("drops before-visit notices when the booking is cancelled or the owner turns them off", async () => {

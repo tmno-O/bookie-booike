@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { encryptSecret } from "@/lib/crypto";
 import { checkMessagingToken, sendLineMulticast, sendLinePush } from "@/server/line-push";
-import { bookingNoticeMessage, releaseNoticeMessage } from "@/server/notification-message";
+import { bookingNoticeMessage, flexTexts, releaseNoticeMessage } from "@/server/notification-message";
 import { bookingAfterLogin, safeBookingLoginQuery } from "@/lib/booking-links";
 import { scheduleBookingConfirmation } from "@/server/services/notification-drain";
 import { GET, POST } from "../../app/api/internal/notifications/drain/route";
@@ -54,18 +54,17 @@ it("builds a pending-booking message with the venue, reservation details and LIF
   const message = bookingNoticeMessage({ kind: "received", name: "ร้านตัวอย่าง", slug: "test-store", liffId: "123-abc",
     serviceDate: "2026-12-24", serviceTime: "20:30", zoneName: "VIP", partySize: 4, reference: "BL-2026-0001", resultCode: null, note: null });
   expect(message.altText).toBe("ได้รับคำขอ รอร้านยืนยัน");
-  expect(message.contents.body.contents).toEqual(expect.arrayContaining([
-    expect.objectContaining({ text: "ร้านตัวอย่าง" }), expect.objectContaining({ text: expect.stringMatching(/24.*ธ\.ค\..*20:30/) }),
-    expect.objectContaining({ text: "โซน VIP" }), expect.objectContaining({ text: "จำนวน 4 คน" }),
-    expect.objectContaining({ text: "เลขอ้างอิง BL-2026-0001" }),
+  expect(flexTexts(message)).toEqual(expect.arrayContaining([
+    "ร้านตัวอย่าง", expect.stringMatching(/^วันที่ .*24 ธ\.ค\./), "เวลา 20:30 น.", "โซน VIP", "จำนวน 4 คน", "เลขอ้างอิง", "BL-2026-0001",
   ]));
+  expect(message.contents.header.backgroundColor).toBe("#B7791F");
   expect(message.contents.footer?.contents[0].action.uri).toBe("https://liff.line.me/123-abc/?next=bookings");
 });
 
 it("localizes special releases and preserves only known booking destinations", () => {
   const message = releaseNoticeMessage({ title: "Festival", name: "Bookie", slug: "test-store", liffId: null,
     serviceDate: "2026-12-24", opensAt: new Date("2026-12-23T18:30:00Z"), timezone: "Asia/Bangkok", reminder: false }, "https://bookie.example");
-  expect(message.contents.body.contents).toContainEqual(expect.objectContaining({ text: expect.stringMatching(/^เปิดจอง 24.*01:30/) }));
+  expect(flexTexts(message)).toContainEqual(expect.stringMatching(/^เปิดจอง 24.*01:30/));
   expect(message.contents.footer?.contents[0].action.uri).toBe("https://bookie.example/book/test-store/select?date=2026-12-24");
   expect(bookingAfterLogin("test-store", "?next=select&date=2026-12-24")).toBe("/book/test-store/select?date=2026-12-24");
   expect(bookingAfterLogin("test-store", "?next=https://example.com")).toBe("/book/test-store/details");
@@ -123,8 +122,7 @@ describe("visit notices", () => {
     zoneName: "VIP", partySize: 4, reference: "BL-2026-0001", resultCode: null, note: null,
     venueAddress: "99 ถนนสุขุมวิท", entryPolicy: "กรุณามาก่อนเวลา 15 นาที", cancelByDate: "2026-12-01", cancelByTime: "17:00",
   };
-  const lines = (message: ReturnType<typeof bookingNoticeMessage>) =>
-    (message.contents.body.contents as { text: string }[]).map((line) => line.text);
+  const lines = flexTexts;
   const button = (message: ReturnType<typeof bookingNoticeMessage>) =>
     (message.contents as { footer?: { contents: { action: { label: string; uri: string } }[] } }).footer?.contents[0].action;
 
@@ -132,7 +130,7 @@ describe("visit notices", () => {
     const message = bookingNoticeMessage({ ...notice, kind: "day_of" });
     expect(message.altText).toBe("วันนี้มีการจองของคุณ");
     expect(lines(message)).toEqual(expect.arrayContaining([
-      "คืนนี้ เวลา 19:00 น.", "99 ถนนสุขุมวิท", "โซน VIP", "เลขอ้างอิง BL-2026-0001", "นโยบายเข้าร้าน: กรุณามาก่อนเวลา 15 นาที",
+      "พบกันคืนนี้ 19:00 น.", "สถานที่ 99 ถนนสุขุมวิท", "โซน VIP", "BL-2026-0001", "นโยบายเข้าร้าน: กรุณามาก่อนเวลา 15 นาที",
     ]));
     expect(button(message)).toMatchObject({ label: "ดูการจองของฉัน", uri: expect.stringContaining("liff.line.me/123-abc") });
   });
