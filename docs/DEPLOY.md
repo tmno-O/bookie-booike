@@ -93,9 +93,9 @@ Production ปฏิเสธ `LINE_VERIFY_MODE=mock` ลูกค้าจึ�
 
 ## 5. Booking and release notifications on Vercel
 
-Apply all pending migrations before deploying the current app. PR #22 introduced `20261117000100_fcfs_booking.sql`, `20261117000200_one_active_booking.sql`, `20261117000300_booking_opening.sql`, and `20261117000400_line_outbox_leases.sql`. Configure a Messaging API access token under the same LINE provider, `LINE_NOTIFICATIONS_ENABLED=true`, `LINE_VERIFY_MODE=real`, and a random `CRON_SECRET` of at least 32 characters in Vercel. Set `BOOKING_PUBLIC_ORIGIN` to the public HTTPS site origin if the default Vercel production domain is unsuitable for links. In-app announcements work when push is disabled.
+Apply all pending migrations before deploying the current app. PR #22 introduced `20261117000100_fcfs_booking.sql`, `20261117000200_one_active_booking.sql`, `20261117000300_booking_opening.sql`, and `20261117000400_line_outbox_leases.sql`. `20261118000200_line_notifications_due.sql` adds the due-work check used by the cron job below. Configure a Messaging API access token under the same LINE provider, `LINE_NOTIFICATIONS_ENABLED=true`, `LINE_VERIFY_MODE=real`, and a random `CRON_SECRET` of at least 32 characters in Vercel. Set `BOOKING_PUBLIC_ORIGIN` to the public HTTPS site origin if the default Vercel production domain is unsuitable for links. In-app announcements work when push is disabled.
 
-Use one scheduler. Supabase Cron can call the existing POST endpoint every minute. Vercel Cron calls GET with `Authorization: Bearer $CRON_SECRET` and needs a plan that supports minute scheduling. Vercel Hobby supports daily jobs. See [Vercel Cron limits](https://vercel.com/docs/schedules/cron-jobs/usage-and-pricing).
+Use one scheduler. Supabase Cron can call the existing POST endpoint every 5 seconds, only while work is due. Vercel Cron calls GET with `Authorization: Bearer $CRON_SECRET` and needs a plan that supports minute scheduling. Vercel Hobby supports daily jobs. See [Vercel Cron limits](https://vercel.com/docs/schedules/cron-jobs/usage-and-pricing).
 
 Verify whether the job already exists before changing the production schedule:
 
@@ -104,10 +104,10 @@ select jobid, jobname, schedule, active
 from cron.job where jobname = 'bookie-notifications';
 ```
 
-Enable `pg_cron`, `pg_net`, and Vault in Supabase. Store the application URL and the same cron secret in Vault using the dashboard (names `bookie_app_url`, `bookie_cron_secret`). Schedule one POST per minute:
+Enable `pg_cron`, `pg_net`, and Vault in Supabase. Store the application URL and the same cron secret in Vault using the dashboard (names `bookie_app_url`, `bookie_cron_secret`). Check every 5 seconds and POST only when `line_notifications_due()` reports due work, so reminders and retries go out within seconds without a request every tick while idle. Running `cron.schedule` again with the same name replaces an existing per-minute job:
 
 ```sql
-select cron.schedule('bookie-notifications', '* * * * *', $job$
+select cron.schedule('bookie-notifications', '5 seconds', $job$
   select net.http_post(
     url := (select decrypted_secret from vault.decrypted_secrets where name = 'bookie_app_url')
       || '/api/internal/notifications/drain',
@@ -117,9 +117,12 @@ select cron.schedule('bookie-notifications', '* * * * *', $job$
     ),
     body := '{}'::jsonb,
     timeout_milliseconds := 25000
-  );
+  )
+  where public.line_notifications_due();
 $job$);
 ```
+
+Cancellations, closures that cancel bookings, booking decisions in `db` mode, and published special days also start a delivery right after the API responds, so those messages usually arrive within a few seconds. Cron delivers anything that start misses. Keep `LINE_NOTIFICATIONS_ENABLED=true` while this job runs: with push disabled, due jobs stay queued and the job POSTs every 5 seconds.
 
 The endpoint reserves roughly 20 seconds for deliveries. The worker commits an outbox lease before calling LINE and uses the same retry ID after a failure. Check Cron run history, the HTTP status from `pg_net`, and `GET /api/health` for aggregate outbox counts. Missing cron configuration returns 503, invalid credentials return 401, and disabled push preserves queued jobs. See [LINE notification audit](LINE_NOTIFICATIONS.md) for the rollout and smoke checks.
 

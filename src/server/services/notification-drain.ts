@@ -46,3 +46,33 @@ export async function drainNotifications(maxMs = 20_000) {
   }
   return { bookings, announcements };
 }
+
+export function lineDeliveryEnabled() {
+  const config = env();
+  return config.LINE_NOTIFICATIONS_ENABLED && config.LINE_VERIFY_MODE === "real";
+}
+
+let delivering: Promise<void> | undefined;
+
+/**
+ * Drain every due LINE notification (bookings, cancellations, reminders, announcements) at most once at a
+ * time per process, so a burst of requests shares one drain and its pooled connections. Row locks keep it
+ * safe alongside Supabase Cron, which delivers anything this misses.
+ */
+export function deliverDueNotifications(maxMs = 12_000) {
+  return delivering ??= drainNotifications(maxMs).then(() => undefined, (error: unknown) => {
+    console.error("LINE notification delivery deferred to cron", error instanceof Error ? error.name : "UnknownError");
+  }).finally(() => { delivering = undefined; });
+}
+
+/** Deliver due LINE notifications right after the response is sent instead of waiting for the next cron tick. */
+export function scheduleNotificationDelivery() {
+  if (!lineDeliveryEnabled()) return;
+  const run = () => deliverDueNotifications();
+  try {
+    after(run);
+  } catch {
+    // Outside a request scope (scripts and tests): run without blocking the caller.
+    void run();
+  }
+}

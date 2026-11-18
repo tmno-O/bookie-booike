@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { ApiError, notFound } from "@/lib/errors";
 import { staffAudit } from "./audit";
 import { fanoutAnnouncement } from "./announcements";
+import { scheduleNotificationDelivery } from "./notification-drain";
 import { changeRule, saveRuleVersion, staffChange } from "./venue";
 
 type Standard = z.infer<typeof standardHours>;
@@ -75,8 +76,8 @@ export async function saveOpenWeekdays(staff: Staff, openWeekdays: number[]) {
 export function saveServiceHours(staff: Staff, hours: z.infer<typeof serviceHoursInput>) {
   return changeRule(staff, { scope: "venue", ...hours, closed: false });
 }
-export function addClosure(staff: Staff, closure: z.infer<typeof closureInput>) {
-  return staffChange(staff, async (tx) => {
+export async function addClosure(staff: Staff, closure: z.infer<typeof closureInput>) {
+  const saved = await staffChange(staff, async (tx) => {
     const [window] = await tx`select ${closure.serviceDate}::date < today as past from booking_window(${staff.venueId})`;
     if (window.past) throw new ApiError(422, "DATE_IN_PAST", "คืนที่เลือกผ่านมาแล้ว");
     const [row] = await tx`
@@ -107,6 +108,8 @@ export function addClosure(staff: Staff, closure: z.infer<typeof closureInput>) 
       { ...closure, service_date: closure.serviceDate, activeBookings: active.length, cancelledBookings: cancelled });
     return { closure: (await closureRows(tx, staff.venueId)).find((c) => c.serviceDate === closure.serviceDate), cancelledBookings: cancelled };
   });
+  if (saved.cancelledBookings) scheduleNotificationDelivery();
+  return saved;
 }
 export function removeClosure(staff: Staff, serviceDate: string) {
   return staffChange(staff, async (tx) => {
@@ -153,7 +156,10 @@ export async function addSpecialHours(staff: Staff, special: Special) {
     return { announcementId: announcement?.id ?? null, special: { ...special, id: special.serviceDate, opensAt: row.opensAt } };
   });
   // Outside the venue lock: bookings keep flowing while the audience is queued.
-  if (saved.announcementId) await fanoutAnnouncement(saved.announcementId);
+  if (saved.announcementId) {
+    await fanoutAnnouncement(saved.announcementId);
+    scheduleNotificationDelivery();
+  }
   return { special: saved.special };
 }
 

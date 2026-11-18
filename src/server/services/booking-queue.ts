@@ -1,6 +1,7 @@
 import { after } from "next/server";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
+import { deliverDueNotifications, lineDeliveryEnabled } from "./notification-drain";
 
 type DrainOptions = { maxItems?: number; maxSeconds?: number; exclusive?: boolean };
 
@@ -25,12 +26,19 @@ export async function drainBookingQueue({ maxItems = 500, maxSeconds = 8, exclus
   }
 }
 
-/** In db mode, decide new requests right after the response is sent; Supabase Cron picks up anything missed. */
+/**
+ * In db mode, decide new requests right after the response is sent and deliver the resulting LINE messages;
+ * Supabase Cron picks up anything missed.
+ */
 export function scheduleBookingDrain() {
   if (env().QUEUE_DRIVER !== "db") return;
-  const run = () => drainBookingQueue({ exclusive: true }).catch((error: unknown) => {
-    console.error("Booking queue drain failed", error instanceof Error ? error.message : "UnknownError");
-  });
+  const run = async () => {
+    await drainBookingQueue({ exclusive: true }).catch((error: unknown) => {
+      console.error("Booking queue drain failed", error instanceof Error ? error.message : "UnknownError");
+    });
+    // Send the confirmation or rejection just decided without waiting for the next cron tick.
+    if (lineDeliveryEnabled()) await deliverDueNotifications();
+  };
   try {
     after(run);
   } catch {

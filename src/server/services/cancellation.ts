@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { ApiError, notFound } from "@/lib/errors";
 import { getBooking } from "./bookings";
+import { scheduleNotificationDelivery } from "./notification-drain";
 
 export async function cancelBooking(venueId: string, bookingId: string, type: "customer" | "staff", actorId: string) {
   const [result] = await db()<{
@@ -12,5 +13,6 @@ export async function cancelBooking(venueId: string, bookingId: string, type: "c
   if (result.code === "CUTOFF_PASSED") {
     throw new ApiError(409, "CANCELLATION_CUTOFF_PASSED", "The customer cancellation cutoff has passed");
   }
+  scheduleNotificationDelivery();
   return getBooking({ venueId, customerId: type === "customer" ? actorId : undefined }, bookingId);
 }
