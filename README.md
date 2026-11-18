@@ -126,3 +126,5 @@ docker exec supabase_db_Hackathon-Final psql -U postgres -d postgres -c "select 
 - ประวัติก่อน migration เก็บ hash ของข้อมูลเดิม และใช้ `created_at` เดิมแทน `received_at`; ไม่สามารถสร้างรายละเอียด/เวลาจริงย้อนหลังที่เดิมไม่ได้เก็บ
 
 ผลทดสอบ 5,000 คำขอหลังเพิ่ม audit และข้อจำกัดการเทียบ performance: [evidence/audit](docs/evidence/audit/README.md). ขั้นตอนติดตั้ง migrations และ notification Cron: [DEPLOY.md](docs/DEPLOY.md).
+
+.
